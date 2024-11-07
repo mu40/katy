@@ -32,4 +32,4 @@ env ruff check -q $files
 
 # Run all tests.
 echo "Running test suite"
-env pytest -q tests
+env pytest -q
