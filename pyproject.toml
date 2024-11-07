@@ -12,7 +12,8 @@ inline-quotes = 'single'
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ['F401']
-"README.md" = ['E501']
+"readme.md" = ['E501']
+"tests/*.py" = ['D103']
 
 [tool.ruff.lint.pydocstyle]
 convention = 'numpy'

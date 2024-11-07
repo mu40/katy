@@ -1,4 +1,4 @@
-"""Filtering functionality."""
+"""Filter module."""
 
 
 import torch
@@ -15,8 +15,6 @@ def gaussian_kernel(fwhm, width=None, dtype=None, device=None):
        Full width at half maximum.
     width : int, optional
         Kernel size. Defaults to `int(3 * sd) * 2 + 1`.
-    dtype : torch.dtype, optional
-        Data type of the kernel.
     device : torch.device, optional
         Device of the returned tensor.
 
@@ -33,7 +31,7 @@ def gaussian_kernel(fwhm, width=None, dtype=None, device=None):
         width = torch.round(3 * sd) * 2 + 1
     width = torch.as_tensor(width, device=sd.device).squeeze()
 
-    x = torch.arange(width, dtype=dtype, device=sd.device) - 0.5 * (width - 1)
+    x = torch.arange(width, device=sd.device) - 0.5 * (width - 1)
     kern = torch.exp(-0.5 * x.div(sd).pow(2))
     return kern.div(kern.sum())
 
@@ -48,7 +46,7 @@ def blur(x, fwhm, dim=None):
     x : torch.Tensor
        Input tensor.
     fwhm : float or tuple of float
-        Full widths at half maximum of the Gaussian.
+        Full widths at half maximum of the Gaussian. Apply to `dim`, in order.
     dim : int or tuple of int, optional
         Dimensions to blur along. None means all.
 
@@ -58,7 +56,7 @@ def blur(x, fwhm, dim=None):
         Blurred version of the input tensor.
 
     """
-    x = torch.as_tensor(x, dtype=torch.float32)
+    x = torch.as_tensor(x, dtype=torch.get_default_dtype())
 
     # Vector of dimensions.
     if dim is None:
@@ -72,7 +70,7 @@ def blur(x, fwhm, dim=None):
 
         # Move axis to end, make everything else batch, convolve, and restore.
         tmp = x.transpose(i, -1)
-        x = tmp.view(-1, 1, tmp.size(-1))
+        x = tmp.reshape(-1, 1, tmp.size(-1))
         x = torch.nn.functional.conv1d(x, kern, padding='same')
         x = x.view_as(tmp).transpose(i, -1)
 
