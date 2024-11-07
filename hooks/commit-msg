@@ -1,0 +1,17 @@
+#!/bin/sh
+
+# Spell-check the commit message.
+
+
+# Exit on error, stopping the commit.
+set -e
+
+
+# Wrap calls to run checks in container.
+sif="$HOME/l/sif/pytorch_2.5.1-cuda12.4-cudnn9-runtime.sif"
+env() { app_exec.sh "$sif" "$@" ; }
+
+
+# Run the spell checker.
+echo "Checking message"
+env typos "$1"
