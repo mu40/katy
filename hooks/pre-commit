@@ -20,13 +20,13 @@ env true
 
 # Spell-check staged files.
 echo "Running spell checker"
-files="$(git diff --staged --name-only --diff-filter=ACMRT)"
+files=$(git diff --staged --name-only --diff-filter=ACMRT)
 env typos $staged
 
 
 # Lint staged Python files.
 echo "Running linter"
-files="$(git diff --staged --name-only --diff-filter=ACMRT -- '*.py')"
+files=$(git diff --staged --name-only --diff-filter=ACMRT -- '*.py')
 env ruff check -q $files
 
 
