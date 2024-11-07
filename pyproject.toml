@@ -21,6 +21,3 @@ inline-quotes = 'single'
 
 [tool.ruff.lint.pydocstyle]
 convention = 'numpy'
-
-[tool.typos]
-default.extend-ignore-words-re = ['ND']

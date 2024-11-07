@@ -122,7 +122,7 @@ def integrate(x, steps, grid=None):
 
 
 def interpolate(x, points, method='linear', padding='zeros'):
-    """Interpolate an N-dimensional (ND) tensor at new locations.
+    """Interpolate an N-dimensional tensor at new locations.
 
     The function currently supports 2D and 3D inputs. For interpolation,
     it uses `torch.nn.functional.grid_sample` but expects zero-based indices
@@ -170,7 +170,7 @@ def interpolate(x, points, method='linear', padding='zeros'):
 
 
 def transform(x, trans, grid=None, method='linear', padding='zeros'):
-    """Apply an N-dimensional (ND) spatial transform to a tensor.
+    """Apply an N-dimensional spatial transform to a tensor.
 
     The function currently supports 2D and 3D inputs. For interpolation,
     it uses `torch.nn.functional.grid_sample` but expects index coordinates

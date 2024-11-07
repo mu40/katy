@@ -20,7 +20,7 @@ def gaussian_kernel(fwhm, width=None, dtype=None, device=None):
 
     Returns
     -------
-    kern : (width,) torch.Tensor
+    (width,) torch.Tensor
         Centered Gaussian kernelGaussian.
 
     """
