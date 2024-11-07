@@ -3,7 +3,6 @@
 
 ## Todo
 
-- PyTest
 - Perlin
 - Augmentation
 - Specialized data types
@@ -19,17 +18,24 @@
 - Explore with notebooks, process with scripts
 
 
-## Tools
+## Install tools
 
 ```sh
 pip install -U pytest ruff typos
 ```
 
 
-## Tests
+## Run checks
 
 ```sh
-pytest tests
+pytest tests/
 ruff check --watch
 typos
+```
+
+
+## Install pre-commit hook
+
+```sh
+cp hooks/pre-commit .git/hooks/pre-commit
 ```

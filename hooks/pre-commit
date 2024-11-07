@@ -1,0 +1,35 @@
+#!/bin/sh
+
+# Run the spell checker, linter, and test suite on every commit. The working
+# directory of this script will be the top level of the Git repository.
+
+
+# Exit on error, stopping the commit.
+set -e
+
+
+# Wrap calls to run checks in container.
+sif="$HOME/l/sif/pytorch_2.5.1-cuda12.4-cudnn9-runtime.sif"
+env() { app_exec.sh "$sif" "$@" ; }
+
+
+# Test container.
+echo "Testing container"
+env true
+
+
+# Spell-check staged files.
+echo "Running spell checker"
+files="$(git diff --staged --name-only --diff-filter=ACMRT)"
+env typos $staged
+
+
+# Lint staged Python files.
+echo "Running linter"
+files="$(git diff --staged --name-only --diff-filter=ACMRT -- '*.py')"
+env ruff check -q $files
+
+
+# Run all tests.
+echo "Running test suite"
+env pytest -q tests
