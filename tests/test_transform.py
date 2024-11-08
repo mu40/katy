@@ -116,7 +116,7 @@ def test_compose_rotation_direction_3d():
             assert out[k].sign() == deg.sign()
 
 
-def test_decompose_rotation_size():
+def test_decompose_rotation():
     """Test if decomposing a rotation matrix recovers angles."""
     # Angles in [-30, 30] degree range avoid differences from periodicity.
     ang = torch.rand(134, 2345, 3, dtype=torch.float64)
