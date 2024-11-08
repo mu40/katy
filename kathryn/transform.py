@@ -313,7 +313,7 @@ def decompose_rotation(mat, deg=True):
     Raises
     ------
     ValueError
-        If N is not 2 or 3.
+        For inputs that are not square matrices or if N is not 2 or 3.
 
     Returns
     -------
@@ -322,7 +322,10 @@ def decompose_rotation(mat, deg=True):
 
     """
     mat = torch.as_tensor(mat, dtype=torch.float64)
-    dim = mat.size(-2)
+    dim = mat.size(-1)
+
+    if mat.dim() < 2 or mat.size(-2) != dim or dim not in (2, 3):
+        raise ValueError(f'Size {mat.shape} is not (..., 2, 2) or (..., 3, 3)')
 
     if dim == 2:
         y = mat[..., 1, 0]
