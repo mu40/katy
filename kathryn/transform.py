@@ -22,7 +22,7 @@ def grid(size, dim=0, **kwargs):
     """
     size = torch.as_tensor(size, dtype=torch.int32).ravel()
     grid = (torch.arange(s, **kwargs) for s in size)
-    grid = torch.meshgrid(*grid)
+    grid = torch.meshgrid(*grid, indexing='ij')
     return grid if dim is None else torch.stack(grid, dim=dim)
 
 
