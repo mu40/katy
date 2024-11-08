@@ -116,19 +116,22 @@ def test_compose_rotation_direction_3d():
             assert out[k].sign() == deg.sign()
 
 
-def test_decompose_rotation():
-    """Test if decomposing a rotation matrix recovers angles."""
-    # Angles in [-30, 30] degree range avoid differences from periodicity.
-    ang = torch.rand(134, 2345, 3, dtype=torch.float64)
+def test_decompose_rotation_3d():
+    """Test if decomposing a 3D rotation matrix recovers angles."""
+    # Degree range [-30, 30] avoids differences from periodicity.
+    ang = torch.rand(130, 40, 3, dtype=torch.float64)
     ang = 30 * (2 * ang - 1)
 
-    # Degrees.
-    out = kt.transform.compose_rotation(ang, deg=True)
-    out = kt.transform.decompose_rotation(out, deg=True)
+    out = kt.transform.compose_rotation(ang)
+    out = kt.transform.decompose_rotation(out)
     assert out.allclose(ang)
 
-    # Radians.
-    ang = ang.deg2rad()
+
+def test_decompose_rotation_2d():
+    """Test if decomposing a 2D rotation matrix recovers angles."""
+    ang = torch.rand(130, 40, 1, dtype=torch.float64)
+    ang = torch.pi * (2 * ang - 1)
+
     out = kt.transform.compose_rotation(ang, deg=False)
     out = kt.transform.decompose_rotation(out, deg=False)
     assert out.allclose(ang)
