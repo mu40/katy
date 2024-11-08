@@ -362,3 +362,105 @@ def decompose_rotation(mat, deg=True):
         ang = torch.stack((ang1, ang2, ang3), dim=-1)
 
     return torch.rad2deg(ang) if deg else ang
+
+
+def compose_affine(
+    shift=None,
+    angle=None,
+    scale=None,
+    shear=None,
+    deg=True,
+    device=None,
+):
+    """Compose N-dimensional matrix transforms.
+
+    The function composes 2D or 3D matrix transforms from parameters defining
+    translation, rotation, scaling, and shear. Specify at least one parameter.
+    Parameters can have any batch dimensions, but they must be broadcastable.
+
+    Parameters
+    ----------
+    shift : (..., N) torch.Tensor, optional
+        Translation vector.
+    angle : (..., M) torch.Tensor, optional
+        Rotation angles. M is 3 in 3D and 1 in 2D.
+    scale : (..., N) torch.Tensor, optional
+        Scaling factors.
+    shear : (..., M) torch.Tensor, optional
+        Shearing factors. M is 3 in 3D and 1 in 2D.
+    deg : bool, optional
+        Interpret the rotation angles as degrees.
+    device : torch.device, optional
+        Device of the returned tensor.
+
+    Raises
+    ------
+    ValueError
+        If all parameters are None or their shapes are incompatible.
+
+    Returns
+    -------
+    (..., N + 1, N + 1) torch.Tensor
+        Matrix transforms.
+
+    """
+    prop = dict(dtype=torch.float64, device=device)
+
+    def conform(x, name, sizes, ndim=None):
+        # Conform to tensor of at least one dimension.
+        x = torch.as_tensor(x, **prop)
+        if x.ndim == 0:
+            x = x.view(1)
+
+        # Validate size of trailing dimension.
+        n = 3 if x.size(-1) == 3 else 2
+        if ndim is not None and n != ndim:
+            raise ValueError(f'cannot mix {ndim}D with {n}D {name} size')
+        if x.size(-1) not in sizes:
+            raise ValueError(f'{name} size {x.size(-1)} is not in {sizes}')
+
+        return x, n
+
+    # Initialization. Start working with N-by-N matrices. Matrix
+    # multiplications will broadcast batch dimensions or error out.
+    ndim = None
+    out = None
+
+    if angle is not None:
+        angle, ndim = conform(angle, 'angle', sizes=(1, 3), ndim=ndim)
+        out = compose_rotation(angle, deg)
+
+    if scale is not None:
+        scale, ndim = conform(scale, 'scale', sizes=(2, 3), ndim=ndim)
+        mat = torch.diag_embed(scale)
+        out = mat if out is None else out @ mat
+
+    if shear is not None:
+        shear, ndim = conform(shear, 'shear', sizes=(1, 3), ndim=ndim)
+        i, j = torch.triu_indices(ndim, ndim, offset=1)
+        mat = torch.ones(size=(*shear.shape[:-1], ndim), **prop).diag_embed()
+        mat[..., i, j] = shear
+        out = mat if out is None else out @ mat
+
+    # Process shifts last.
+    if shift is not None:
+        shift, ndim = conform(shift, 'shift', sizes=(2, 3), ndim=ndim)
+
+        # Broadcast batch dimensions of shifts and any existing transform.
+        batch = shift.shape[:-1]
+        if out is not None:
+            batch = torch.broadcast_shapes(batch, out.shape[:-2])
+
+        # Copy into identity matrix of broadcasted batch size. Will require
+        # expanding first. Cheaper than multiplying or adding full matrices.
+        full = torch.ones(size=(*batch, ndim + 1), **prop).diag_embed()
+        full[..., :-1, -1] = shift.expand(*batch, -1)
+        if out is not None:
+            full[..., :-1, :-1] = out.expand(*batch, -1, -1)
+
+        out = full
+
+    if ndim is None:
+        raise ValueError('expected at least one specified parameter')
+
+    return out.type(torch.get_default_dtype())
