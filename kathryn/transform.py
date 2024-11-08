@@ -254,7 +254,7 @@ def compose_rotation(angle, deg=True):
         angle = angle.view(1)
 
     if deg:
-        angle = torch.deg2rad(angle)
+        angle = angle.deg2rad()
     c = torch.cos(angle)
     s = torch.sin(angle)
 
@@ -361,7 +361,7 @@ def decompose_rotation(mat, deg=True):
 
         ang = torch.stack((ang1, ang2, ang3), dim=-1)
 
-    return torch.rad2deg(ang) if deg else ang
+    return ang.rad2deg() if deg else ang
 
 
 def compose_affine(
