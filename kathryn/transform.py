@@ -220,3 +220,142 @@ def transform(x, trans, grid=None, method='linear', padding='zeros'):
         points = grid + trans
 
     return interpolate(x, points, method, padding)
+
+
+def compose_rotation(angle, deg=True):
+    """Compose an N-dimensional rotation matrices from angles.
+
+    The function composes intrinsic 2D or 3D rotation matrices in a
+    right-handed "ij-indexing" space. That is, rotations apply in the
+    body-centered frame of reference. With your right thumb indicating the
+    rotation axis, a positive angles describes a rotation in the direction
+    that the other fingers point to.
+
+    Parameters
+    ----------
+    angle : (..., M) torch.Tensor
+        Rotation angles of any batch dimensions. M is 1 in 2D and 3 in 3D.
+    deg : bool, optional
+        Interpret the rotation angles as degrees instead of radians.
+
+    Raises
+    ------
+    ValueError
+        If M is not 1 or 3.
+
+    Returns
+    -------
+    (..., N, N) torch.Tensor
+        Rotation matrices.
+
+    """
+    angle = torch.as_tensor(angle, dtype=torch.float64)
+    if angle.ndim == 0:
+        angle = angle.view(1)
+
+    if deg:
+        angle = torch.deg2rad(angle)
+    c = torch.cos(angle)
+    s = torch.sin(angle)
+
+    if angle.size(-1) == 1:
+        row_1 = torch.cat((c, -s), dim=-1)
+        row_2 = torch.cat((s, c), dim=-1)
+        return torch.stack((row_1, row_2), dim=-2)
+
+    elif angle.size(-1) == 3:
+        one = torch.tensor(1).expand(angle.shape[:-1])
+        zero = torch.tensor(0).expand(angle.shape[:-1])
+
+        row_1 = torch.stack((one, zero, zero), dim=-1)
+        row_2 = torch.stack((zero, c[..., 0], -s[..., 0]), dim=-1)
+        row_3 = torch.stack((zero, s[..., 0], c[..., 0]), dim=-1)
+        mat_x = torch.stack((row_1, row_2, row_3), dim=-2)
+
+        row_1 = torch.stack((c[..., 1], zero, s[..., 1]), dim=-1)
+        row_2 = torch.stack((zero, one, zero), dim=-1)
+        row_3 = torch.stack((-s[..., 1], zero, c[..., 1]), dim=-1)
+        mat_y = torch.stack((row_1, row_2, row_3), dim=-2)
+
+        row_1 = torch.stack((c[..., 2], -s[..., 2], zero), dim=-1)
+        row_2 = torch.stack((s[..., 2], c[..., 2], zero), dim=-1)
+        row_3 = torch.stack((zero, zero, one), dim=-1)
+        mat_z = torch.stack((row_1, row_2, row_3), dim=-2)
+
+        return mat_x @ mat_y @ mat_z
+
+    raise ValueError(f'Expected 1 or 3 angles, not {angle.size(-1)}')
+
+
+def decompose_rotation(mat, deg=True):
+    """Decompose an N-dimensional rotation matrix into Euler angles.
+
+    We decompose right-handed intrinsic rotations R = X @ Y @ Z, where X, Y,
+    and Z are matrices describing rotations about the x, y, and z-axis,
+    respectively. Labeling these axes 1-3, we want to decompose the matrix
+
+            [            c2*c3,             -c2*s3,      s2]
+        R = [ s1*s2*c3 + c1*s3,  -s1*s2*s3 + c1*c3,  -s1*c2],
+            [-c1*s2*c3 + s1*s3,   c1*s2*s3 + s1*c3,   c1*c2]
+
+    where si and ci are sine and cosine of the rotation angle about i. When
+    the rotation angle about the y-axis is 90 or -90 degrees, we run into
+    "gimbal lock". The system loses one degree of freedom, the solution is no
+    longer unique. In this case, we set angle 1 to zero and solve for angle 2.
+
+    Parameters
+    ----------
+    mat : (..., N, N) torch.Tensor
+        Rotation matrices of any batch dimensions, where N is 2 or 3.
+    deg : bool, optional
+        Return rotation angles in degrees instead of radians.
+
+    Raises
+    ------
+    ValueError
+        If N is not 2 or 3.
+
+    Returns
+    -------
+    (..., M) torch.Tensor
+        Rotation angles, where M is 3 in 3D and 1 in 2D.
+
+    """
+    mat = torch.as_tensor(mat, dtype=torch.float64)
+    dim = mat.size(-2)
+
+    if dim == 2:
+        y = mat[..., 1, 0]
+        x = mat[..., 0, 0]
+        ang = torch.atan2(y, x).unsqueeze(-1)
+
+    elif dim == 3:
+        ang2 = torch.asin(mat[..., 0, 2])
+
+        # Initialize, check if gimbal lock for each matrix. Reduce relative
+        # tolerance to improve precision.
+        ang1 = torch.zeros_like(ang2)
+        ang3 = torch.zeros_like(ang2)
+        lock = 0.5 * torch.tensor(torch.pi, dtype=mat.dtype)
+        ind = ang2.abs().isclose(lock, rtol=1e-8)
+
+        # Case abs(ang2) == 90 deg. Keep ang1 zero, as solution is not unique.
+        y = mat[..., 1, 0][ind]
+        x = mat[..., 1, 1][ind]
+        ang3[ind] = torch.atan2(y, x)
+
+        # Case abs(ang2) != 90 deg.
+        ind = ind.logical_not()
+        c2 = torch.cos(ang2[ind])
+        y = -mat[..., 1, 2][ind].div(c2)
+        x = mat[..., 2, 2][ind].div(c2)
+        ang1[ind] = torch.atan2(y, x)
+
+        # Other angle.
+        y = -mat[..., 0, 1][ind].div(c2)
+        x = mat[..., 0, 0][ind].div(c2)
+        ang3[ind] = torch.atan2(y, x)
+
+        ang = torch.stack((ang1, ang2, ang3), dim=-1)
+
+    return torch.rad2deg(ang) if deg else ang
