@@ -506,12 +506,12 @@ def decompose_affine(mat, deg=True):
 
     # Strip scaling. Shear as upper triangular part.
     strip = scale.diag_embed()
-    upper = strip.inverse() @ lower.T
+    upper = strip.inverse() @ lower.mT
     i, j = torch.triu_indices(ndim, ndim, offset=1)
     shear = upper[..., i, j]
 
     # Rotations after stripping scale and shear.
-    strip = compose_affine(scale=scale, shear=shear)[:-1, :-1]
+    strip = compose_affine(scale=scale, shear=shear)[..., :-1, :-1]
     mat = mat @ strip.type(mat.dtype).inverse()
     angle = decompose_rotation(mat, deg=deg)
 
