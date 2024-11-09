@@ -376,7 +376,7 @@ def compose_affine(
 
     The function composes 2D or 3D matrix transforms from parameters defining
     translation, rotation, scaling, and shear. Specify at least one parameter.
-    Parameters can have any batch dimensions, but they must be broadcastable.
+    Parameters can have any batch dimensions, but these must be broadcastable.
 
     Parameters
     ----------
@@ -421,14 +421,22 @@ def compose_affine(
 
         return x, n
 
-    # Initialization. Start working with N-by-N matrices. Matrix
-    # multiplications will broadcast batch dimensions or error out.
+    # Initialization. Start working with N-by-N matrices. Matrix product will
+    # broadcast batch dimensions or error out.
     ndim = None
     out = None
 
+    # Create identity matrix, so we have a transform carrying the batch size.
+    if shift is not None:
+        shift, ndim = conform(shift, 'shift', sizes=(2, 3), ndim=ndim)
+        out = torch.ones(size=(*shift.shape[:-1], ndim), **prop).diag_embed()
+
+    # Broadcast any batch size, avoiding unnecessary matrix operations.
     if angle is not None:
         angle, ndim = conform(angle, 'angle', sizes=(1, 3), ndim=ndim)
-        out = compose_rotation(angle, deg)
+        mat = compose_rotation(angle, deg)
+        shape = [] if out is None else out.shape
+        out = mat.expand(torch.broadcast_shapes(mat.shape, shape))
 
     if scale is not None:
         scale, ndim = conform(scale, 'scale', sizes=(2, 3), ndim=ndim)
@@ -442,25 +450,14 @@ def compose_affine(
         mat[..., i, j] = shear
         out = mat if out is None else out @ mat
 
-    # Process shifts last.
-    if shift is not None:
-        shift, ndim = conform(shift, 'shift', sizes=(2, 3), ndim=ndim)
-
-        # Broadcast batch dimensions of shifts and any existing transform.
-        batch = shift.shape[:-1]
-        if out is not None:
-            batch = torch.broadcast_shapes(batch, out.shape[:-2])
-
-        # Copy into identity matrix of broadcasted batch size. Will require
-        # expanding first. Cheaper than multiplying or adding full matrices.
-        full = torch.ones(size=(*batch, ndim + 1), **prop).diag_embed()
-        full[..., :-1, -1] = shift.expand(*batch, -1)
-        if out is not None:
-            full[..., :-1, :-1] = out.expand(*batch, -1, -1)
-
-        out = full
-
-    if ndim is None:
+    if out is None:
         raise ValueError('expected at least one specified parameter')
 
-    return out.type(torch.get_default_dtype())
+    # At this point, the transform has the final batch size. All we need to do
+    # is extend to size (..., N + 1, N + 1) and add any translations.
+    full = torch.ones(size=(*out.shape[:-2], ndim + 1), **prop).diag_embed()
+    full[..., :-1, :-1] = out
+    if shift is not None:
+        full[..., :-1, -1] = shift.expand(*out.shape[:-2], -1)
+
+    return full.type(torch.get_default_dtype())
