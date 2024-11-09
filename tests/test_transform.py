@@ -191,7 +191,7 @@ def test_decompose_affine():
     dtype = torch.float64
 
     for dim in (2, 3):
-        # Low angles avoid differences from periodicity, positive scaling.
+        # Low angles avoid differences from periodicity. Use positive scaling.
         num = 3 if dim == 3 else 1
         shift = torch.rand(*batch, dim, dtype=dtype).sub(0.5).mul(2) * 30
         angle = torch.rand(*batch, num, dtype=dtype).sub(0.5).mul(2) * 30
