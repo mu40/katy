@@ -147,8 +147,9 @@ def interpolate(x, points, method='linear', padding='zeros'):
 
     """
     # Inputs.
-    x = torch.as_tensor(x)
-    points = torch.as_tensor(points)
+    dtype = torch.get_default_dtype()
+    x = torch.as_tensor(x, dtype=dtype)
+    points = torch.as_tensor(points, dtype=dtype)
 
     # Convert to PyTorch's normalized coordinates. Using `align_corners=True`
     # should be slightly more efficient. The result will be identical here.
@@ -161,9 +162,9 @@ def interpolate(x, points, method='linear', padding='zeros'):
     # Finally, move the dimension indexing into spatial axes to end.
     ndim = x.dim() - 2
     batch = 1 if points.ndim < x.ndim else points.size(0)
-    tmp = points.expand(batch, ndim, -1)
+    tmp = points.view(batch, ndim, -1)
     tmp = conv[:ndim, :-1] @ tmp + conv[:ndim, -1:]
-    points = tmp.expand(x.shape[0], *points.shape[-ndim - 1:]).movedim(1, -1)
+    points = tmp.view(x.shape[0], *points.shape[-ndim - 1:]).movedim(1, -1)
 
     mode = 'bilinear' if method == 'linear' else method
     return torch.nn.functional.grid_sample(x, points, mode, padding, align)
