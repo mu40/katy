@@ -461,3 +461,60 @@ def compose_affine(
         full[..., :-1, -1] = shift.expand(*out.shape[:-2], -1)
 
     return full.type(torch.get_default_dtype())
+
+
+def decompose_affine(mat, deg=True):
+    """Derive affine parameters from N-dimensional matrix transforms.
+
+    The function composes 2D or 3D matrix transforms from parameters defining
+    translation, rotation, scaling, and shear. Specify at least one parameter.
+    Parameters can have any batch dimensions, but they must be broadcastable.
+
+    Parameters
+    ----------
+    mat : (..., N + 1, N + 1) torch.Tensor
+        Affine transform matrices of any batch dimensions, where N is 2 or 3.
+    deg : bool, optional
+        Return rotation angles in degrees instead of radians.
+
+    Raises
+    ------
+    ValueError
+         For inputs that are not square matrices or if N is not 2 or 3.
+
+    Returns
+    -------
+    tuple of (..., M) torch.Tensor
+        Parameters for shift, rotation, scaling, and shear. M is N for shift
+        and scaling. For rotation and shear, M is 1 in 2D and 3 in 3D.
+
+    """
+    mat = torch.as_tensor(mat, dtype=torch.float64)
+    ndim = mat.size(-1) - 1
+    if mat.dim() < 2 or mat.size(-2) != mat.size(-1) or ndim not in (2, 3):
+        raise ValueError(f'size {mat.shape} is not (..., 3, 3) or (..., 4, 4)')
+
+    # Translation.
+    shift = mat[..., :-1, -1]
+    mat = mat[..., :-1, :-1]
+
+    # import pdb; pdb.set_trace()
+    # Scaling. Fix negative determinants.
+    lower = torch.linalg.cholesky(mat.mT @ mat)
+    scale = lower.diagonal(dim1=-2, dim2=-1)
+    scale[..., 0] = scale[..., 0] * mat.det().sign()
+
+    # Strip scaling. Shear as upper triangular part.
+    strip = scale.diag_embed()
+    upper = strip.inverse() @ lower.T
+    i, j = torch.triu_indices(ndim, ndim, offset=1)
+    shear = upper[..., i, j]
+
+    # Rotations after stripping scale and shear.
+    strip = compose_affine(scale=scale, shear=shear)[:-1, :-1]
+    mat = mat @ strip.type(mat.dtype).inverse()
+    angle = decompose_rotation(mat, deg=deg)
+
+    # Output type.
+    out = (shift, angle, scale, shear)
+    return tuple(o.type(torch.get_default_dtype()) for o in out)
