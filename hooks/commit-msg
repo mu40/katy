@@ -12,6 +12,17 @@ sif="$HOME/l/sif/pytorch_2.5.1-cuda12.4-cudnn9-runtime.sif"
 env() { app_exec.sh "$sif" "$@" ; }
 
 
-# Run the spell checker.
 echo "Checking message"
+
+
+# Make sure it fits in one line on GitHub.
+max=60
+len=$(wc -m "$1" | awk '{print $1}')
+if [ "$len" -gt "$max" ]; then
+    echo "Message length is "$len" but should not exceed 60 characters"
+    exit 1
+fi
+
+
+# Run the spell checker.
 env typos "$1"
