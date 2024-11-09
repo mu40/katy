@@ -135,3 +135,81 @@ def test_decompose_rotation_2d_radians():
     out = kt.transform.compose_rotation(ang, deg=False)
     out = kt.transform.decompose_rotation(out, deg=False)
     assert out.allclose(ang)
+
+
+def test_compose_affine_values():
+    """Test creation of translation, rotation, scaling, and shear matrices."""
+    values = torch.arange(3, dtype=torch.get_default_dtype()) + 7
+
+    # Test 2D and 3D.
+    for dim in (2, 3):
+        # Translation.
+        inp = values[:dim]
+        out = torch.eye(dim + 1)
+        out[:dim, -1] = inp
+        assert kt.transform.compose_affine(shift=inp).allclose(out)
+
+        # Rotation.
+        inp = values[:1 if dim == 2 else 3]
+        out = torch.eye(dim + 1)
+        out[:dim, :dim] = kt.transform.compose_rotation(inp)
+        assert kt.transform.compose_affine(angle=inp).allclose(out)
+
+        # Scaling.
+        inp = values[:dim]
+        out = torch.eye(dim + 1)
+        out.diagonal()[:dim] = inp
+        assert kt.transform.compose_affine(scale=inp).allclose(out)
+
+        # Shear.
+        inp = values[:1 if dim == 2 else 3]
+        out = torch.eye(dim + 1)
+        out[*torch.triu_indices(dim, dim, offset=1)] = inp
+        assert kt.transform.compose_affine(shear=inp).allclose(out)
+
+
+def test_compose_affine_broadcasting():
+    """Test batch-size broadcasting for affine-matrix composition."""
+    # Test 2D and 3D.
+    for dim in (2, 3):
+        num = 3 if dim == 3 else 1
+        shift = torch.ones(         dim)
+        angle = torch.ones(   4, 6, num)
+        scale = torch.ones(2, 1, 6, dim)
+        shear = torch.ones(1, 4, 1, num)
+
+        input = (shift, angle, scale, shear)
+        shape = (f.shape[:-1] for f in input)
+        shape = torch.broadcast_shapes(*shape)
+        shape = (*shape, dim + 1, dim + 1)
+        assert kt.transform.compose_affine(*input).shape == shape
+
+
+def test_decompose_affine():
+    """Test if decomposing an affine transform recovers parameters."""
+    batch = (8, 8)
+    dtype = torch.float64
+
+    for dim in (2, 3):
+        # Low angles avoid differences from periodicity, positive scaling.
+        num = 3 if dim == 3 else 1
+        shift = torch.rand(*batch, dim, dtype=dtype).sub(0.5).mul(2) * 30
+        angle = torch.rand(*batch, num, dtype=dtype).sub(0.5).mul(2) * 30
+        scale = torch.rand(*batch, dim, dtype=dtype).add(0.5)
+        shear = torch.rand(*batch, num, dtype=dtype).sub(0.5)
+
+        inp = (shift, angle, scale, shear)
+        mat = kt.transform.compose_affine(*inp, dtype=dtype)
+        out = kt.transform.decompose_affine(mat, dtype=dtype)
+
+        print()
+        print('shift:', out[0].sub(inp[0]).abs().max().item())
+        print('angle:', out[1].sub(inp[1]).abs().max().item())
+        print('scale:', out[2].sub(inp[2]).abs().max().item())
+        print('shear:', out[3].sub(inp[3]).abs().max().item())
+        print()
+
+        assert out[0].allclose(inp[0])
+        assert out[1].allclose(inp[1])
+        assert out[2].allclose(inp[2])
+        assert out[3].allclose(inp[3])
