@@ -10,8 +10,9 @@ def test_interpolate_identity():
     size = (32, 16, 9)
 
     for dim in (2, 3):
-        grid = kt.transform.grid(size[:dim])
+        # Add singleton batch and channel dimensions.
         x = torch.rand(size[:dim]).unsqueeze(0).unsqueeze(0)
+        grid = kt.transform.grid(size[:dim])
 
         y = kt.transform.interpolate(x, grid, method='nearest')
         assert y.allclose(x)
