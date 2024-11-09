@@ -202,13 +202,6 @@ def test_decompose_affine():
         mat = kt.transform.compose_affine(*inp, dtype=dtype)
         out = kt.transform.decompose_affine(mat, dtype=dtype)
 
-        print()
-        print('shift:', out[0].sub(inp[0]).abs().max().item())
-        print('angle:', out[1].sub(inp[1]).abs().max().item())
-        print('scale:', out[2].sub(inp[2]).abs().max().item())
-        print('shear:', out[3].sub(inp[3]).abs().max().item())
-        print()
-
         assert out[0].allclose(inp[0])
         assert out[1].allclose(inp[1])
         assert out[2].allclose(inp[2])
