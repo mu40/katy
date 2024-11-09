@@ -71,7 +71,7 @@ def test_compose_rotation_direction_2d():
 
     """
     degrees = torch.tensor((1, -1))
-    vec = torch.tensor((1, 0), dtype=torch.float64)
+    vec = torch.tensor((1., 0.))
 
     for deg in degrees:
         x, y = out = kt.transform.compose_rotation(deg) @ vec
@@ -102,11 +102,11 @@ def test_compose_rotation_direction_3d():
 
         for deg in degrees:
             # Unit vector along j.
-            vec = torch.zeros(3, dtype=torch.float64)
+            vec = torch.zeros(3)
             vec[j] = 1
 
             # Rotation about i.
-            ang = torch.zeros(3, dtype=torch.float64)
+            ang = torch.zeros(3)
             ang[i] = deg
             out = kt.transform.compose_rotation(ang) @ vec
 
@@ -116,10 +116,10 @@ def test_compose_rotation_direction_3d():
             assert out[k].sign() == deg.sign()
 
 
-def test_decompose_rotation_3d():
+def test_decompose_rotation_3d_degrees():
     """Test if decomposing a 3D rotation matrix recovers angles."""
     # Degree range [-30, 30] avoids differences from periodicity.
-    ang = torch.rand(130, 40, 3, dtype=torch.float64)
+    ang = torch.rand(130, 40, 3)
     ang = 30 * (2 * ang - 1)
 
     out = kt.transform.compose_rotation(ang)
@@ -127,9 +127,9 @@ def test_decompose_rotation_3d():
     assert out.allclose(ang)
 
 
-def test_decompose_rotation_2d():
+def test_decompose_rotation_2d_radians():
     """Test if decomposing a 2D rotation matrix recovers angles."""
-    ang = torch.rand(130, 40, 1, dtype=torch.float64)
+    ang = torch.rand(130, 40, 1)
     ang = torch.pi * (2 * ang - 1)
 
     out = kt.transform.compose_rotation(ang, deg=False)

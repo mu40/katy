@@ -222,7 +222,7 @@ def transform(x, trans, grid=None, method='linear', padding='zeros'):
     return interpolate(x, points, method, padding)
 
 
-def compose_rotation(angle, deg=True):
+def compose_rotation(angle, deg=True, dtype=None):
     """Compose an N-dimensional rotation matrices from angles.
 
     The function composes intrinsic 2D or 3D rotation matrices in a
@@ -237,6 +237,8 @@ def compose_rotation(angle, deg=True):
         Rotation angles of any batch dimensions. M is 1 in 2D and 3 in 3D.
     deg : bool, optional
         Interpret the rotation angles as degrees instead of radians.
+    dtype : torch.dtype, optional
+        Output type.
 
     Raises
     ------
@@ -261,7 +263,7 @@ def compose_rotation(angle, deg=True):
     if angle.size(-1) == 1:
         row_1 = torch.cat((c, -s), dim=-1)
         row_2 = torch.cat((s, c), dim=-1)
-        return torch.stack((row_1, row_2), dim=-2)
+        out = torch.stack((row_1, row_2), dim=-2)
 
     elif angle.size(-1) == 3:
         one = torch.tensor(1).expand(angle.shape[:-1])
@@ -282,12 +284,18 @@ def compose_rotation(angle, deg=True):
         row_3 = torch.stack((zero, zero, one), dim=-1)
         mat_z = torch.stack((row_1, row_2, row_3), dim=-2)
 
-        return mat_x @ mat_y @ mat_z
+        out = mat_x @ mat_y @ mat_z
 
-    raise ValueError(f'Expected 1 or 3 angles, not {angle.size(-1)}')
+    else:
+        raise ValueError(f'Expected 1 or 3 angles, not {angle.size(-1)}')
+
+    if dtype is None:
+        dtype = torch.get_default_dtype()
+    return out.type(dtype)
 
 
-def decompose_rotation(mat, deg=True):
+
+def decompose_rotation(mat, deg=True, dtype=None):
     """Decompose an N-dimensional rotation matrix into Euler angles.
 
     We decompose right-handed intrinsic rotations R = X @ Y @ Z, where X, Y,
@@ -309,6 +317,8 @@ def decompose_rotation(mat, deg=True):
         Rotation matrices of any batch dimensions, where N is 2 or 3.
     deg : bool, optional
         Return rotation angles in degrees instead of radians.
+    dtype : torch.dtype, optional
+        Output type.
 
     Raises
     ------
@@ -361,7 +371,10 @@ def decompose_rotation(mat, deg=True):
 
         ang = torch.stack((ang1, ang2, ang3), dim=-1)
 
-    return ang.rad2deg() if deg else ang
+    if dtype is None:
+        dtype = torch.get_default_dtype()
+
+    return (ang.rad2deg() if deg else ang).type(dtype)
 
 
 def compose_affine(
@@ -370,6 +383,7 @@ def compose_affine(
     scale=None,
     shear=None,
     deg=True,
+    dtype=None,
     device=None,
 ):
     """Compose N-dimensional matrix transforms.
@@ -390,6 +404,8 @@ def compose_affine(
         Shearing factors. M is 3 in 3D and 1 in 2D.
     deg : bool, optional
         Interpret the rotation angles as degrees.
+    dtype : torch.dtype, optional
+        Output type.
     device : torch.device, optional
         Device of the returned tensor.
 
@@ -434,7 +450,7 @@ def compose_affine(
     # Broadcast any batch size, avoiding unnecessary matrix operations.
     if angle is not None:
         angle, ndim = conform(angle, 'angle', sizes=(1, 3), ndim=ndim)
-        mat = compose_rotation(angle, deg)
+        mat = compose_rotation(angle, deg, dtype=prop['dtype'])
         shape = [] if out is None else out.shape
         out = mat.expand(torch.broadcast_shapes(mat.shape, shape))
 
@@ -455,15 +471,16 @@ def compose_affine(
 
     # At this point, the transform has the final batch size. All we need to do
     # is extend to size (..., N + 1, N + 1) and add any translations.
+    prop['dtype'] = torch.get_default_dtype() if dtype is None else dtype
     full = torch.ones(size=(*out.shape[:-2], ndim + 1), **prop).diag_embed()
     full[..., :-1, :-1] = out
     if shift is not None:
         full[..., :-1, -1] = shift.expand(*out.shape[:-2], -1)
 
-    return full.type(torch.get_default_dtype())
+    return full
 
 
-def decompose_affine(mat, deg=True):
+def decompose_affine(mat, deg=True, dtype=None):
     """Derive affine parameters from N-dimensional matrix transforms.
 
     The function composes 2D or 3D matrix transforms from parameters defining
@@ -476,6 +493,8 @@ def decompose_affine(mat, deg=True):
         Affine transform matrices of any batch dimensions, where N is 2 or 3.
     deg : bool, optional
         Return rotation angles in degrees instead of radians.
+    dtype : torch.dtype, optional
+        Output type.
 
     Raises
     ------
@@ -511,10 +530,12 @@ def decompose_affine(mat, deg=True):
     shear = upper[..., i, j]
 
     # Rotations after stripping scale and shear.
-    strip = compose_affine(scale=scale, shear=shear)[..., :-1, :-1]
-    mat = mat @ strip.type(mat.dtype).inverse()
+    strip = compose_affine(scale=scale, shear=shear, dtype=mat.dtype)
+    mat = mat @ strip[..., :-1, :-1].inverse()
     angle = decompose_rotation(mat, deg=deg)
 
-    # Output type.
+    if dtype is None:
+        dtype = torch.get_default_dtype()
+
     out = (shift, angle, scale, shear)
-    return tuple(o.type(torch.get_default_dtype()) for o in out)
+    return tuple(o.type(dtype) for o in out)
