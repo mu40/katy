@@ -6,6 +6,7 @@
 - Perlin
 - Augmentation
 - Specialized data types
+- Compose with `index_to_torch` in `transform`, and/or remove `interpolate`?
 
 
 ## Principles

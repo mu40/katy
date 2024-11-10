@@ -45,9 +45,9 @@ def blur(x, fwhm, dim=None):
     ----------
     x : torch.Tensor
        Input tensor.
-    fwhm : float or tuple of float
+    fwhm : float or sequence of float
         Full widths at half maximum of the Gaussian. Apply to `dim`, in order.
-    dim : int or tuple of int, optional
+    dim : int or sequence of int, optional
         Dimensions to blur along. None means all.
 
     Returns

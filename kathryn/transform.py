@@ -136,10 +136,10 @@ def interpolate(x, points, method='linear', padding='zeros'):
     points : (..., N, *size_out) torch.Tensor
        New index coordinates to sample the input data at. The batch dimension
        has to broadcast to `B`, `size_out` be of length `N`.
-    method : str, optional
-        Interpolation method, 'nearest' or 'linear'.
-    padding : str, optional
-        Extrapolation method: 'zeros', 'border', or 'reflection'.
+    method : {'linear', 'nearest'}, optional
+        Interpolation method.
+    padding : {'zeros', 'border', 'reflection'}, optional
+        Extrapolation method.
 
     Returns
     -------
@@ -186,10 +186,10 @@ def transform(x, trans, grid=None, method='linear', padding='zeros'):
         Displacement field or matrix transform. Batch must broadcast to `x`.
     grid : (N, *size_out) torch.Tensor, optional
        Index coordinate grid. For efficiency and controlling `size_out`.
-    method : str, optional
-        Interpolation method, 'nearest' or 'linear'.
-    padding : str, optional
-        Extrapolation method: 'zeros', 'border', or 'reflection'.
+    method : {'linear', 'nearest'}, optional
+        Interpolation method.
+    padding : {'zeros', 'border', 'reflection'}, optional
+        Extrapolation method.
 
     Returns
     -------
@@ -239,7 +239,7 @@ def compose_rotation(angle, deg=True, dtype=None):
     angle : (..., M) torch.Tensor
         Rotation angles of any batch dimensions. M is 1 in 2D and 3 in 3D.
     deg : bool, optional
-        Interpret the rotation angles as degrees instead of radians.
+        Interpret angles as degrees instead of radians.
     dtype : torch.dtype, optional
         Output type.
 
@@ -319,7 +319,7 @@ def decompose_rotation(mat, deg=True, dtype=None):
     mat : (..., N, N) torch.Tensor
         Rotation matrices of any batch dimensions, where N is 2 or 3.
     deg : bool, optional
-        Return rotation angles in degrees instead of radians.
+        Return angles in degrees instead of radians.
     dtype : torch.dtype, optional
         Output type.
 
@@ -406,7 +406,7 @@ def compose_affine(
     shear : (..., M) torch.Tensor, optional
         Shearing factors. M is 3 in 3D and 1 in 2D.
     deg : bool, optional
-        Interpret the rotation angles as degrees.
+        Interpret angles as degrees instead of radians.
     dtype : torch.dtype, optional
         Output type.
     device : torch.device, optional
@@ -495,7 +495,7 @@ def decompose_affine(mat, deg=True, dtype=None):
     mat : (..., N + 1, N + 1) torch.Tensor
         Affine transform matrices of any batch dimensions, where N is 2 or 3.
     deg : bool, optional
-        Return rotation angles in degrees instead of radians.
+        Return angles in degrees instead of radians.
     dtype : torch.dtype, optional
         Output type.
 
