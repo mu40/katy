@@ -111,7 +111,7 @@ def integrate(x, steps, grid=None):
         return x
 
     if grid is None:
-        grid = grid(x.shape[2:], device=x.device)
+        grid = kt.transform.grid(x.shape[2:], device=x.device)
 
     # Avoid in-place addition for gradients. Re-use border values for
     # extrapolation instead of zeros, to avoid steep cliffs.
