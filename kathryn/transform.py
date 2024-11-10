@@ -2,6 +2,7 @@
 
 
 import torch
+import kathryn as kt
 
 
 def grid(size, dim=0, **kwargs):
@@ -198,23 +199,24 @@ def transform(x, trans, grid=None, method='linear', padding='zeros'):
 
     """
     # Inputs.
-    x = torch.as_tensor(x)
-    trans = torch.as_tensor(trans)
+    dtype = torch.get_default_dtype()
+    x = torch.as_tensor(x, dtype=dtype)
+    trans = torch.as_tensor(trans, dtype=dtype)
 
     # Grid.
     size = x.shape[2:]
     if grid is None:
-        grid = grid(size, device=x.device)
+        grid = kt.transform.grid(size, dtype=x.dtype, device=x.device)
 
     # For matrices, reshape grid to [P, N, voxels], where P is 1 or the batch
     # size of the transform (if present) but not B, to keep the number of
     # batches that undergo coordinate conversion in `interpolate` low.
-    ndim = size.numel()
+    ndim = len(size)
     if trans.size(-1) == trans.size(-2) == ndim + 1:
         batch = 1 if trans.ndim == 2 else trans.size(0)
-        points = grid.expand(batch, ndim, -1)
+        points = grid.view(batch, ndim, -1)
         points = trans[..., :ndim, :-1] @ points + trans[..., :ndim, -1:]
-        points = points.expand(points.size(0), *grid.shape)
+        points = points.view(points.size(0), *grid.shape)
 
     # Add displacement.
     else:
