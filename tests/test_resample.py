@@ -43,7 +43,7 @@ def test_transform_identity():
 
 
 def test_transform_shift():
-    """Test if shifting equivalent to rolling, except at the border."""
+    """Test if shifting is equivalent to rolling, except at the border."""
     size = (10, 10, 10)
     shift = 2
 
