@@ -58,3 +58,31 @@ def test_transform_shift():
         # Roll volume by the same amount. Remove border from comparison.
         ref = inp.roll(-shift, dims=-1)
         assert out[..., :-shift].allclose(ref[..., :-shift])
+
+
+def test_integrate():
+    """Test if integrating a negated SVF yields the inverse warp."""
+    fov = 128
+    fwhm = fov / 4
+    steps = 7
+    dim = 2
+    size = [fov] * dim
+
+    # Smooth SVF of maximum amplitude 1.
+    svf = torch.randn(4, dim, *size)
+    svf = kt.filter.blur(svf, fwhm, dim=(-3, -2, -1))
+    svf /= svf.norm(dim=1).max()
+
+    # Integrate, compose, compute norm.
+    fw = kt.transform.integrate(+svf, steps)
+    bw = kt.transform.integrate(-svf, steps)
+    out = kt.transform.compose((fw, bw))
+    out = torch.linalg.vector_norm(out, dim=1)
+
+    # Ignore border values.
+    ind = torch.arange(1, fov - 1)
+    for i in range(dim):
+        out = out.index_select(dim=i + 1, index=ind)
+
+    # Composition should yield identity. Expect less than 1% of maximum shift.
+    assert out.max() < 0.01
