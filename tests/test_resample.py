@@ -7,14 +7,22 @@ import kathryn as kt
 
 def test_interpolate_identity():
     """Test interpolation at the grid locations."""
-    size = (32, 16, 9)
+    size = (8, 8, 8)
 
     for dim in (2, 3):
-        # Add singleton batch and channel dimensions.
-        inp = torch.rand(size[:dim]).unsqueeze(0).unsqueeze(0)
+        # Data of shape: batch, channels, space.
+        inp = torch.rand(5, 4, *size[:dim])
         grid = kt.transform.grid(size[:dim])
+
+        # Coordinates without batch dimension.
         out = kt.transform.interpolate(inp, grid)
         assert out.allclose(inp, atol=1e-5)
+
+        # Coordinates with batch dimension.
+        grid = grid.unsqueeze(0)
+        out = kt.transform.interpolate(inp, grid)
+        assert out.allclose(inp, atol=1e-5)
+
 
 
 def test_transform_identity():
