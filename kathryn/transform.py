@@ -87,10 +87,6 @@ def integrate(x, steps, grid=None):
 
     Implements the "scaling and squaring" algorithm.
 
-    You can pass an existing mesh grid, for efficiency. The shape of the grid
-    must match the shape of a displacement field. For matrices, it controls
-    the spatial shape of the output, which defaults to the input shape.
-
     Parameters
     ----------
     x : (B, N, *size) torch.Tensor
@@ -98,7 +94,7 @@ def integrate(x, steps, grid=None):
     steps : int
         Number of integration steps.
     grid : (N, *size) torch.Tensor, optional
-       Index coordinate grid.
+       Index coordinate grid, for efficiency.
 
     Returns
     -------
@@ -542,3 +538,135 @@ def decompose_affine(mat, deg=True, dtype=None):
 
     out = (shift, angle, scale, shear)
     return tuple(o.type(dtype) for o in out)
+
+
+def grid_matmul(x, matrix):
+    """Apply an N-dimensional matrix transform to a coordinate grid.
+
+    Parameters
+    ----------
+    x : (..., N, *size) torch.Tensor
+        Coordinates of spatial `N`-element shape `size` and any batch sizes.
+    matrix : (..., N + 1, N + 1) torch.Tensor
+        Matrix transform. Batch sizes must broadcast.
+
+    Returns
+    -------
+    (..., N, *size) torch.Tensor
+        Transformed grid.
+
+    """
+    x = torch.as_tensor(x)
+    matrix = torch.as_tensor(matrix)
+
+    # Dimensions.
+    ndim = matrix.size(-1) - 1
+    size = x.shape[-ndim:]
+
+    # Matrix-vector product.
+    x = x.view(*x.shape[:-ndim], -1)
+    x = matrix[:-1, :-1] @ x + matrix[:-1, -1:]
+    return x.view(*x.shape[:-ndim], *size)
+
+
+def is_matrix(x):
+    """Determine if a tensor is a 2D or 3D matrix transform.
+
+    Parameters
+    ----------
+    x : torch.Tensor
+        Input tensor.
+
+    Returns
+    -------
+    bool
+        True if the input is of shape (..., N + 1, N + 1), where N is 2 or 3.
+
+    """
+    return x.ndim > 1 and x.size(-2) == x.size(-1) and x.size(-1) in (2, 3)
+
+
+def compose(trans, grid=None, absolute=False):
+    """Compose a series of N-dimensional transforms.
+
+    Combines a sequence of 2D or 3D transforms into a single output. The order
+    of composition is such that for an image, the first transform will apply
+    first. For coordinates, the last transform will apply first.
+
+    Pass a coordinate grid for efficiency or to set the spatial output shape
+    when the right-most transform is a matrix. Otherwise, the shape defaults
+    to the right-most displacement field, and a grid shape must be compatible.
+
+    Parameters
+    ----------
+    trans : torch.Tensor or sequence of torch.Tensor
+        Matrices or displacement fields with or without batch dimension.
+    grid : (N, *size) torch.Tensor, optional
+        Index coordinate grid, where `size` has `N` elements.
+    absolute : bool, optional
+        Return coordinates instead of displacements, if the output is a field.
+
+    Returns
+    -------
+    torch.Tensor
+        Composite transform. Will be a matrix of shape `(..., N + 1, N + 1)`
+        if all inputs are matrices and there is no grid. Otherwise, it will be
+        a displacement or coordinate grid of shape `(..., N, *size)`.
+
+    """
+    if isinstance(trans, torch.Tensor):
+        trans = [trans]
+
+    # Traverse transforms from right to left.
+    trans = list(reversed(trans))
+    if not trans:
+        raise ValueError('cannot compose an empty list of transforms')
+
+    # Create grid if needed. That is, either we have several transforms, and
+    # at least one is a field. Or we convert a single field to coordinates.
+    if grid is None and (len(trans) > 1 or absolute):
+        for t in trans:
+            if is_matrix(t):
+                continue
+            size = t.shape[2:]
+            grid = kt.transform.grid(size, dtype=t.dtype, device=t.device)
+            break
+
+    is_abs = False
+    curr = trans.pop(0)
+    for next in trans:
+        if is_matrix(next) and is_matrix(curr):
+            curr = next @ curr
+            continue
+
+        # Convert the right transform to coordinates, unless we did already.
+        if is_matrix(curr):
+            curr = grid_matmul(grid, curr)
+        elif not is_abs:
+            curr = curr + grid
+
+        # If the left transform is a matrix, compute a matrix-vector product.
+        is_abs = True
+        if is_matrix(next):
+            curr = grid_matmul(curr, next)
+            continue
+
+        # Left is displacement field, so need to interpolate. Re-use border
+        # values for extrapolation instead of zeros, to avoid steep cliffs.
+        curr = curr + interpolate(next, curr, padding='border')
+
+    # If we don't have a grid at this points, we need no conversion.
+    if grid is None:
+        return curr
+
+    if is_matrix(curr):
+        curr = grid_matmul(grid, curr)
+        is_abs = True
+
+    # Convert between coordinates and displacements, if needed.
+    if is_abs and not absolute:
+        curr = curr - grid
+    if not is_abs and absolute:
+        curr = curr + grid
+
+    return curr
