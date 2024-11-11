@@ -206,3 +206,95 @@ def test_decompose_affine():
         assert out[1].allclose(inp[1])
         assert out[2].allclose(inp[2])
         assert out[3].allclose(inp[3])
+
+
+def test_compose_matrices():
+    """Test composition of matrix transforms."""
+    zoom = 2.
+
+    for dim in (2, 3):
+        mat = torch.tensor((*[zoom] * dim, 1)).diag().unsqueeze(0)
+
+        # A single matrix input should be returned as is.
+        out = kt.transform.compose(mat)
+        assert out is mat
+
+        # Composing matrices should be equivalent to their matrix product.
+        out = kt.transform.compose((mat, mat))
+        assert out.allclose(mat @ mat)
+
+
+def test_compose_matrices_grid():
+    """Test conversion of matrix transforms to displacements or coordinates."""
+    zoom = 3.
+    size = (8, 8, 8)
+
+    for dim in (2, 3):
+        for batch in ([1], [4]):
+            # Data.
+            mat = torch.tensor((*[zoom] * dim, 1)).diag()
+            mat.expand(*batch, *mat.shape)
+            grid = kt.transform.grid(size[:dim], dtype=mat.dtype)
+
+            # With a grid, a matrix should become a displacement field.
+            out = kt.transform.compose(mat, grid)
+            assert out.allclose(grid * zoom - grid)
+
+            # The same for several matrix inputs.
+            out = kt.transform.compose((mat, mat), grid)
+            assert out.allclose(grid * zoom * zoom - grid)
+
+            # If requested, a single matrix should become absolute coordinates.
+            out = kt.transform.compose(mat, grid, absolute=True)
+            assert out.allclose(grid * zoom)
+
+
+def test_compose_fields():
+    """Test composition of displacement fields."""
+    size = (8, 8, 8)
+
+    for dim in (2, 3):
+        for batch in (1, 4):
+            # Data. Input of shape (batch, dimensionality, *space).
+            disp = torch.ones(batch, dim, *size[:dim])
+            grid = kt.transform.grid(size[:dim], dtype=disp.dtype)
+
+            # A single field should be returned as is.
+            out = kt.transform.compose(disp)
+            assert out is disp
+
+            # N shifts of one should be N.
+            out = kt.transform.compose((disp, disp, disp))
+            assert out.allclose(disp * 3)
+
+            # The same with conversion to absolute locations.
+            out = kt.transform.compose((disp, disp), absolute=True)
+            assert out.allclose(disp * 2 + grid)
+
+
+def test_compose_field_matrix():
+    """Test composition of displacement fields and matrix transforms."""
+    size = (8, 8, 8)
+    shift = 13
+
+    for dim in (2, 3):
+        for batch in (1, 4):
+            # Transforms. Displacement of shape: (batch, dim, *space).
+            disp = torch.ones(batch, dim, *size[:dim])
+            mat = torch.eye(dim + 1)
+            mat[:-1, -1] = shift
+            mat = mat.unsqueeze(0).expand(batch, -1, -1)
+
+            # Shifts should add up.
+            out = kt.transform.compose((disp, mat))
+            assert out.allclose(disp + shift)
+
+            # The same for reversed inputs.
+            out = kt.transform.compose((mat, -disp))
+            assert out.allclose(shift - disp)
+
+            # With a matrix on the right, the grid sets the shape.
+            small = tuple(i - 1 for i in size[:dim])
+            grid = kt.transform.grid(small, dtype=disp.dtype)
+            out = kt.transform.compose((disp, mat), grid)
+            assert out.shape[1:] == grid.shape

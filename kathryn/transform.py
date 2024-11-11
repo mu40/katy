@@ -161,7 +161,8 @@ def interpolate(x, points, method='linear', padding='zeros'):
     batch = 1 if points.ndim < x.ndim else points.size(0)
     tmp = points.view(batch, ndim, -1)
     tmp = conv[:ndim, :-1] @ tmp + conv[:ndim, -1:]
-    points = tmp.view(x.shape[0], *points.shape[-ndim - 1:]).movedim(1, -1)
+    points = tmp.view(batch, ndim, *points.shape[-ndim:])
+    points = points.expand(x.size(0), *points.shape[1:]).movedim(1, -1)
 
     mode = 'bilinear' if method == 'linear' else method
     return torch.nn.functional.grid_sample(x, points, mode, padding, align)
@@ -562,11 +563,13 @@ def grid_matmul(x, matrix):
     # Dimensions.
     ndim = matrix.size(-1) - 1
     size = x.shape[-ndim:]
+    if x.ndim < ndim + 1 or x.size(-ndim - 1) != ndim:
+        raise ValueError(f'grid size {x.shape} is incorrect in {ndim}D')
 
     # Matrix-vector product.
     x = x.view(*x.shape[:-ndim], -1)
-    x = matrix[:-1, :-1] @ x + matrix[:-1, -1:]
-    return x.view(*x.shape[:-ndim], *size)
+    x = matrix[..., :-1, :-1] @ x + matrix[..., :-1, -1:]
+    return x.view(*x.shape[:-1], *size)
 
 
 def is_matrix(x):
@@ -583,7 +586,7 @@ def is_matrix(x):
         True if the input is of shape (..., N + 1, N + 1), where N is 2 or 3.
 
     """
-    return x.ndim > 1 and x.size(-2) == x.size(-1) and x.size(-1) in (2, 3)
+    return x.ndim > 1 and x.size(-2) == x.size(-1) and x.size(-1) in (3, 4)
 
 
 def compose(trans, grid=None, absolute=False):
@@ -600,7 +603,7 @@ def compose(trans, grid=None, absolute=False):
     Parameters
     ----------
     trans : torch.Tensor or sequence of torch.Tensor
-        Matrices or displacement fields with or without batch dimension.
+        Matrices or displacement fields with the same batch dimension `B`.
     grid : (N, *size) torch.Tensor, optional
         Index coordinate grid, where `size` has `N` elements.
     absolute : bool, optional
@@ -609,9 +612,9 @@ def compose(trans, grid=None, absolute=False):
     Returns
     -------
     torch.Tensor
-        Composite transform. Will be a matrix of shape `(..., N + 1, N + 1)`
+        Composite transform. Will be a matrix of shape `(B,  N + 1, N + 1)`
         if all inputs are matrices and there is no grid. Otherwise, it will be
-        a displacement or coordinate grid of shape `(..., N, *size)`.
+        a displacement or coordinate grid of shape `(B, N, *size)`.
 
     """
     if isinstance(trans, torch.Tensor):
