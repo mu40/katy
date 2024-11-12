@@ -637,6 +637,7 @@ def compose(trans, grid=None, absolute=False):
 
     is_abs = False
     curr = trans.pop(0)
+    ndim = curr.size(-1) - 1 if is_matrix(curr) else curr.ndim - 2
     for next in trans:
         if is_matrix(next) and is_matrix(curr):
             curr = next @ curr
@@ -656,6 +657,8 @@ def compose(trans, grid=None, absolute=False):
 
         # Left is displacement field, so need to interpolate. Re-use border
         # values for extrapolation instead of zeros, to avoid steep cliffs.
+        if next.ndim != ndim + 2:
+            raise ValueError(f'{ndim}D field size {next.shape} is incorrect')
         curr = curr + interpolate(next, curr, padding='border')
 
     # If we don't have a grid at this points, we need no conversion.
