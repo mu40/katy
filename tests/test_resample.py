@@ -76,7 +76,7 @@ def test_integrate():
     # Integrate, compose, compute norm.
     fw = kt.transform.integrate(+svf, steps)
     bw = kt.transform.integrate(-svf, steps)
-    out = kt.transform.compose((fw, bw))
+    out = kt.transform.compose(fw, bw)
     out = torch.linalg.vector_norm(out, dim=1)
 
     # Ignore border values.

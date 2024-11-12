@@ -589,7 +589,7 @@ def is_matrix(x):
     return x.ndim > 1 and x.size(-2) == x.size(-1) and x.size(-1) in (3, 4)
 
 
-def compose(trans, grid=None, absolute=False):
+def compose(*trans, grid=None, absolute=False):
     """Compose a series of N-dimensional transforms.
 
     Combines a sequence of 2D or 3D transforms into a single output. The order
@@ -602,7 +602,7 @@ def compose(trans, grid=None, absolute=False):
 
     Parameters
     ----------
-    trans : torch.Tensor or sequence of torch.Tensor
+    *trans : sequence of (B,  N + 1, N + 1) or (B, N, *size) torch.Tensor
         Matrices or displacement fields with the same batch dimension `B`.
     grid : (N, *size) torch.Tensor, optional
         Index coordinate grid, where `size` has `N` elements.
@@ -617,13 +617,12 @@ def compose(trans, grid=None, absolute=False):
         a displacement or coordinate grid of shape `(B, N, *size)`.
 
     """
-    if isinstance(trans, torch.Tensor):
-        trans = [trans]
-
-    # Traverse transforms from right to left.
-    trans = list(reversed(trans))
     if not trans:
         raise ValueError('cannot compose an empty list of transforms')
+
+    # Dimension from first transform. Then traverse from right to left.
+    ndim = trans[0].size(-1) - 1 if is_matrix(trans[0]) else trans[0].ndim - 2
+    trans = list(reversed(trans))
 
     # Create grid if needed. That is, either we have several transforms, and
     # at least one is a field. Or we convert a single field to coordinates.
@@ -637,7 +636,11 @@ def compose(trans, grid=None, absolute=False):
 
     is_abs = False
     curr = trans.pop(0)
-    ndim = curr.size(-1) - 1 if is_matrix(curr) else curr.ndim - 2
+    if not is_matrix(curr) and curr.ndim != ndim + 2:
+        raise ValueError(f'{ndim}D field size {curr.shape} is incorrect')
+    if is_matrix(curr) and curr.size(-1) != ndim + 1:
+        raise ValueError(f'{ndim}D matrix size {curr.shape} is incorrect')
+
     for next in trans:
         if is_matrix(next) and is_matrix(curr):
             curr = next @ curr
@@ -657,8 +660,6 @@ def compose(trans, grid=None, absolute=False):
 
         # Left is displacement field, so need to interpolate. Re-use border
         # values for extrapolation instead of zeros, to avoid steep cliffs.
-        if next.ndim != ndim + 2:
-            raise ValueError(f'{ndim}D field size {next.shape} is incorrect')
         curr = curr + interpolate(next, curr, padding='border')
 
     # If we don't have a grid at this points, we need no conversion.

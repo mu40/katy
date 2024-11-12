@@ -220,7 +220,7 @@ def test_compose_matrices():
         assert out is mat
 
         # Composing matrices should be equivalent to their matrix product.
-        out = kt.transform.compose((mat, mat))
+        out = kt.transform.compose(mat, mat)
         assert out.allclose(mat @ mat)
 
 
@@ -237,15 +237,15 @@ def test_compose_matrices_grid():
             grid = kt.transform.grid(size[:dim], dtype=mat.dtype)
 
             # With a grid, a matrix should become a displacement field.
-            out = kt.transform.compose(mat, grid)
+            out = kt.transform.compose(mat, grid=grid)
             assert out.allclose(grid * zoom - grid)
 
             # The same for several matrix inputs.
-            out = kt.transform.compose((mat, mat), grid)
+            out = kt.transform.compose(mat, mat, grid=grid)
             assert out.allclose(grid * zoom * zoom - grid)
 
             # If requested, a single matrix should become absolute coordinates.
-            out = kt.transform.compose(mat, grid, absolute=True)
+            out = kt.transform.compose(mat, grid=grid, absolute=True)
             assert out.allclose(grid * zoom)
 
 
@@ -264,11 +264,11 @@ def test_compose_fields():
             assert out is disp
 
             # N shifts of one should be N.
-            out = kt.transform.compose((disp, disp, disp))
+            out = kt.transform.compose(disp, disp, disp)
             assert out.allclose(disp * 3)
 
             # The same with conversion to absolute locations.
-            out = kt.transform.compose((disp, disp), absolute=True)
+            out = kt.transform.compose(disp, disp, absolute=True)
             assert out.allclose(disp * 2 + grid)
 
 
@@ -286,15 +286,15 @@ def test_compose_field_matrix():
             mat = mat.unsqueeze(0).expand(batch, -1, -1)
 
             # Shifts should add up.
-            out = kt.transform.compose((disp, mat))
+            out = kt.transform.compose(disp, mat)
             assert out.allclose(disp + shift)
 
             # The same for reversed inputs.
-            out = kt.transform.compose((mat, -disp))
+            out = kt.transform.compose(mat, -disp)
             assert out.allclose(shift - disp)
 
             # With a matrix on the right, the grid sets the shape.
             small = tuple(i - 1 for i in size[:dim])
             grid = kt.transform.grid(small, dtype=disp.dtype)
-            out = kt.transform.compose((disp, mat), grid)
+            out = kt.transform.compose(disp, mat, grid=grid)
             assert out.shape[1:] == grid.shape
