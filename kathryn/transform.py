@@ -209,7 +209,7 @@ def transform(x, trans, grid=None, method='linear', padding='zeros'):
     # size of the transform (if present) but not B, to keep the number of
     # batches that undergo coordinate conversion in `interpolate` low.
     ndim = len(size)
-    if trans.size(-1) == trans.size(-2) == ndim + 1:
+    if is_matrix(trans):
         batch = 1 if trans.ndim == 2 else trans.size(0)
         points = grid.view(batch, ndim, -1)
         points = trans[..., :ndim, :-1] @ points + trans[..., :ndim, -1:]
