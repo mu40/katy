@@ -559,6 +559,8 @@ def grid_matmul(x, matrix):
     """
     x = torch.as_tensor(x)
     matrix = torch.as_tensor(matrix)
+    if not is_matrix(matrix):
+        raise ValueError(f'tensor of size {matrix.shape} is not a matrix')
 
     # Dimensions.
     ndim = matrix.size(-1) - 1
@@ -566,7 +568,7 @@ def grid_matmul(x, matrix):
     if x.ndim < ndim + 1 or x.size(-ndim - 1) != ndim:
         raise ValueError(f'grid size {x.shape} is incorrect in {ndim}D')
 
-    # Matrix-vector product.
+    # Matrix-vector product. Reshape to (B, N, -1), apply, restore size.
     x = x.view(*x.shape[:-ndim], -1)
     x = matrix[..., :-1, :-1] @ x + matrix[..., :-1, -1:]
     return x.view(*x.shape[:-1], *size)
