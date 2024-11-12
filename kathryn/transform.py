@@ -287,7 +287,7 @@ def compose_rotation(angle, deg=True, dtype=None):
         out = mat_x @ mat_y @ mat_z
 
     else:
-        raise ValueError(f'Expected 1 or 3 angles, not {angle.size(-1)}')
+        raise ValueError(f'expected 1 or 3 angles, not {angle.size(-1)}')
 
     if dtype is None:
         dtype = torch.get_default_dtype()
@@ -335,7 +335,7 @@ def decompose_rotation(mat, deg=True, dtype=None):
     dim = mat.size(-1)
 
     if mat.dim() < 2 or mat.size(-2) != dim or dim not in (2, 3):
-        raise ValueError(f'Size {mat.shape} is not (..., 2, 2) or (..., 3, 3)')
+        raise ValueError(f'size {mat.shape} is not (..., 2, 2) or (..., 3, 3)')
 
     if dim == 2:
         y = mat[..., 1, 0]
