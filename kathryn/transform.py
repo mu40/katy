@@ -152,16 +152,12 @@ def interpolate(x, points, method='linear', padding='zeros'):
     # should be slightly more efficient. The result will be identical here.
     align = True
     conv = index_to_torch(size=x.shape[2:], align_corners=align)
+    points = grid_matmul(points, conv)
 
-    # Broadcast to data batch size at the very end to convert only P batches
-    # of coordinates, where P is 1 or the batch size of the coordinates (if
-    # present). Reshape to [P, N, voxels], convert, reshape to [B, N, *space].
-    # Finally, move the dimension indexing into spatial axes to end.
+    # Expand to data batch size last, to convert fewer batches of points.
     ndim = x.dim() - 2
     batch = 1 if points.ndim < x.ndim else points.size(0)
-    tmp = points.view(batch, ndim, -1)
-    tmp = conv[:ndim, :-1] @ tmp + conv[:ndim, -1:]
-    points = tmp.view(batch, ndim, *points.shape[-ndim:])
+    points = points.view(batch, ndim, *points.shape[-ndim:])
     points = points.expand(x.size(0), *points.shape[1:]).movedim(1, -1)
 
     mode = 'bilinear' if method == 'linear' else method
