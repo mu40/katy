@@ -19,11 +19,11 @@ def sub2ind(size, *sub):
         Linear index.
 
     """
-    *size, mult = size
-    *sub, ind = sub
+    ind = 0
+    mul = 1
     for i, s in zip(sub[::-1], size[::-1]):
-        ind += i * mult
-        mult *= s
+        ind += i * mul
+        mul *= s
 
     return ind
 
