@@ -18,7 +18,7 @@ def test_ind2sub_sub2ind_python():
 
 def test_ind2sub_sub2ind_torch():
     """Test circular conversion for PyTorch tensors."""
-    size = torch.Size((2, 3, 5))
+    size = torch.tensor((2, 3, 5))
     inp = torch.tensor((0, 1, 2, 5, 6, 23, 24, 25, 28, 29))
 
     sub = kt.index.ind2sub(size, inp)
