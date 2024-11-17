@@ -73,3 +73,27 @@ def test_gamma_illegal_values():
 
     with pytest.raises(ValueError):
         kt.augment.gamma(x, gamma=1)
+
+
+def test_noise_unchanged():
+    """Test if adding noise leaves input unchanged."""
+    # Input of shape: batch, channel, space.
+    inp = torch.zeros(1, 1, 8, 8)
+
+    orig = inp.clone()
+    kt.augment.noise(inp)
+    assert inp.eq(orig).all()
+
+
+def test_noise_change():
+    """Test if adding noise changes the input."""
+    # Input of shape: batch, channel, space.
+    inp = torch.zeros(1, 1, 8, 8)
+
+    # Adding noise should change the input.
+    out = kt.augment.noise(inp, prob=1)
+    assert out.ne(inp).any()
+
+    # Nothing should change at zero probability.
+    out = kt.augment.noise(inp, prob=torch.tensor(0))
+    assert out.eq(inp).all()

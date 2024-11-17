@@ -52,3 +52,42 @@ def gamma(x, gamma=0.5, prob=1, shared=False, gen=None):
     exp = bit * exp + ~bit * 1
 
     return x.pow(exp)
+
+
+def noise(x, sd=0.1, prob=1, shared=False, gen=None):
+    """Add Gaussian noise to a tensor.
+
+    Uniformly samples the standard deviation (SD) of the noise.
+
+    Parameters
+    ----------
+    x : (B, C, ...) torch.Tensor
+        Input tensor.
+    sd : float or sequence of float, optional
+        SD range. Pass a single value to define the upper bound, setting the
+        lower bound to 0. Pass two values to define lower and upper bounds.
+    prob : float, optional
+        Probability of adding noise.
+    shared : bool, optional
+        Use the same SD to all channels of a batch.
+    gen : torch.Generator, optional
+        Pseudo-random number generator.
+
+    Returns
+    -------
+    (B, C, ...) torch.Tensor
+        Tensor with added noise.
+
+    """
+    # Inputs.
+    x = torch.as_tensor(x)
+    sd = torch.as_tensor(sd).ravel()
+
+    # Standard deviation.
+    size = torch.as_tensor(x.shape)
+    size[1 if shared else 2:] = 1
+    a, b = (0, sd) if len(sd) == 1 else sd
+    sd = torch.rand(*size, device=x.device, generator=gen) * (b - a) + a
+    sd = sd * kt.utility.chance(prob, size, device=x.device, gen=gen)
+
+    return x + sd * torch.randn(x.shape, device=x.device, generator=gen)
