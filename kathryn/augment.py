@@ -16,6 +16,8 @@ def gamma(x, gamma=0.5, prob=1, shared=False, gen=None):
         Input tensor.
     gamma : float, optional
         Value in (0, 1), leading to exponents in [1 - gamma, 1 + gamma].
+    prob : float, optional
+        Probability of the transform.
     shared : bool, optional
         Transform all channels the same way.
     gen : torch.Generator, optional
