@@ -8,7 +8,7 @@ def sub2ind(size, *sub):
 
     Parameters
     ----------
-    size : sequence of int
+    size : torch.Tensor or sequence of int
         N-element tensor shape.
     *sub : sequence of int or sequence of torch.Tensor
         Subscripts for each dimension.
@@ -35,7 +35,7 @@ def ind2sub(size, ind):
 
     Parameters
     ----------
-    size : sequence of int
+    size : sequence of int or torch.Tensor
         N-element tensor shape.
     ind : int or torch.Tensor
         Linear index.
