@@ -201,20 +201,7 @@ def transform(x, trans, grid=None, method='linear', padding='zeros'):
     if grid is None:
         grid = kt.transform.grid(size, dtype=x.dtype, device=x.device)
 
-    # For matrices, reshape grid to [P, N, voxels], where P is 1 or the batch
-    # size of the transform (if present) but not B, to keep the number of
-    # batches that undergo coordinate conversion in `interpolate` low.
-    ndim = len(size)
-    if is_matrix(trans):
-        batch = 1 if trans.ndim == 2 else trans.size(0)
-        points = grid.view(batch, ndim, -1)
-        points = trans[..., :ndim, :-1] @ points + trans[..., :ndim, -1:]
-        points = points.view(points.size(0), *grid.shape)
-
-    # Add displacement.
-    else:
-        points = grid + trans
-
+    points = grid_matmul(grid, trans) if is_matrix(trans) else grid + trans
     return interpolate(x, points, method, padding)
 
 
