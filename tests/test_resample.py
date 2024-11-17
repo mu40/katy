@@ -24,7 +24,6 @@ def test_interpolate_identity():
         assert out.allclose(inp, atol=1e-5)
 
 
-
 def test_transform_identity():
     """Test applying an identity matrix and field with various options."""
     size = (8, 8, 8)
