@@ -6,7 +6,7 @@ import itertools
 import kathryn as kt
 
 
-def perlin(size, cells=1, batch=None, device=None):
+def perlin(size, points=2, batch=None, device=None):
     """Generate Perlin noise in N dimensions.
 
     Inspired by https://adrianb.io/2014/08/09/perlinnoise.html.
@@ -15,8 +15,8 @@ def perlin(size, cells=1, batch=None, device=None):
     ----------
     size : (N,) sequence of int or torch.Tensor
         Spatial output size.
-    cells : sequence of int or torch.Tensor, optional
-        Number of gradient-grid cells in [1, size). The fewer, the smoother.
+    points : sequence of int or torch.Tensor, optional
+        Number of control points in [2, size). The fewer, the smoother.
     batch : sequence of int or torch.Tensor, optional
         Batch size.
     device : torch.device, optional
@@ -32,28 +32,27 @@ def perlin(size, cells=1, batch=None, device=None):
     prop = dict(device=device)
     size = torch.as_tensor(size, **prop)
     ndim = size.numel()
-    cells = torch.as_tensor(cells, **prop).ravel().expand(ndim)
-    if cells.lt(1).any() or cells.ge(size).any():
-        raise ValueError(f'cells {cells} are not all in [1, size)')
+    points = torch.as_tensor(points, **prop).ravel().expand(ndim)
+    if points.lt(2).any() or points.ge(size).any():
+        raise ValueError(f'controls points {points} is not all in [2, size)')
     if batch is None:
         batch = []
 
-    # Grid of gradient directions at integral coordinate locations. Make
-    # `cells` the number of gradient-grid points rather than cells.
-    cells = cells.add(1).ravel().expand(ndim)
+    # Grid of gradient directions at integral coordinate locations.
+    points = points.ravel().expand(ndim)
     batch = torch.as_tensor(batch, device=device).ravel()
-    grad = torch.rand(ndim, *batch, *cells, device=device).mul(2).sub(1)
+    grad = torch.rand(ndim, *batch, *points, device=device).mul(2).sub(1)
     grad = grad.view(ndim, *batch, -1)
 
     # Output grid, subsampling between gradient coordinates.
-    grid = (torch.linspace(0, c - 1, s, **prop) for c, s in zip(cells, size))
+    grid = (torch.linspace(0, c - 1, s, **prop) for c, s in zip(points, size))
     grid = torch.meshgrid(*grid, indexing='ij')
     grid = torch.stack(grid)
 
     # Integer coordinates of closest corner points.
     x0 = grid.type(torch.int32)
     for i in range(ndim):
-        x0[i] = x0[i].clamp(0, cells[i] - 2)
+        x0[i] = x0[i].clamp(0, points[i] - 2)
     x1 = x0 + 1
     x01 = (x0, x1)
 
@@ -72,7 +71,7 @@ def perlin(size, cells=1, batch=None, device=None):
     for corner in itertools.product((0, 1), repeat=ndim):
         # Sample gradients at corner point.
         ind = [x01[c][i] for i, c in enumerate(corner)]
-        ind = kt.index.sub2ind(cells, *ind)
+        ind = kt.index.sub2ind(points, *ind)
         vec = grad[..., ind]
 
         # Dot product of difference and gradient, weight without stacking.
@@ -96,8 +95,8 @@ def octaves(size, freq, pers, batch=None, device=None):
     size : (N,) sequence of int or torch.Tensor
         Spatial output size.
     freq : sequence of int or torch.Tensor
-        Perlin-noise frequency levels to add. Will use `2 ** freq` cells, which
-        must be less than `size`, along any dimension.
+        Perlin-noise frequency levels to add. Will use `2 ** freq` control
+        points, which must be less than `size`, along any dimension.
     pers : float or torch.Tensor
         Persistence in (0, 1]. Higher values emphasize higher frequencies.
         Must broadcast to batch shape.
@@ -112,22 +111,26 @@ def octaves(size, freq, pers, batch=None, device=None):
         Octaves of Perlin noise, normalized into [0, 1].
 
     """
+    # Inputs.
     prop = dict(device=device)
     size = torch.as_tensor(size, **prop).ravel()
     freq = torch.as_tensor(freq, **prop).ravel()
     pers = torch.as_tensor(pers, **prop)
-    if pers.le(0).any() or pers.gt(1).any():
-        raise ValueError(f'persistence {pers} is not in (0, 1]')
+    if batch is None:
+        batch = []
 
     # Make sure that multi-persistence inputs have to broadcast to batch only.
+    if pers.le(0).any() or pers.gt(1).any():
+        raise ValueError(f'persistence {pers} is not in (0, 1]')
     pers = pers.view(*pers.shape, *(1,) * size.numel())
 
     out = 0
     for f in freq:
-        out += perlin(size, cells=2 ** f, batch=batch, **prop) * pers ** f
+        out += perlin(size, points=2 ** f, batch=batch, **prop) * pers ** f
 
     # Batch-wise normalization.
-    dim = None if batch is None else tuple(range(len(batch), out.ndim))
+    batch = torch.as_tensor(batch, **prop).ravel()
+    dim = tuple(range(len(batch), out.ndim))
     out -= out.amin(dim, keepdim=True)
     out /= out.amax(dim, keepdim=True)
 

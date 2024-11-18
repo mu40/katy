@@ -11,8 +11,8 @@ def test_perlin_dimensions():
     size = (20, 21, 22, 23)
 
     for dim in (1, 2, 3):
-        for cells in (1, 4, 8):
-            out = kt.noise.perlin(size=size[:dim], cells=cells)
+        for points in (2, 4, 8):
+            out = kt.noise.perlin(size=size[:dim], points=points)
             assert out.shape == size[:dim]
 
 
@@ -33,33 +33,30 @@ def test_perlin_batches():
     assert out.shape == (*batch, *size)
 
 
-def test_perlin_cells_2d():
-    """Test generating 2D Perlin noise with cell numbers of various types."""
+def test_perlin_points_2d():
+    """Test generating 2D Perlin noise with control points of various types."""
     size = (8, 8)
 
-    cells = (4,)
-    out = kt.noise.perlin(size, cells)
+    out = kt.noise.perlin(size, points=(4,))
     assert out.shape == size
 
-    cells = (4, 3)
-    out = kt.noise.perlin(size, cells)
+    out = kt.noise.perlin(size, points=(4, 3))
     assert out.shape == size
 
-    cells = torch.tensor(cells)
-    out = kt.noise.perlin(size, cells)
+    out = kt.noise.perlin(size, points=torch.tensor((4, 3)))
     assert out.shape == size
 
 
-def test_perlin_illegal_cells():
+def test_perlin_illegal_points():
     """Test generating Perlin noise with illegal gradient cell numbers."""
     n = 10
     size = (n, n)
 
     with pytest.raises(ValueError):
-        kt.noise.perlin(size, cells=0)
+        kt.noise.perlin(size, points=1)
 
     with pytest.raises(ValueError):
-        kt.noise.perlin(size, cells=n)
+        kt.noise.perlin(size, points=n)
 
 
 def test_octaves_illegal_persistence():
@@ -85,8 +82,8 @@ def test_octaves_illegal_frequency():
 
 def test_octaves_normalization():
     """Test normalization of Perlin octaves, with tensor inputs."""
-    size = torch.Size((4, 4))
-    freq = torch.tensor((0, 1))
+    size = torch.Size((5, 5))
+    freq = torch.tensor((1, 2))
 
     out = kt.noise.octaves(size, freq, pers=0.5)
     assert out.min() == 0
