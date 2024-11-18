@@ -6,7 +6,7 @@ import itertools
 import kathryn as kt
 
 
-def perlin(size, points=2, batch=None, device=None):
+def perlin(size, points=2, batch=None, device=None, generator=None):
     """Generate Perlin noise in N dimensions.
 
     Inspired by https://adrianb.io/2014/08/09/perlinnoise.html.
@@ -22,6 +22,8 @@ def perlin(size, points=2, batch=None, device=None):
         Batch size.
     device : torch.device, optional
         Device of the returned tensor.
+    generator : torch.Generator, optional
+        Pseudo-random number generator.
 
     Returns
     -------
@@ -30,10 +32,10 @@ def perlin(size, points=2, batch=None, device=None):
 
     """
     # Inputs.
-    prop = dict(device=device)
-    size = torch.as_tensor(size, **prop)
+    dev = dict(device=device)
+    size = torch.as_tensor(size, **dev)
     ndim = size.numel()
-    points = torch.as_tensor(points, **prop).ravel().expand(ndim)
+    points = torch.as_tensor(points, **dev).ravel().expand(ndim)
     if points.lt(2).any() or points.ge(size).any():
         raise ValueError(f'controls points {points} is not all in [2, size)')
     if batch is None:
@@ -41,12 +43,12 @@ def perlin(size, points=2, batch=None, device=None):
 
     # Grid of gradient directions at integral coordinate locations.
     points = points.ravel().expand(ndim)
-    batch = torch.as_tensor(batch, device=device).ravel()
-    grad = torch.rand(ndim, *batch, *points, device=device).mul(2).sub(1)
-    grad = grad.view(ndim, *batch, -1)
+    batch = torch.as_tensor(batch, **dev).ravel()
+    grad = torch.rand(ndim, *batch, *points, generator=generator, **dev)
+    grad = grad.mul(2).sub(1).view(ndim, *batch, -1)
 
     # Output grid, subsampling between gradient coordinates.
-    grid = (torch.linspace(0, c - 1, s, **prop) for c, s in zip(points, size))
+    grid = (torch.linspace(0, c - 1, s, **dev) for c, s in zip(points, size))
     grid = torch.meshgrid(*grid, indexing='ij')
     grid = torch.stack(grid)
 
@@ -86,7 +88,7 @@ def perlin(size, points=2, batch=None, device=None):
     return out
 
 
-def octaves(size, points, persistence, batch=None, device=None):
+def octaves(size, points, pers, batch=None, device=None, generator=None,):
     """Generate and mix M isotropic octaves of Perlin noise in N dimensions.
 
     Inspired by https://www.arendpeter.com/Perlin_Noise.html.
@@ -97,12 +99,14 @@ def octaves(size, points, persistence, batch=None, device=None):
         Spatial output size.
     points : (M,) torch.Tensor
         Number of control points in [2, size). The lower, the smoother.
-    persistence : float or torch.Tensor
-        Weighting of higher frequencies, in (0, 1]. Must broadcast to `batch`.
+    pers : float or torch.Tensor
+        Persistence of higher frequencies. In (0, 1], to broadcast to `batch`.
     batch : sequence of int or torch.Tensor, optional
         Batch size.
     device : torch.device, optional
         Device of the returned tensor.
+    generator : torch.Generator, optional
+        Pseudo-random number generator.
 
     Returns
     -------
@@ -111,25 +115,25 @@ def octaves(size, points, persistence, batch=None, device=None):
 
     """
     # Inputs.
-    prop = dict(device=device)
-    size = torch.as_tensor(size, **prop).ravel()
-    points = torch.as_tensor(points, **prop).ravel()
-    persistence = torch.as_tensor(persistence, **prop)
+    dev = dict(device=device)
+    size = torch.as_tensor(size, **dev).ravel()
+    points = torch.as_tensor(points, **dev).ravel()
+    pers = torch.as_tensor(pers, **dev)
     if batch is None:
         batch = []
-    batch = torch.as_tensor(batch, **prop).ravel()
+    batch = torch.as_tensor(batch, **dev).ravel()
 
     # Make sure that multi-persistence inputs have to broadcast to batch only.
-    if persistence.le(0).any() or persistence.gt(1).any():
-        raise ValueError(f'persistence {persistence} is not in (0, 1]')
-    persistence = persistence.view(*persistence.shape, *(1,) * size.numel())
+    if pers.le(0).any() or pers.gt(1).any():
+        raise ValueError(f'persistence {pers} is not in (0, 1]')
+    pers = pers.view(*pers.shape, *(1,) * size.numel())
 
     # With the definitions of `freq = 2 ** i` and `amp = pers ** i`, from the
     # reference, we have `i = log2(freq)` and thus `amp = pers ** log2(freq)`.
     out = 0
     for p in points:
-        amp = persistence ** torch.log2(p)
-        out += amp * perlin(size, points=p, batch=batch, **prop)
+        amp = pers ** torch.log2(p)
+        out += amp * perlin(size, p, batch=batch, **dev, generator=generator)
 
     # Batch-wise normalization.
     dim = tuple(range(len(batch), out.ndim))

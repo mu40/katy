@@ -4,7 +4,7 @@
 import torch
 
 
-def chance(prob, size=1, device=None, gen=None):
+def chance(prob, size=1, device=None, generator=None):
     """Return True with given probability.
 
     Parameters
@@ -15,7 +15,7 @@ def chance(prob, size=1, device=None, gen=None):
         Output shape.
     device : torch.device, optional
         Device of the returned tensor.
-    gen : torch.Generator, optional
+    generator : torch.Generator, optional
         Pseudo-random number generator.
 
     Returns
@@ -28,4 +28,4 @@ def chance(prob, size=1, device=None, gen=None):
         raise ValueError(f'probability {prob} is not in range [0, 1]')
 
     size = torch.as_tensor(size).ravel()
-    return torch.rand(*size, device=device, generator=gen) < prob
+    return torch.rand(*size, device=device, generator=generator) < prob

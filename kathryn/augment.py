@@ -5,7 +5,7 @@ import torch
 import kathryn as kt
 
 
-def gamma(x, gamma=0.5, prob=1, shared=False, gen=None):
+def gamma(x, gamma=0.5, prob=1, shared=False, generator=None):
     """Apply a random gamma transform to the intensities of a tensor.
 
     See https://en.wikipedia.org/wiki/Gamma_correction.
@@ -20,7 +20,7 @@ def gamma(x, gamma=0.5, prob=1, shared=False, gen=None):
         Probability of transforming a channel.
     shared : bool, optional
         Transform all channels the same way.
-    gen : torch.Generator, optional
+    generator : torch.Generator, optional
         Pseudo-random number generator.
 
     Returns
@@ -38,23 +38,22 @@ def gamma(x, gamma=0.5, prob=1, shared=False, gen=None):
     x = x - x.amin(dim, keepdim=True)
     x = x / x.amax(dim, keepdim=True)
 
-    # Randomize across batches, or batches and channels.
+    # Exponents. Randomize across batches, or batches and channels.
+    prop = dict(device=x.device, generator=generator)
     size = torch.as_tensor(x.shape)
     size[1 if shared else 2:] = 1
-
-    # Exponents.
     a = 1 - gamma
     b = 1 + gamma
-    exp = torch.rand(*size, device=x.device, generator=gen) * (b - a) + a
+    exp = torch.rand(*size, **prop) * (b - a) + a
 
     # Randomize application.
-    bit = kt.utility.chance(prob, size, device=x.device, gen=gen)
+    bit = kt.utility.chance(prob, size, **prop)
     exp = bit * exp + ~bit * 1
 
     return x.pow(exp)
 
 
-def noise(x, sd=0.1, prob=1, shared=False, gen=None):
+def noise(x, sd=0.1, prob=1, shared=False, generator=None):
     """Add Gaussian noise to a tensor.
 
     Uniformly samples the standard deviation (SD) of the noise.
@@ -70,7 +69,7 @@ def noise(x, sd=0.1, prob=1, shared=False, gen=None):
         Probability of adding noise to a channel.
     shared : bool, optional
         Use the same SD for all channels.
-    gen : torch.Generator, optional
+    generator : torch.Generator, optional
         Pseudo-random number generator.
 
     Returns
@@ -82,18 +81,19 @@ def noise(x, sd=0.1, prob=1, shared=False, gen=None):
     # Inputs.
     x = torch.as_tensor(x)
     sd = torch.as_tensor(sd, device=x.device).ravel()
+    prop = dict(device=x.device, generator=generator)
 
     # Standard deviation.
     size = torch.as_tensor(x.shape)
     size[1 if shared else 2:] = 1
     a, b = (0, sd) if len(sd) == 1 else sd
-    sd = torch.rand(*size, device=x.device, generator=gen) * (b - a) + a
-    sd = sd * kt.utility.chance(prob, size, device=x.device, gen=gen)
+    sd = torch.rand(*size, **prop) * (b - a) + a
+    sd = sd * kt.utility.chance(prob, size, **prop)
 
-    return x + sd * torch.randn(x.shape, device=x.device, generator=gen)
+    return x + sd * torch.randn(x.shape, **prop)
 
 
-def blur(x, fwhm=1, prob=1, gen=None):
+def blur(x, fwhm=1, prob=1, generator=None):
     """Blur a tensor by convolving its N spatial axes with Gaussian kernels.
 
     Uniformly samples anisotropic blurring full widths at half maximum (FWHM)
@@ -109,7 +109,7 @@ def blur(x, fwhm=1, prob=1, gen=None):
         set `(a_1, b_1, ..., a_N, b_N)` for the N spatial axes.
     prob : float, optional
         Probability of blurring a batch entry.
-    gen : torch.Generator, optional
+    generator : torch.Generator, optional
         Pseudo-random number generator.
 
     Returns
@@ -132,15 +132,16 @@ def blur(x, fwhm=1, prob=1, gen=None):
         fwhm = fwhm.repeat(ndim)
 
     # FWHM sampling.
+    prop = dict(device=x.device, generator=generator)
     a, b = fwhm[0::2], fwhm[1::2]
     batch = x.size(0)
     size = (batch, ndim)
-    fwhm = torch.rand(size, device=x.device, generator=gen) * (b - a) + a
+    fwhm = torch.rand(size, **prop) * (b - a) + a
 
     print(fwhm)
 
     # Smoothing at per-batch probability.
-    bit = kt.utility.chance(prob, size=batch, device=x.device, gen=gen)
+    bit = kt.utility.chance(prob, size=batch, **prop)
     dim = 1 + torch.arange(ndim, device=x.device)
     out = torch.empty_like(x)
     for i, batch in enumerate(x):

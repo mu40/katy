@@ -65,10 +65,10 @@ def test_octaves_illegal_persistence():
     points = (2, 3)
 
     with pytest.raises(ValueError):
-        kt.noise.octaves(size, points, persistence=0)
+        kt.noise.octaves(size, points, pers=0)
 
     with pytest.raises(ValueError):
-        kt.noise.octaves(size, points, persistence=1.1)
+        kt.noise.octaves(size, points, pers=1.1)
 
 
 def test_octaves_illegal_frequency():
@@ -77,7 +77,7 @@ def test_octaves_illegal_frequency():
     points = 4
 
     with pytest.raises(ValueError):
-        kt.noise.octaves(size, points, persistence=1)
+        kt.noise.octaves(size, points, pers=1)
 
 
 def test_octaves_normalization():
@@ -85,7 +85,7 @@ def test_octaves_normalization():
     size = torch.Size((5, 5))
     points = torch.tensor((2, 3))
 
-    out = kt.noise.octaves(size, points, persistence=0.5)
+    out = kt.noise.octaves(size, points, pers=0.5)
     assert out.min() == 0
     assert out.max() == 1
 
@@ -97,7 +97,7 @@ def test_octaves_batches():
     batch = (3, 4)
 
     # Persistence must be in (0, 1].
-    persistence = torch.rand(*batch).mul(0.5).add(0.1)
+    pers = torch.rand(*batch).mul(0.5).add(0.1)
 
-    out = kt.noise.octaves(size, points, persistence, batch=batch)
+    out = kt.noise.octaves(size, points, pers, batch=batch)
     assert out.shape == (*batch, *size)
