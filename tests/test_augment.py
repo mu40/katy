@@ -97,3 +97,54 @@ def test_noise_change():
     # Nothing should change at zero probability.
     out = kt.augment.noise(inp, prob=torch.tensor(0))
     assert out.eq(inp).all()
+
+
+def test_blur_unchanged():
+    """Test if randomly blurring leaves input unchanged."""
+    # Input of shape: batch, channel, space.
+    inp = torch.zeros(1, 1, 4, 4)
+
+    orig = inp.clone()
+    kt.augment.blur(inp, fwhm=1)
+    assert inp.eq(orig).all()
+
+
+def test_blur_illegal_fwhm():
+    """Test passing an illegal number of FWHM."""
+    x = torch.rand(1, 1, 4, 4)
+
+    # FWHM should be of length 1, 2, or 2 * N, in N-dimensional space.
+    with pytest.raises(ValueError):
+        kt.augment.blur(x, fwhm=(1, 2, 3))
+
+
+def test_blur_shared_channels():
+    """Test if the function blurs all channels identically."""
+    inp = torch.rand(3, 1, 8, 8).expand(-1, 2, -1, -1)
+
+    out = kt.augment.blur(inp, fwhm=5)
+    for batch in out:
+        assert batch[0].eq(batch[1]).all()
+
+
+def test_blur_deterministic():
+    """Test random blurring at pinned down FWHM."""
+    size = (4, 4, 4)
+    fwhm = 5
+
+    for dim in (1, 2, 3):
+        # Blur input using specific FWHM.
+        inp = torch.rand(2, 1, *size[:dim])
+        ref = kt.filter.blur(inp, fwhm, dim=range(2, dim + 2))
+
+        # Sampling FWHM between identical values should yield the same result.
+        out = kt.augment.blur(inp, fwhm=(fwhm, fwhm))
+        assert out.eq(ref).all()
+
+        # The same applies when specifying identical bounds for each axis.
+        out = kt.augment.blur(inp, fwhm=torch.tensor(fwhm).repeat(2 * dim))
+        assert out.eq(ref).all()
+
+        # However, expect a different result when sampling between [0, fwhm).
+        out = kt.augment.blur(inp, fwhm=torch.tensor(fwhm))
+        assert out.ne(ref).any()

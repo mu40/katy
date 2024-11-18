@@ -91,3 +91,59 @@ def noise(x, sd=0.1, prob=1, shared=False, gen=None):
     sd = sd * kt.utility.chance(prob, size, device=x.device, gen=gen)
 
     return x + sd * torch.randn(x.shape, device=x.device, generator=gen)
+
+
+def blur(x, fwhm=1, prob=1, gen=None):
+    """Blur a tensor by convolving its N spatial axes with Gaussian kernels.
+
+    Uniformly samples anisotropic blurring full widths at half maximum (FWHM)
+    between bounds `a` and `b`, blurring all channels of a batch the same way.
+
+    Parameters
+    ----------
+    x : (B, C, ...) torch.Tensor
+        Input tensor.
+    fwhm : float or sequence of float, optional
+        FWHM range. Pass 1 value to set the upper bound `b`, keeping the lower
+        bound `a` at 0. Pass 2 values to set `(a, b)`. Pass `2 * N` values to
+        set `(a_1, b_1, ..., a_N, b_N)` for the N spatial axes.
+    prob : float, optional
+        Probability of blurring a batch entry.
+    gen : torch.Generator, optional
+        Pseudo-random number generator.
+
+    Returns
+    -------
+    (B, C, ...) torch.Tensor
+        Blurred tensor.
+
+    """
+    # Inputs.
+    x = torch.as_tensor(x)
+    ndim = x.ndim - 2
+    fwhm = torch.as_tensor(fwhm, device=x.device).ravel()
+    if len(fwhm) not in (1, 2, 2 * ndim):
+        raise ValueError(f'FWHM {fwhm} is not of length 1, 2, or {2 * ndim}')
+
+    # Conform FWHM bounds to (a_1, b_1, a_2, b_2, ..., a_N, b_N).
+    if len(fwhm) == 1:
+        fwhm = torch.cat((torch.zeros_like(fwhm), fwhm))
+    if len(fwhm) == 2:
+        fwhm = fwhm.repeat(ndim)
+
+    # FWHM sampling.
+    a, b = fwhm[0::2], fwhm[1::2]
+    batch = x.size(0)
+    size = (batch, ndim)
+    fwhm = torch.rand(size, device=x.device, generator=gen) * (b - a) + a
+
+    print(fwhm)
+
+    # Smoothing at per-batch probability.
+    bit = kt.utility.chance(prob, size=batch, device=x.device, gen=gen)
+    dim = 1 + torch.arange(ndim, device=x.device)
+    out = torch.empty_like(x)
+    for i, batch in enumerate(x):
+        out[i] = kt.filter.blur(batch, fwhm[i], dim) if bit[i] else batch
+
+    return out
