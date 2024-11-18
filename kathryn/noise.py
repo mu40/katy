@@ -15,8 +15,9 @@ def perlin(size, points=2, batch=None, device=None):
     ----------
     size : (N,) sequence of int or torch.Tensor
         Spatial output size.
-    points : sequence of int or torch.Tensor, optional
-        Number of control points in [2, size). The fewer, the smoother.
+    points : int or (N,) torch.Tensor, optional
+        Number of control points in [2, size). The lower, the smoother. Pass
+        1 value to use for all axes or N values - one for each axis.
     batch : sequence of int or torch.Tensor, optional
         Batch size.
     device : torch.device, optional
@@ -85,8 +86,8 @@ def perlin(size, points=2, batch=None, device=None):
     return out
 
 
-def octaves(size, freq, pers, batch=None, device=None):
-    """Generate and mix octaves of Perlin noise in N dimensions.
+def octaves(size, points, persistence, batch=None, device=None):
+    """Generate and mix M isotropic octaves of Perlin noise in N dimensions.
 
     Inspired by https://www.arendpeter.com/Perlin_Noise.html.
 
@@ -94,12 +95,10 @@ def octaves(size, freq, pers, batch=None, device=None):
     ----------
     size : (N,) sequence of int or torch.Tensor
         Spatial output size.
-    freq : sequence of int or torch.Tensor
-        Perlin-noise frequency levels to add. Will use `2 ** freq` control
-        points, which must be less than `size`, along any dimension.
-    pers : float or torch.Tensor
-        Persistence in (0, 1]. Higher values emphasize higher frequencies.
-        Must broadcast to batch shape.
+    points : (M,) torch.Tensor
+        Number of control points in [2, size). The lower, the smoother.
+    persistence : float or torch.Tensor
+        Weighting of higher frequencies, in (0, 1]. Must broadcast to `batch`.
     batch : sequence of int or torch.Tensor, optional
         Batch size.
     device : torch.device, optional
@@ -114,22 +113,25 @@ def octaves(size, freq, pers, batch=None, device=None):
     # Inputs.
     prop = dict(device=device)
     size = torch.as_tensor(size, **prop).ravel()
-    freq = torch.as_tensor(freq, **prop).ravel()
-    pers = torch.as_tensor(pers, **prop)
+    points = torch.as_tensor(points, **prop).ravel()
+    persistence = torch.as_tensor(persistence, **prop)
     if batch is None:
         batch = []
+    batch = torch.as_tensor(batch, **prop).ravel()
 
     # Make sure that multi-persistence inputs have to broadcast to batch only.
-    if pers.le(0).any() or pers.gt(1).any():
-        raise ValueError(f'persistence {pers} is not in (0, 1]')
-    pers = pers.view(*pers.shape, *(1,) * size.numel())
+    if persistence.le(0).any() or persistence.gt(1).any():
+        raise ValueError(f'persistence {persistence} is not in (0, 1]')
+    persistence = persistence.view(*persistence.shape, *(1,) * size.numel())
 
+    # With the definitions of `freq = 2 ** i` and `amp = pers ** i`, from the
+    # reference, we have `i = log2(freq)` and thus `amp = pers ** log2(freq)`.
     out = 0
-    for f in freq:
-        out += perlin(size, points=2 ** f, batch=batch, **prop) * pers ** f
+    for p in points:
+        amp = persistence ** torch.log2(p)
+        out += amp * perlin(size, points=p, batch=batch, **prop)
 
     # Batch-wise normalization.
-    batch = torch.as_tensor(batch, **prop).ravel()
     dim = tuple(range(len(batch), out.ndim))
     out -= out.amin(dim, keepdim=True)
     out /= out.amax(dim, keepdim=True)

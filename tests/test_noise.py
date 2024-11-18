@@ -48,7 +48,7 @@ def test_perlin_points_2d():
 
 
 def test_perlin_illegal_points():
-    """Test generating Perlin noise with illegal gradient cell numbers."""
+    """Test generating Perlin noise with illegal control-point numbers."""
     n = 10
     size = (n, n)
 
@@ -62,30 +62,30 @@ def test_perlin_illegal_points():
 def test_octaves_illegal_persistence():
     """Test generating Perlin octaves with illegal persistence values."""
     size = (4, 4)
-    freq = (0, 1)
+    points = (2, 3)
 
     with pytest.raises(ValueError):
-        kt.noise.octaves(size, freq, pers=0)
+        kt.noise.octaves(size, points, persistence=0)
 
     with pytest.raises(ValueError):
-        kt.noise.octaves(size, freq, pers=1.1)
+        kt.noise.octaves(size, points, persistence=1.1)
 
 
 def test_octaves_illegal_frequency():
-    """Test generating Perlin octaves with frequency too high for size."""
+    """Test generating Perlin octaves with too many points for size."""
     size = (4, 4)
-    freq = 2
+    points = 4
 
     with pytest.raises(ValueError):
-        kt.noise.octaves(size, freq, pers=1)
+        kt.noise.octaves(size, points, persistence=1)
 
 
 def test_octaves_normalization():
     """Test normalization of Perlin octaves, with tensor inputs."""
     size = torch.Size((5, 5))
-    freq = torch.tensor((1, 2))
+    points = torch.tensor((2, 3))
 
-    out = kt.noise.octaves(size, freq, pers=0.5)
+    out = kt.noise.octaves(size, points, persistence=0.5)
     assert out.min() == 0
     assert out.max() == 1
 
@@ -93,11 +93,11 @@ def test_octaves_normalization():
 def test_octaves_batches():
     """Test generating batches of octaves with different persistence."""
     size = (5, 5)
-    freq = (1, 2)
+    points = (2, 3)
     batch = (3, 4)
 
     # Persistence must be in (0, 1].
-    pers = torch.rand(*batch).mul(0.5).add(0.1)
+    persistence = torch.rand(*batch).mul(0.5).add(0.1)
 
-    out = kt.noise.octaves(size, freq, pers, batch=batch)
+    out = kt.noise.octaves(size, points, persistence, batch=batch)
     assert out.shape == (*batch, *size)
