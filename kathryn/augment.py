@@ -17,7 +17,7 @@ def gamma(x, gamma=0.5, prob=1, shared=False, gen=None):
     gamma : float, optional
         Value in (0, 1), leading to exponents in [1 - gamma, 1 + gamma].
     prob : float, optional
-        Probability of the transform.
+        Probability of transforming a channel.
     shared : bool, optional
         Transform all channels the same way.
     gen : torch.Generator, optional
@@ -64,12 +64,12 @@ def noise(x, sd=0.1, prob=1, shared=False, gen=None):
     x : (B, C, ...) torch.Tensor
         Input tensor.
     sd : float or sequence of float, optional
-        SD range. Pass a single value to define the upper bound, setting the
-        lower bound to 0. Pass two values to define lower and upper bounds.
+        SD range. Pass 1 value to define the upper bound, setting the lower
+        bound to 0. Pass 2 values to define lower and upper bounds.
     prob : float, optional
-        Probability of adding noise.
+        Probability of adding noise to a channel.
     shared : bool, optional
-        Use the same SD to all channels of a batch.
+        Use the same SD for all channels.
     gen : torch.Generator, optional
         Pseudo-random number generator.
 
