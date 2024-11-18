@@ -81,7 +81,7 @@ def noise(x, sd=0.1, prob=1, shared=False, gen=None):
     """
     # Inputs.
     x = torch.as_tensor(x)
-    sd = torch.as_tensor(sd).ravel()
+    sd = torch.as_tensor(sd, device=x.device).ravel()
 
     # Standard deviation.
     size = torch.as_tensor(x.shape)
