@@ -60,11 +60,11 @@ def blur(x, fwhm, dim=None):
 
     # Vector of dimensions.
     if dim is None:
-        dim = torch.arange(x.dim(), device=x.device)
+        dim = torch.arange(x.ndim, device=x.device)
     dim = torch.as_tensor(dim, device=x.device).ravel()
 
     # One FWHM per dimension.
-    fwhm = torch.as_tensor(fwhm, device=x.device).ravel().expand(dim.size())
+    fwhm = torch.as_tensor(fwhm, device=x.device).ravel().expand(dim.shape)
     for i, f in zip(dim, fwhm):
         kern = gaussian_kernel(f, device=x.device).view(1, 1, -1)
 

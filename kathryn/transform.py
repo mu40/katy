@@ -155,7 +155,7 @@ def interpolate(x, points, method='linear', padding='zeros'):
     points = grid_matmul(points, conv)
 
     # Expand to data batch size last, to convert fewer batches of points.
-    ndim = x.dim() - 2
+    ndim = x.ndim - 2
     batch = 1 if points.ndim < x.ndim else points.size(0)
     points = points.view(batch, ndim, *points.shape[-ndim:])
     points = points.expand(x.size(0), *points.shape[1:]).movedim(1, -1)
@@ -317,7 +317,7 @@ def decompose_rotation(mat, deg=True, dtype=None):
     mat = torch.as_tensor(mat, dtype=torch.float64)
     dim = mat.size(-1)
 
-    if mat.dim() < 2 or mat.size(-2) != dim or dim not in (2, 3):
+    if mat.ndim < 2 or mat.size(-2) != dim or dim not in (2, 3):
         raise ValueError(f'size {mat.shape} is not (..., 2, 2) or (..., 3, 3)')
 
     if dim == 2:
@@ -493,7 +493,7 @@ def decompose_affine(mat, deg=True, dtype=None):
     """
     mat = torch.as_tensor(mat, dtype=torch.float64)
     ndim = mat.size(-1) - 1
-    if mat.dim() < 2 or mat.size(-2) != mat.size(-1) or ndim not in (2, 3):
+    if mat.ndim < 2 or mat.size(-2) != mat.size(-1) or ndim not in (2, 3):
         raise ValueError(f'size {mat.shape} is not (..., 3, 3) or (..., 4, 4)')
 
     # Translation.

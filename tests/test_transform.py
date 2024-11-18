@@ -9,7 +9,7 @@ def test_grid():
     """Test index-coordinate grid creation with ij-indexing."""
     size = (4, 9)
     grid = kt.transform.grid(size)
-    assert grid.size() == (len(size), *size)
+    assert grid.shape == (len(size), *size)
 
     # Test ij-indexing. Coordinate i should increase along i-axis only.
     x = grid[0]

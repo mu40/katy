@@ -10,7 +10,7 @@ def test_gaussian_kernel_properties():
     width = 13
     k = kt.filter.gaussian_kernel(fwhm=8, width=13)
     assert k.numel() == width
-    assert k.dim() == 1
+    assert k.ndim == 1
     assert k.dtype == torch.get_default_dtype()
     assert k.sum().sub(1).abs() < 1e-6
 
