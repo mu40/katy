@@ -20,9 +20,18 @@ def test_gaussian_kernel_default_width_odd():
     assert kt.filter.gaussian_kernel(fwhm=8).numel() % 2 == 1
 
 
+def test_blur_unchanged():
+    """Test if blurring leaves the input changed."""
+    inp = torch.rand(3, 4, 5)
+    fwhm = torch.tensor(1)
+    orig = inp.clone()
+    kt.filter.blur(inp, fwhm)
+    assert inp.eq(orig).all()
+
+
 def test_blur_fwhm_zero():
     """Test if blurring with zero FWHM has no effect."""
-    x = torch.randn(3, 4, 5)
+    x = torch.rand(3, 4, 5)
     assert kt.filter.blur(x, fwhm=0).allclose(x)
 
 
