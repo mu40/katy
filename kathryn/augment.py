@@ -138,8 +138,6 @@ def blur(x, fwhm=1, prob=1, generator=None):
     size = (batch, ndim)
     fwhm = torch.rand(size, **prop) * (b - a) + a
 
-    print(fwhm)
-
     # Smoothing at per-batch probability.
     bit = kt.utility.chance(prob, size=batch, **prop)
     dim = 1 + torch.arange(ndim, device=x.device)
