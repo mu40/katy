@@ -7,7 +7,7 @@ import kathryn as kt
 
 
 def test_gamma_unchanged():
-    """Test if gamma-augmentation leaves input unchanged."""
+    """Test if gamma-augmentation leaves input unchanged, in 2D."""
     # Input of shape: batch, channel, space.
     inp = torch.rand(1, 1, 8, 8)
 
@@ -17,8 +17,8 @@ def test_gamma_unchanged():
 
 
 def test_gamma_probability():
-    """Test if gamma augmentation with zero probability is normalization."""
-    inp = torch.rand(1, 1, 8, 8)
+    """Test if gamma with zero probability is normalization, in 1D."""
+    inp = torch.rand(1, 1, 8)
     out = kt.augment.gamma(inp, prob=0)
 
     inp -= inp.min()
@@ -51,9 +51,9 @@ def test_gamma_normalization():
 
 
 def test_gamma_shared_channels():
-    """Test shared gamma augmentation across channels."""
+    """Test shared gamma augmentation across channels, in 3D."""
     # One batch of two identical input channels.
-    inp = torch.rand(1, 1, 4, 4).expand(-1, 2, -1, -1).clone()
+    inp = torch.rand(1, 1, 3, 3, 3).expand(-1, 2, -1, -1, -1).clone()
 
     # Identical channels after shared augmentation.
     out = kt.augment.gamma(inp, shared=True).squeeze()
@@ -76,9 +76,9 @@ def test_gamma_illegal_values():
 
 
 def test_noise_unchanged():
-    """Test if adding noise leaves input unchanged."""
+    """Test if adding noise leaves input unchanged, in 1D."""
     # Input of shape: batch, channel, space.
-    inp = torch.zeros(1, 1, 8, 8)
+    inp = torch.zeros(1, 1, 4)
 
     orig = inp.clone()
     kt.augment.noise(inp)
@@ -86,9 +86,9 @@ def test_noise_unchanged():
 
 
 def test_noise_change():
-    """Test if adding noise changes the input."""
+    """Test if adding noise changes the input, in 2D."""
     # Input of shape: batch, channel, space.
-    inp = torch.zeros(1, 1, 8, 8)
+    inp = torch.zeros(1, 1, 4, 4)
 
     # Adding noise should change the input.
     out = kt.augment.noise(inp, prob=1)
@@ -100,9 +100,9 @@ def test_noise_change():
 
 
 def test_blur_unchanged():
-    """Test if randomly blurring leaves input unchanged."""
+    """Test if randomly blurring leaves input unchanged, in 1D."""
     # Input of shape: batch, channel, space.
-    inp = torch.zeros(1, 1, 4, 4)
+    inp = torch.zeros(1, 1, 4)
 
     orig = inp.clone()
     kt.augment.blur(inp, fwhm=1)
@@ -119,7 +119,7 @@ def test_blur_illegal_fwhm():
 
 
 def test_blur_shared_channels():
-    """Test if the function blurs all channels identically."""
+    """Test if the function blurs all channels identically, in 2D."""
     inp = torch.rand(3, 1, 8, 8).expand(-1, 2, -1, -1)
 
     out = kt.augment.blur(inp, fwhm=5)
