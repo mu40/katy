@@ -227,3 +227,70 @@ def bias(x, floor=(0, 0.5), points=4, prob=1, shared=False, generator=None):
     field = field * (1 - floor) + floor
 
     return x.mul(field)
+
+
+def downsample(x, factor=8, method='linear', prob=1, generator=None):
+    """Reduce the resolution of a tensor.
+
+    Symmetrically subsamples a tensor and then upsamples it again, to reduce
+    its resolution. For speed and simplicity, subsampling always uses nearest
+    neighbors. As the function assumes the input has been randomly blurred, we
+    do not bother with anti-aliasing. All channels will see the same effect.
+
+    Parameters
+    ----------
+    x : (B, C, ...) torch.Tensor
+        Input tensor.
+    factor : float, optional
+        Subsampling range, greater or equal to 1. Pass 1 value `b` to sample
+        from [1, b]. Pass 2 values `a` and `b` to sample from [a, b]. Pass
+        `2 * N` values to set `(a_1, b_1, ..., a_N, b_N)` for N spatial axes.
+    method : {'nearest', 'linear'}, optional
+        Upsampling method. Use nearest for discrete-valued label maps.
+    prob : float, optional
+        Downsampling probability.
+    generator : torch.Generator, optional
+        Pseudo-random number generator.
+
+    Returns
+    -------
+    (B, C, ...) torch.Tensor
+        Downsampled tensor.
+
+    """
+    # Inputs.
+    x = torch.as_tensor(x)
+    ndim = x.ndim - 2
+
+    # Conform factor bounds to (a_1, b_1, a_2, b_2, ..., a_N, b_N).
+    factor = torch.as_tensor(factor, device=x.device).ravel()
+    if len(factor) not in (1, 2, 2 * ndim):
+        raise ValueError(f'factor {factor} not of length 1, 2, or {2 * ndim}')
+    if factor.lt(1).any():
+        raise ValueError(f'factor {factor} includes values less than 1')
+    if len(factor) == 1:
+        factor = torch.cat((torch.ones_like(factor), factor))
+    if len(factor) == 2:
+        factor = factor.repeat(ndim)
+
+    # Factor sampling.
+    prop = dict(device=x.device, generator=generator)
+    batch = x.size(0)
+    a, b = factor[0::2], factor[1::2]
+    factor = torch.rand(batch, 1, ndim, **prop) * (b - a) + a
+    bit = kt.utility.chance(prob, size=(batch, 1, 1), **prop)
+    factor = factor * bit + ~bit
+
+    # Shapes and grid.
+    size_1 = torch.as_tensor(x.shape[2:], device=x.device)
+    size_2 = size_1.div(factor).add(0.5).type(torch.int32)
+    grid = kt.transform.grid(size_1, dtype=x.dtype, device=x.device)
+
+    # Downsampling. Full grid size for processing batches in one shot.
+    points = grid * factor.view(batch, 1, ndim, *[1] * ndim)
+    out = kt.transform.interpolate(x, points, method='nearest')
+
+    # Upsampling.
+    scale = size_2.sub(1) / size_1.sub(1)
+    points = grid * scale.view(batch, 1, ndim, *[1] * ndim)
+    return kt.transform.interpolate(out, points, method=method)

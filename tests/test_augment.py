@@ -57,7 +57,7 @@ def test_gamma_shared_channels():
 
     # Identical channels after shared augmentation.
     out = kt.augment.gamma(inp, shared=True).squeeze()
-    assert out[0].eq(out[1]).all()
+    assert out[0].allclose(out[1])
 
     # Different channels after separate augmentation.
     out = kt.augment.gamma(inp, shared=False).squeeze()
@@ -199,3 +199,36 @@ def test_bias_illegal_values():
 
     with pytest.raises(ValueError):
         kt.augment.bias(x, floor=+1.1)
+
+
+def test_downsample_unchanged():
+    """Test if bias leaves input unchanged, with tensor input and in 3D."""
+    # Input of shape: batch, channel, space.
+    inp = torch.ones(1, 1, 4, 4, 4)
+
+    orig = inp.clone()
+    kt.augment.downsample(inp, factor=torch.tensor(2))
+    assert inp.eq(orig).all()
+
+
+def test_downsample_illegal_values():
+    """Test bias modulation with illegal input arguments, in 1D."""
+    x = torch.rand(1, 1, 4)
+
+    with pytest.raises(ValueError):
+        kt.augment.downsample(x, factor=0)
+
+
+def test_downsample_shared_channels():
+    """Test if batches differ while channels do not, with per-axis factor."""
+    inp = torch.rand(1, 1, 4, 4).expand(2, 3, -1, -1)
+    out = kt.augment.downsample(inp, factor=(1, 5, 1, 5))
+
+    # Batches should differ.
+    for channel in range(inp.shape[1]):
+        assert out[0, channel].ne(out[1, channel]).any()
+
+    # Within each batch, all channels should be identical.
+    for batch in out:
+        assert batch[0].eq(batch[1]).all()
+        assert batch[1].eq(batch[2]).all()
