@@ -27,7 +27,7 @@ def grid(size, dim=0, **kwargs):
     return grid if dim is None else torch.stack(grid, dim=dim)
 
 
-def index_to_torch(size, align_corners=False):
+def index_to_torch(size, align_corners=False, device=None):
     """Construct a matrix transforming index to "PyTorch" coordinates.
 
     Constructs a transform from indices to the normalized space used by
@@ -39,6 +39,8 @@ def index_to_torch(size, align_corners=False):
         Shape of the N-dimensional image space.
     align_corners : bool, optional
         Normalization type used for PyTorch sampling functions.
+    device : torch.device, optional
+        Device of the returned tensor.
 
     Returns
     -------
@@ -46,8 +48,9 @@ def index_to_torch(size, align_corners=False):
         Matrix transform.
 
     """
-    size = torch.as_tensor(size).ravel()
+    size = torch.as_tensor(size, device=device).ravel()
     ndim = size.numel()
+    one = torch.tensor([1], device=device)
 
     # Coordinates indicate the location of pixel centers. With the default
     # `align_corners=False`, values -1 and 1 refer to the outmost pixel
@@ -56,19 +59,19 @@ def index_to_torch(size, align_corners=False):
     # move the first pixel center from 0 to 0.5, and change the FOV width
     # between oustmost pixel borders from N to N - 1.
     if not align_corners:
-        shift = torch.eye(ndim + 1)
+        shift = torch.eye(ndim + 1, device=device)
         shift[:-1, -1] = 0.5
-        scale = torch.cat(((size - 1) / size, torch.tensor([1])))
+        scale = torch.cat(((size - 1) / size, one))
         align = torch.diag(scale) @ shift
 
     # Normalize indices from [0, N - 1] into [-1, 1].
-    norm = torch.cat((2 / (size - 1), torch.tensor([1])))
+    norm = torch.cat((2 / (size - 1), one))
     norm = torch.diag(norm)
     norm[:-1, -1] = -1
 
     # Reverse the dimensions that serves to index into spactial axes.
-    swap = torch.eye(ndim).flipud()
-    swap = torch.block_diag(swap, torch.tensor([1]))
+    swap = torch.eye(ndim, device=device).flipud()
+    swap = torch.block_diag(swap, one)
 
     return swap @ norm if align_corners else swap @ norm @ align
 
@@ -151,7 +154,8 @@ def interpolate(x, points, method='linear', padding='zeros'):
     # Convert to PyTorch's normalized coordinates. Using `align_corners=True`
     # should be slightly more efficient. The result will be identical here.
     align = True
-    conv = index_to_torch(size=x.shape[2:], align_corners=align)
+    size = x.shape[2:]
+    conv = index_to_torch(size, align_corners=align, device=x.device)
     points = grid_matmul(points, conv)
 
     # Expand to data batch size last, to convert fewer batches of points.
