@@ -168,7 +168,7 @@ def bias(x, floor=(0, 0.5), points=4, prob=1, shared=False, generator=None):
         values to set `(a_1, b_1, ..., a_N, b_N)` for the N spatial axes.
     prob : float, optional
         Probability of modulating a channel.
-    shared : boot, optional
+    shared : bool, optional
         Modulate all channels of a batch with the same field.
     generator : torch.Generator, optional
         Pseudo-random number generator.
