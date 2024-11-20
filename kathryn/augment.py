@@ -123,7 +123,7 @@ def blur(x, fwhm=1, prob=1, generator=None):
     ndim = x.ndim - 2
     fwhm = torch.as_tensor(fwhm, device=x.device).ravel()
     if len(fwhm) not in (1, 2, 2 * ndim):
-        raise ValueError(f'FWHM {fwhm} is not of length 1, 2, or {2 * ndim}')
+        raise ValueError(f'FWHM {fwhm} is not of length 1, 2, or 2N')
 
     # Conform FWHM bounds to (a_1, b_1, a_2, b_2, ..., a_N, b_N).
     if len(fwhm) == 1:
@@ -202,7 +202,7 @@ def bias(x, floor=(0, 0.5), points=4, prob=1, shared=False, generator=None):
     # Conform control-point bounds to (a_1, b_1, a_2, b_2, ..., a_N, b_N).
     points = torch.as_tensor(points, device=x.device).ravel()
     if len(points) not in (1, 2, 2 * ndim):
-        raise ValueError(f'points {points} not of length 1, 2, or {2 * ndim}')
+        raise ValueError(f'points {points} is not of length 1, 2, or 2N')
     if len(points) == 1:
         points = torch.cat((torch.tensor([2]), points))
     if len(points) == 2:
@@ -265,7 +265,7 @@ def downsample(x, factor=8, method='linear', prob=1, generator=None):
     # Conform factor bounds to (a_1, b_1, a_2, b_2, ..., a_N, b_N).
     factor = torch.as_tensor(factor, device=x.device).ravel()
     if len(factor) not in (1, 2, 2 * ndim):
-        raise ValueError(f'factor {factor} not of length 1, 2, or {2 * ndim}')
+        raise ValueError(f'factor {factor} is not of length 1, 2, or 2N')
     if factor.lt(1).any():
         raise ValueError(f'factor {factor} includes values less than 1')
     if len(factor) == 1:
