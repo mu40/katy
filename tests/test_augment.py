@@ -148,3 +148,54 @@ def test_blur_deterministic():
         # However, expect a different result when sampling between [0, fwhm).
         out = kt.augment.blur(inp, fwhm=torch.tensor(fwhm))
         assert out.ne(ref).any()
+
+
+def test_bias_unchanged():
+    """Test if bias leaves input unchanged, with tensor inputs in 3D."""
+    # Input of shape: batch, channel, space.
+    inp = torch.ones(1, 1, 4, 4, 4)
+
+    orig = inp.clone()
+    kt.augment.bias(inp, floor=torch.tensor(0), points=torch.tensor((2, 3)))
+    assert inp.eq(orig).all()
+
+
+def test_bias_normalization():
+    """Test if fixing minimum yields a bias field between 0 and 1, in 2D."""
+    inp = torch.ones(2, 3, 4, 4)
+    out = kt.augment.bias(inp, floor=(0, 0), points=2)
+
+    # Expect separate normalization of each channel of each batch.
+    for batch in out:
+        for channel in batch:
+            assert channel.min() == 0
+            assert channel.max() == 1
+
+
+def test_bias_shared_channels():
+    """Test if with sharing, batches differ and channels do not, in 1D."""
+    inp = torch.rand(1, 1, 4).expand(2, 3, -1)
+    out = kt.augment.bias(inp, floor=0, points=(2, 3), shared=True)
+
+    # Batches should differ.
+    for channel in range(inp.shape[1]):
+        assert out[0, channel].ne(out[1, channel]).any()
+
+    # Within each batch, all channels should be identical.
+    for batch in out:
+        assert batch[0].eq(batch[1]).all()
+        assert batch[1].eq(batch[2]).all()
+
+
+def test_bias_illegal_values():
+    """Test bias modulation with illegal input arguments."""
+    x = torch.rand(1, 1, 4, 4)
+
+    with pytest.raises(ValueError):
+        kt.augment.bias(x, points=4)
+
+    with pytest.raises(ValueError):
+        kt.augment.bias(x, floor=-0.1)
+
+    with pytest.raises(ValueError):
+        kt.augment.bias(x, floor=+1.1)
