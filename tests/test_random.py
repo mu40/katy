@@ -6,6 +6,15 @@ import pytest
 import kathryn as kt
 
 
+def test_crop_unchanged():
+    """Test if crop-mask generation leaves input unchanged, in 1D."""
+    # Input of shape: batch, channel, space.
+    inp = torch.ones(1, 1, 4)
+    orig = inp.clone()
+    kt.random.crop(inp)
+    assert inp.eq(orig).all()
+
+
 def test_crop_properties():
     """Test type, shape, and channel count of cropping mask, in 3D."""
     inp = torch.ones(2, 3, 4, 4, 4)
