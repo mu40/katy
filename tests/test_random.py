@@ -66,6 +66,24 @@ def test_affine_batches():
         assert out.shape == (x.size(0), dim + 1, dim + 1)
 
 
+def test_affine_ranges():
+    """Test defining affine sampling ranges in various ways."""
+    value = 0.5
+
+    for dim in (2, 3):
+        x = torch.empty(1, 1, *[4] * dim)
+        num = 1 if dim == 2 else 3
+        for k, n in dict(shift=dim, angle=num, scale=dim, shear=num).items():
+            kt.random.affine(x, **{k: value})
+            kt.random.affine(x, **{k: [value]})
+            kt.random.affine(x, **{k: [value] * 2})
+            kt.random.affine(x, **{k: [value] * 2 * n})
+            kt.random.affine(x, **{k: torch.tensor(value)})
+            kt.random.affine(x, **{k: torch.tensor([value])})
+            kt.random.affine(x, **{k: torch.tensor([value] * 2)})
+            kt.random.affine(x, **{k: torch.tensor([value] * 2 * n)})
+
+
 def test_affine_values():
     """Test generating translation, rotation, scaling, and shear matrices."""
     # Expect deterministic transforms for "fixed" sampling range.
@@ -111,3 +129,51 @@ def test_affine_values():
         out = center_frame_and_batch(x, out)
         ranges = dict(shift=0, angle=0, scale=0, shear=(par, par))
         assert kt.random.affine(x, **ranges).allclose(out)
+
+
+def test_warp_unchanged():
+    """Test if warp generation leaves input unchanged, in 2D."""
+    # Input of shape: batch, channel, space. Fewer control points than voxels.
+    inp = torch.ones(1, 1, 3, 3)
+    orig = inp.clone()
+    kt.random.warp(inp, points=2)
+    assert inp.eq(orig).all()
+
+
+def test_warp_shape():
+    """Test the generated warp shape, with various inputs."""
+    batch = 6
+    channels = 5
+    space = (4, 4, 4)
+
+    for dim in (2, 3):
+        inp = torch.empty(batch, channels, *space[:dim])
+        out = kt.random.warp(inp, damp=torch.tensor(0.1), points=(2, 3))
+        assert out.shape == (batch, dim, *space[:dim])
+
+
+def test_warp_maximum():
+    """Test the maximum displacement in 3D, with tensor range."""
+    inp = torch.ones(3, 1, 8, 8, 8)
+    disp = torch.tensor(20.)
+    space = tuple(range(2, inp.ndim))
+
+    out = kt.random.warp(inp, disp=torch.stack((disp, disp)), points=2)
+    assert out.abs().amax(dim=space).allclose(disp)
+
+
+def test_warp_illegal_values():
+    """Test warp generation with illegal input arguments, in 1D."""
+    x = torch.zeros(1, 1, 4)
+
+    # Damping factor should be non-negative.
+    with pytest.raises(ValueError):
+        kt.random.warp(x, damp=-0.1)
+
+    # Control points should be less than tensor width.
+    with pytest.raises(ValueError):
+        kt.random.warp(x, points=4)
+
+    # Displacement strength should be of length in `(1, 2, 2 * dim)`.
+    with pytest.raises(ValueError):
+        kt.random.warp(x, disp=torch.ones(3))
