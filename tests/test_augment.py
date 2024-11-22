@@ -9,7 +9,7 @@ import kathryn as kt
 def test_gamma_unchanged():
     """Test if gamma-augmentation leaves input unchanged, in 2D."""
     # Input of shape: batch, channel, space.
-    inp = torch.rand(1, 1, 8, 8)
+    inp = torch.zeros(1, 1, 8, 8)
 
     orig = inp.clone()
     kt.augment.gamma(inp)
@@ -66,7 +66,7 @@ def test_gamma_shared_channels():
 
 def test_gamma_illegal_values():
     """Test passing gamma values outside (0, 1) range."""
-    x = torch.rand(1, 1, 4, 4)
+    x = torch.zeros(1, 1, 4, 4)
 
     with pytest.raises(ValueError):
         kt.augment.gamma(x, gamma=0)
@@ -111,7 +111,7 @@ def test_blur_unchanged():
 
 def test_blur_illegal_fwhm():
     """Test passing an illegal number of FWHM."""
-    x = torch.rand(1, 1, 4, 4)
+    x = torch.zeros(1, 1, 4, 4)
 
     # FWHM should be of length 1, 2, or 2 * N, in N-dimensional space.
     with pytest.raises(ValueError):
@@ -189,7 +189,7 @@ def test_bias_shared_channels():
 
 def test_bias_illegal_values():
     """Test bias modulation with illegal input arguments."""
-    x = torch.rand(1, 1, 4, 4)
+    x = torch.zeros(1, 1, 4, 4)
 
     with pytest.raises(ValueError):
         kt.augment.bias(x, points=4)
@@ -213,7 +213,7 @@ def test_downsample_unchanged():
 
 def test_downsample_illegal_values():
     """Test bias modulation with illegal input arguments, in 1D."""
-    x = torch.rand(1, 1, 4)
+    x = torch.zeros(1, 1, 4)
 
     with pytest.raises(ValueError):
         kt.augment.downsample(x, factor=0)

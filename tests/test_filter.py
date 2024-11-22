@@ -22,7 +22,7 @@ def test_gaussian_kernel_default_width_odd():
 
 def test_blur_unchanged():
     """Test if blurring leaves the input changed."""
-    inp = torch.rand(3, 4, 5)
+    inp = torch.zeros(3, 4, 5)
     fwhm = torch.tensor(1)
     orig = inp.clone()
     kt.filter.blur(inp, fwhm)

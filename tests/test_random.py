@@ -37,7 +37,7 @@ def test_crop_single_axis():
 
 def test_crop_illegal_values():
     """Test crop-mask generation with illegal input arguments, in 2D."""
-    x = torch.rand(1, 1, 4, 4)
+    x = torch.empty(1, 1, 4, 4)
 
     with pytest.raises(ValueError):
         kt.random.crop(x, crop=-0.1)
