@@ -150,7 +150,7 @@ def affine(x, shift=30, angle=30, scale=0.1, shear=0.1, generator=None):
 
 
 def warp(x, disp=25, points=16, damp=0.33, steps=0, generator=None):
-    """Draw N-dimensional warp fields.
+    """Draw N-dimensional displacement fields.
 
     Uniformly samples control points and the maximum displacement strength.
     For the displacement and control-point ranges, pass 1 value to set the
@@ -176,7 +176,7 @@ def warp(x, disp=25, points=16, damp=0.33, steps=0, generator=None):
     Returns
     -------
     (B, N, ...) torch.Tensor
-        Warp fields.
+        Displacement fields.
 
     """
     x = torch.as_tensor(x)
