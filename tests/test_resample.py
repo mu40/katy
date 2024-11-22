@@ -2,6 +2,7 @@
 
 
 import torch
+import pytest
 import kathryn as kt
 
 
@@ -66,7 +67,40 @@ def test_transform_shift():
         assert out[..., :-shift].allclose(ref[..., :-shift])
 
 
-def test_integrate():
+def test_integrate_properties():
+    """Test vector integration properties."""
+    inp = torch.randn(2, 3, 5, 5, 5)
+    orig = inp.clone()
+
+    # Input should not change.
+    assert inp.eq(orig).all()
+
+    # Output should differ from input.
+    out = kt.transform.integrate(inp, steps=5)
+    assert out.ne(inp).any()
+
+
+def test_integrate_zero_steps():
+    """Test if integrating with zero steps returns the same field."""
+    inp = torch.zeros(1, 2, 4, 4)
+    out = kt.transform.integrate(inp, steps=0)
+    assert out is inp
+
+
+def test_integrate_illegal_arguments():
+    """Test integration with illegal input arguments."""
+    # The number of steps should not be negative.
+    with pytest.raises(ValueError):
+        inp = torch.zeros(1, 2, 4, 4)
+        kt.transform.integrate(inp, steps=-1)
+
+    # Field shape should be: batch, dimension, space.
+    with pytest.raises(ValueError):
+        inp = torch.zeros(1, 4, 4)
+        kt.transform.integrate(inp, steps=1)
+
+
+def test_integrate_inverse():
     """Test if integrating a negated SVF yields the inverse warp."""
     fov = 128
     fwhm = fov / 4

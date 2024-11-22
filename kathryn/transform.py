@@ -105,12 +105,15 @@ def integrate(x, steps, grid=None):
         Integral of the vector field.
 
     """
-    x = torch.as_tensor(x)
+    dtype = torch.get_default_dtype()
+    x = torch.as_tensor(x, dtype=dtype)
+    if steps < 0:
+        raise ValueError(f'integration step number {steps} is less than 0')
     if steps == 0:
         return x
 
     if grid is None:
-        grid = kt.transform.grid(x.shape[2:], device=x.device)
+        grid = kt.transform.grid(x.shape[2:], dtype=x.dtype, device=x.device)
 
     # Avoid in-place addition for gradients. Re-use border values for
     # extrapolation instead of zeros, to avoid steep cliffs.

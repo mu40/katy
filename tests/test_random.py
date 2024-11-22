@@ -168,7 +168,7 @@ def test_warp_illegal_values():
 
     # Damping factor should be non-negative.
     with pytest.raises(ValueError):
-        kt.random.warp(x, damp=-0.1)
+        kt.random.warp(x, points=2, damp=-0.1)
 
     # Control points should be less than tensor width.
     with pytest.raises(ValueError):
@@ -176,4 +176,8 @@ def test_warp_illegal_values():
 
     # Displacement strength should be of length in `(1, 2, 2 * dim)`.
     with pytest.raises(ValueError):
-        kt.random.warp(x, disp=torch.ones(3))
+        kt.random.warp(x, points=2, disp=torch.ones(3))
+
+    # Integration steps should not be negative.
+    with pytest.raises(ValueError):
+        kt.random.warp(x, points=2, steps=-1)
