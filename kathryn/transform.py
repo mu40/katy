@@ -21,7 +21,8 @@ def grid(size, dim=0, **kwargs):
         Index coordinates, stacked along `dim` if provided.
 
     """
-    size = torch.as_tensor(size, dtype=torch.int32).ravel()
+    kwargs.setdefault('dtype', torch.get_default_dtype())
+    size = torch.as_tensor(size, dtype=torch.int64).ravel()
     grid = (torch.arange(s, **kwargs) for s in size)
     grid = torch.meshgrid(*grid, indexing='ij')
     return grid if dim is None else torch.stack(grid, dim=dim)
