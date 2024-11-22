@@ -44,3 +44,70 @@ def test_crop_illegal_values():
 
     with pytest.raises(ValueError):
         kt.random.crop(x, crop=1.1)
+
+
+def test_affine_unchanged():
+    """Test if matrix-transform generation leaves input unchanged."""
+    # Input of shape: batch, channel, space.
+    inp = torch.ones(1, 1, 4, 4)
+    orig = inp.clone()
+    kt.random.affine(inp)
+    assert inp.eq(orig).all()
+
+
+def test_affine_batches():
+    """Test if generating affine-transforms, with per-axis tensor input."""
+    # Input of shape: batch, channel, space.
+
+    for dim in (2, 3):
+        x = torch.empty(7, 1, *[4] * dim)
+        shift = torch.tensor((0, 10) * dim)
+        out = kt.random.affine(x, shift=shift)
+        assert out.shape == (x.size(0), dim + 1, dim + 1)
+
+
+def test_affine_values():
+    """Test generating translation, rotation, scaling, and shear matrices."""
+    # Expect deterministic transforms for "fixed" sampling range.
+    par = 7
+
+    def center_frame_and_batch(x, mat):
+        dim = x.ndim - 2
+        cen = torch.eye(dim + 1)
+        unc = torch.eye(dim + 1)
+        cen[:-1, -1] = -0.5 * (torch.as_tensor(x.shape[2:]) - 1)
+        unc[:-1, -1] = -cen[:-1, -1]
+        return unc.matmul(mat).matmul(cen).unsqueeze(0)
+
+    # Test 2D and 3D.
+    for dim in (2, 3):
+        x = torch.empty(1, 1, *[4] * dim)
+
+        # Translation.
+        out = torch.eye(dim + 1)
+        out[:dim, -1] = par
+        out = center_frame_and_batch(x, out)
+        ranges = dict(shift=(par, par), angle=0, scale=0, shear=0)
+        assert kt.random.affine(x, **ranges).allclose(out)
+
+        # Rotation.
+        angle = [par] * (3 if dim == 3 else 1)
+        out = torch.eye(dim + 1)
+        out[:dim, :dim] = kt.transform.compose_rotation(angle)
+        out = center_frame_and_batch(x, out)
+        ranges = dict(shift=0, angle=(par, par), scale=0, shear=0)
+        assert kt.random.affine(x, **ranges).allclose(out, rtol=1e-4)
+
+        # Scaling. Function takes offset from 1.
+        out = torch.eye(dim + 1)
+        out.diagonal()[:dim] = par + 1
+        out = center_frame_and_batch(x, out)
+        ranges = dict(shift=0, angle=0, scale=(par, par), shear=0)
+        assert kt.random.affine(x, **ranges).allclose(out)
+
+        # Shear.
+        out = torch.eye(dim + 1)
+        out[*torch.triu_indices(dim, dim, offset=1)] = par
+        out = center_frame_and_batch(x, out)
+        ranges = dict(shift=0, angle=0, scale=0, shear=(par, par))
+        assert kt.random.affine(x, **ranges).allclose(out)

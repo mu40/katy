@@ -104,6 +104,8 @@ def affine(x, shift=30, angle=30, scale=0.1, shear=0.1, generator=None):
     """
     x = torch.as_tensor(x)
     ndim = x.ndim - 2
+    if ndim not in (2, 3):
+        raise ValueError(f'{x.shape} is not a 2D or 3D tensor shape')
 
     def conform(f, name, sizes):
         f = torch.as_tensor(f, device=x.device).ravel()
@@ -124,7 +126,6 @@ def affine(x, shift=30, angle=30, scale=0.1, shear=0.1, generator=None):
     angle = conform(angle, name='angle', sizes=len_2)
     scale = conform(scale, name='scale', sizes=len_1) + 1
     shear = conform(shear, name='shear', sizes=len_2)
-    print(scale)
     if scale.le(0).any():
         raise ValueError(f'scale {scale} includes non-positive values')
 
