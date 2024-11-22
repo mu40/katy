@@ -7,5 +7,6 @@ from . import index
 from . import filter
 from . import noise
 from . import model
+from . import random
 from . import transform
 from . import utility
