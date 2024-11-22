@@ -5,14 +5,14 @@ import torch
 import kathryn as kt
 
 
-def crop(x, crop=0.33, prob=1, generator=None):
+def crop(mask, crop=0.33, prob=1, generator=None):
     """Generate a boolean mask for multiplicative cropping.
 
     The output mask will crop the input along a random spatial axis.
 
     Parameters
     ----------
-    x : (B, C, ...) torch.Tensor
+    mask : (B, C, ...) torch.Tensor
         Boolean mask.
     crop : float, optional
         Cropping range, in [0, 1]. Pass 1 value `b` to sample from [0, b].
@@ -29,12 +29,12 @@ def crop(x, crop=0.33, prob=1, generator=None):
 
     """
     # Inputs.
-    x = torch.as_tensor(x)
-    ndim = x.ndim - 2
-    size = x.shape[2:]
+    mask = torch.as_tensor(mask)
+    ndim = mask.ndim - 2
+    size = mask.shape[2:]
 
     # Conform bounds to (a, b).
-    crop = torch.as_tensor(crop, device=x.device).ravel()
+    crop = torch.as_tensor(crop, device=mask.device).ravel()
     if len(crop) not in (1, 2):
         raise ValueError(f'crop {crop} not of length 1, or 2')
     if crop.lt(0).any() or crop.gt(1).any():
@@ -43,17 +43,17 @@ def crop(x, crop=0.33, prob=1, generator=None):
         crop = torch.cat((torch.zeros_like(crop), crop))
 
     # Draw cropping amount, proportion to apply to lower end.
-    prop = dict(device=x.device, generator=generator)
-    batch = x.shape[:1]
+    prop = dict(device=mask.device, generator=generator)
+    batch = mask.shape[:1]
     bit = kt.utility.chance(prob, size=batch, **prop)
     a, b = crop
     crop = bit * torch.rand(batch, **prop) * (b - a) + a
     dist = torch.rand(batch, **prop)
 
     # Treat channels as one.
-    x = x.any(dim=1)
-    out = torch.zeros_like(x)
-    for i, batch in enumerate(x):
+    mask = mask.any(dim=1)
+    out = torch.zeros_like(mask)
+    for i, batch in enumerate(mask):
         # Mask extent along random axis.
         dim = torch.randint(ndim, size=())
         batch = batch.any(dim=[n for n in range(ndim) if n != dim])
