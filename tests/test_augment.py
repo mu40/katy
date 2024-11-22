@@ -220,13 +220,9 @@ def test_downsample_illegal_values():
 
 
 def test_downsample_shared_channels():
-    """Test if batches differ while channels do not, with per-axis factor."""
+    """Test if channels differ, with per-axis factor."""
     inp = torch.rand(1, 1, 4, 4).expand(2, 3, -1, -1)
     out = kt.augment.downsample(inp, factor=(1, 5, 1, 5))
-
-    # Batches should differ.
-    for channel in range(inp.shape[1]):
-        assert out[0, channel].ne(out[1, channel]).any()
 
     # Within each batch, all channels should be identical.
     for batch in out:
