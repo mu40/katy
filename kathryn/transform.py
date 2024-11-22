@@ -591,7 +591,7 @@ def compose(*trans, grid=None, absolute=False):
 
     Parameters
     ----------
-    *trans : sequence of (B,  N + 1, N + 1) or (B, N, *size) torch.Tensor
+    *trans : sequence of (B, N + 1, N + 1) or (B, N, *size) torch.Tensor
         Matrices or displacement fields with the same batch dimension `B`.
     grid : (N, *size) torch.Tensor, optional
         Index coordinate grid, where `size` has `N` elements.
@@ -601,7 +601,7 @@ def compose(*trans, grid=None, absolute=False):
     Returns
     -------
     torch.Tensor
-        Composite transform. Will be a matrix of shape `(B,  N + 1, N + 1)`
+        Composite transform. Will be a matrix of shape `(B, N + 1, N + 1)`
         if all inputs are matrices and there is no grid. Otherwise, it will be
         a displacement or coordinate grid of shape `(B, N, *size)`.
 
