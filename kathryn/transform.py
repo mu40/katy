@@ -114,7 +114,7 @@ def integrate(x, steps, grid=None):
         return x
 
     if grid is None:
-        grid = kt.transform.grid(x.shape[2:], dtype=x.dtype, device=x.device)
+        grid = kt.transform.grid(x.shape[2:], device=x.device)
 
     # Avoid in-place addition for gradients. Re-use border values for
     # extrapolation instead of zeros, to avoid steep cliffs.
@@ -207,7 +207,7 @@ def transform(x, trans, grid=None, method='linear', padding='zeros'):
     # Grid.
     size = x.shape[2:]
     if grid is None:
-        grid = kt.transform.grid(size, dtype=x.dtype, device=x.device)
+        grid = kt.transform.grid(size, device=x.device)
 
     points = grid_matmul(grid, trans) if is_matrix(trans) else grid + trans
     return interpolate(x, points, method, padding)
