@@ -5,6 +5,23 @@ import torch
 import kathryn as kt
 
 
+def is_matrix(x):
+    """Determine if a tensor is a 2D or 3D matrix transform.
+
+    Parameters
+    ----------
+    x : torch.Tensor
+        Input tensor.
+
+    Returns
+    -------
+    bool
+        True if the input is of shape (..., N + 1, N + 1), where N is 2 or 3.
+
+    """
+    return x.ndim > 1 and x.size(-2) == x.size(-1) and x.size(-1) in (3, 4)
+
+
 def grid(size, dim=0, **kwargs):
     """Create a grid of N-dimensional index coordinates.
 
@@ -26,6 +43,39 @@ def grid(size, dim=0, **kwargs):
     grid = (torch.arange(s, **kwargs) for s in size)
     grid = torch.meshgrid(*grid, indexing='ij')
     return grid if dim is None else torch.stack(grid, dim=dim)
+
+
+def grid_matmul(x, matrix):
+    """Apply an N-dimensional matrix transform to a coordinate grid.
+
+    Parameters
+    ----------
+    x : (..., N, *size) torch.Tensor
+        Coordinates of spatial `N`-element shape `size` and any batch sizes.
+    matrix : (..., N + 1, N + 1) torch.Tensor
+        Matrix transform. Batch sizes must broadcast.
+
+    Returns
+    -------
+    (..., N, *size) torch.Tensor
+        Transformed grid.
+
+    """
+    x = torch.as_tensor(x)
+    matrix = torch.as_tensor(matrix)
+    if not is_matrix(matrix):
+        raise ValueError(f'tensor of size {matrix.shape} is not a matrix')
+
+    # Dimensions.
+    ndim = matrix.size(-1) - 1
+    size = x.shape[-ndim:]
+    if x.ndim < ndim + 1 or x.size(-ndim - 1) != ndim:
+        raise ValueError(f'grid size {x.shape} is incorrect in {ndim}D')
+
+    # Matrix-vector product. Reshape to (B, N, -1), apply, restore size.
+    x = x.view(*x.shape[:-ndim], -1)
+    x = matrix[..., :-1, :-1] @ x + matrix[..., :-1, -1:]
+    return x.view(*x.shape[:-1], *size)
 
 
 def index_to_torch(size, align_corners=False, device=None):
@@ -84,45 +134,6 @@ def torch_to_index(*args, **kwargs):
 
     """
     return torch.inverse(index_to_torch(*args, **kwargs))
-
-
-def integrate(x, steps, grid=None):
-    """Integrate a stationary N-dimensional vector field.
-
-    Implements the "scaling and squaring" algorithm.
-
-    Parameters
-    ----------
-    x : (B, N, *size) torch.Tensor
-        Displacement vector field of `N`-element spatial shape `size`.
-    steps : int
-        Number of integration steps.
-    grid : (N, *size) torch.Tensor, optional
-       Index coordinate grid, for efficiency.
-
-    Returns
-    -------
-    (B, N, *size) torch.Tensor
-        Integral of the vector field.
-
-    """
-    dtype = torch.get_default_dtype()
-    x = torch.as_tensor(x, dtype=dtype)
-    if steps < 0:
-        raise ValueError(f'integration step number {steps} is less than 0')
-    if steps == 0:
-        return x
-
-    if grid is None:
-        grid = kt.transform.grid(x.shape[2:], device=x.device)
-
-    # Avoid in-place addition for gradients. Re-use border values for
-    # extrapolation instead of zeros, to avoid steep cliffs.
-    x = x / (2 ** steps)
-    for _ in range(steps):
-        x = x + transform(x, x, grid=grid, padding='border')
-
-    return x
 
 
 def interpolate(x, points, method='linear', padding='zeros'):
@@ -211,6 +222,45 @@ def transform(x, trans, grid=None, method='linear', padding='zeros'):
 
     points = grid_matmul(grid, trans) if is_matrix(trans) else grid + trans
     return interpolate(x, points, method, padding)
+
+
+def integrate(x, steps, grid=None):
+    """Integrate a stationary N-dimensional vector field.
+
+    Implements the "scaling and squaring" algorithm.
+
+    Parameters
+    ----------
+    x : (B, N, *size) torch.Tensor
+        Displacement vector field of `N`-element spatial shape `size`.
+    steps : int
+        Number of integration steps.
+    grid : (N, *size) torch.Tensor, optional
+       Index coordinate grid, for efficiency.
+
+    Returns
+    -------
+    (B, N, *size) torch.Tensor
+        Integral of the vector field.
+
+    """
+    dtype = torch.get_default_dtype()
+    x = torch.as_tensor(x, dtype=dtype)
+    if steps < 0:
+        raise ValueError(f'integration step number {steps} is less than 0')
+    if steps == 0:
+        return x
+
+    if grid is None:
+        grid = kt.transform.grid(x.shape[2:], device=x.device)
+
+    # Avoid in-place addition for gradients. Re-use border values for
+    # extrapolation instead of zeros, to avoid steep cliffs.
+    x = x / (2 ** steps)
+    for _ in range(steps):
+        x = x + transform(x, x, grid=grid, padding='border')
+
+    return x
 
 
 def compose_rotation(angle, deg=True, dtype=None):
@@ -529,56 +579,6 @@ def decompose_affine(mat, deg=True, dtype=None):
 
     out = (shift, angle, scale, shear)
     return tuple(o.type(dtype) for o in out)
-
-
-def grid_matmul(x, matrix):
-    """Apply an N-dimensional matrix transform to a coordinate grid.
-
-    Parameters
-    ----------
-    x : (..., N, *size) torch.Tensor
-        Coordinates of spatial `N`-element shape `size` and any batch sizes.
-    matrix : (..., N + 1, N + 1) torch.Tensor
-        Matrix transform. Batch sizes must broadcast.
-
-    Returns
-    -------
-    (..., N, *size) torch.Tensor
-        Transformed grid.
-
-    """
-    x = torch.as_tensor(x)
-    matrix = torch.as_tensor(matrix)
-    if not is_matrix(matrix):
-        raise ValueError(f'tensor of size {matrix.shape} is not a matrix')
-
-    # Dimensions.
-    ndim = matrix.size(-1) - 1
-    size = x.shape[-ndim:]
-    if x.ndim < ndim + 1 or x.size(-ndim - 1) != ndim:
-        raise ValueError(f'grid size {x.shape} is incorrect in {ndim}D')
-
-    # Matrix-vector product. Reshape to (B, N, -1), apply, restore size.
-    x = x.view(*x.shape[:-ndim], -1)
-    x = matrix[..., :-1, :-1] @ x + matrix[..., :-1, -1:]
-    return x.view(*x.shape[:-1], *size)
-
-
-def is_matrix(x):
-    """Determine if a tensor is a 2D or 3D matrix transform.
-
-    Parameters
-    ----------
-    x : torch.Tensor
-        Input tensor.
-
-    Returns
-    -------
-    bool
-        True if the input is of shape (..., N + 1, N + 1), where N is 2 or 3.
-
-    """
-    return x.ndim > 1 and x.size(-2) == x.size(-1) and x.size(-1) in (3, 4)
 
 
 def compose(*trans, grid=None, absolute=False):
