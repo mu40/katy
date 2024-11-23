@@ -301,6 +301,17 @@ def test_compose_field_matrix():
             assert out.shape[1:] == grid.shape
 
 
+def test_center_matrix_unchanged():
+    """Test if centering matrix leaves input unchanged."""
+    size = (128, 128)
+    ndim = len(size)
+    mat = torch.eye(ndim + 1)
+
+    orig = mat.clone()
+    kt.transform.center_matrix(size, mat)
+    assert mat.eq(orig).all()
+
+
 def test_center_matrix_incompatible():
     """Test centering matrices of incompatible size."""
     size = (3, 3, 3)
