@@ -341,3 +341,47 @@ def test_center_matrix_values():
             expected = unc @ inp @ cen
 
             assert kt.transform.center_matrix(size, inp).allclose(expected)
+
+
+def test_jacobian_unchanged():
+    """Test if computing Jacobian leaves input unchanged."""
+    # Input of shape: batch, channel, space.
+    size = (3, 3, 3)
+    ndim = len(size)
+    inp = torch.empty(1, ndim, *size)
+
+    orig = inp.clone()
+    kt.transform.jacobian(inp, det=torch.tensor(False))
+    assert inp.eq(orig).all()
+
+
+def test_jacobian_illegal_shape():
+    """Test computing Jacobian with illegal field shape."""
+    size = (3, 3, 3)
+    ndim = len(size)
+    field = torch.empty(1, ndim + 1, *size)
+
+    with pytest.raises(ValueError):
+        kt.transform.jacobian(field)
+
+
+def test_jacobian_values():
+    """Test computing Jacobian determinants."""
+    width = 8
+    batch = 7
+
+    for dim in (2, 3):
+        size = torch.tensor(width).expand(dim)
+        x = torch.empty(batch, 1, *size)
+
+        # Determinants of batch of random affine transforms. Make shape
+        # broadcastable to field shape (batch, *size).
+        mat = kt.random.affine(x)
+        det = mat.det().view(batch, *[1] * dim)
+
+        # Recover same determinants from displacement or deformation fields.
+        grid = kt.transform.grid(size)
+        for is_disp in (True, False):
+            inp = kt.transform.compose(mat, grid=grid, absolute=not is_disp)
+            out = kt.transform.jacobian(inp, is_disp=is_disp)
+            assert out.allclose(det)

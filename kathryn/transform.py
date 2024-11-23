@@ -708,3 +708,38 @@ def center_matrix(size, mat):
     unc[:-1, -1] = -cen[:-1, -1]
 
     return (unc @ mat.type(cen.dtype) @ cen).type(mat.dtype)
+
+
+def jacobian(f, det=True, is_disp=True):
+    """Compute Jacobian matrix or determinant of an N-dimensional field.
+
+    Parameters
+    ----------
+    f : (B, N, *size) torch.Tensor
+        Deformation field of spatial N-element `size`.
+    det : bool, optional
+        Return the determinant of the Jacobian matrix.
+    is_disp : bool, optional
+        Add identity to convert from displacement to deformation field.
+
+    Returns
+    -------
+    (B, *size, N, N) or (B, *size) torch.Tensor
+        Jacobian matrix or determinant.
+
+    """
+    f = torch.as_tensor(f, dtype=torch.get_default_dtype())
+    ndim, *size = f.shape[1:]
+    if f.ndim != ndim + 2:
+        raise ValueError(f'field does not have {ndim} spatial axes')
+
+    # Compute Jacobian matrix J_ij = df_i/dx_j with respect to the N spatial
+    # If f is a displacement field, must add the coordinate grid to obtain the
+    # deformation field F(x) = x + f(x). As dF(x)/dx = Id + df/dx, we can add
+    # an identity matrix to df/dx instead, which is slightly more efficient.
+    df = torch.gradient(f, dim=tuple(range(2, f.ndim)))
+    df = torch.stack(df, dim=-1).movedim(1, -2)
+    if is_disp:
+        df = df + torch.eye(ndim, device=df.device)
+
+    return torch.linalg.det(df) if det else df
