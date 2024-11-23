@@ -89,22 +89,15 @@ def test_affine_values():
     # Expect deterministic transforms for "fixed" sampling range.
     par = 7
 
-    def center_frame_and_batch(x, mat):
-        dim = x.ndim - 2
-        cen = torch.eye(dim + 1)
-        unc = torch.eye(dim + 1)
-        cen[:-1, -1] = -0.5 * (torch.as_tensor(x.shape[2:]) - 1)
-        unc[:-1, -1] = -cen[:-1, -1]
-        return unc.matmul(mat).matmul(cen).unsqueeze(0)
-
     # Test 2D and 3D.
     for dim in (2, 3):
-        x = torch.empty(1, 1, *[4] * dim)
+        space = [4] * dim
+        x = torch.empty(1, 1, *space)
 
         # Translation.
         out = torch.eye(dim + 1)
         out[:dim, -1] = par
-        out = center_frame_and_batch(x, out)
+        out = kt.transform.center_matrix(space, out).unsqueeze(0)
         ranges = dict(shift=(par, par), angle=0, scale=0, shear=0)
         assert kt.random.affine(x, **ranges).allclose(out)
 
@@ -112,21 +105,21 @@ def test_affine_values():
         angle = [par] * (3 if dim == 3 else 1)
         out = torch.eye(dim + 1)
         out[:dim, :dim] = kt.transform.compose_rotation(angle)
-        out = center_frame_and_batch(x, out)
+        out = kt.transform.center_matrix(space, out).unsqueeze(0)
         ranges = dict(shift=0, angle=(par, par), scale=0, shear=0)
         assert kt.random.affine(x, **ranges).allclose(out, rtol=1e-4)
 
         # Scaling. Function takes offset from 1.
         out = torch.eye(dim + 1)
         out.diagonal()[:dim] = par + 1
-        out = center_frame_and_batch(x, out)
+        out = kt.transform.center_matrix(space, out).unsqueeze(0)
         ranges = dict(shift=0, angle=0, scale=(par, par), shear=0)
         assert kt.random.affine(x, **ranges).allclose(out)
 
         # Shear.
         out = torch.eye(dim + 1)
         out[*torch.triu_indices(dim, dim, offset=1)] = par
-        out = center_frame_and_batch(x, out)
+        out = kt.transform.center_matrix(space, out).unsqueeze(0)
         ranges = dict(shift=0, angle=0, scale=0, shear=(par, par))
         assert kt.random.affine(x, **ranges).allclose(out)
 

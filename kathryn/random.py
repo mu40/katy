@@ -136,18 +136,13 @@ def affine(x, shift=30, angle=30, scale=0.1, shear=0.1, generator=None):
     par = torch.rand(x.size(0), *a.shape, **prop) * (b - a) + a
 
     # Construct matrix, with double precision.
-    prop = dict(dtype=torch.float64, device=x.device)
+    prop = dict(device=x.device)
     splits = (3, 3, 3, 3) if ndim == 3 else (2, 1, 2, 1)
     par = torch.split(par, splits, dim=-1)
     mat = kt.transform.compose_affine(*par, **prop)
 
     # Apply in centered frame.
-    cen = torch.eye(ndim + 1, **prop)
-    unc = torch.eye(ndim + 1, **prop)
-    cen[:-1, -1] = -0.5 * (torch.as_tensor(x.shape[2:]) - 1)
-    unc[:-1, -1] = -cen[:-1, -1]
-
-    return unc.matmul(mat).matmul(cen).type(torch.get_default_dtype())
+    return kt.transform.center_matrix(x.shape[2:], mat)
 
 
 def warp(x, disp=25, points=16, damp=0.33, steps=0, generator=None):
