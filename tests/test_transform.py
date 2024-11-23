@@ -2,6 +2,7 @@
 
 
 import torch
+import pytest
 import kathryn as kt
 
 
@@ -298,3 +299,34 @@ def test_compose_field_matrix():
             grid = kt.transform.grid(small, dtype=disp.dtype)
             out = kt.transform.compose(disp, mat, grid=grid)
             assert out.shape[1:] == grid.shape
+
+
+def test_center_matrix_incompatible():
+    """Test centering matrices of incompatible size."""
+    size = (3, 3, 3)
+
+    with pytest.raises(ValueError):
+        mat = torch.eye(3, 3)
+        kt.transform.center_matrix(size, mat)
+
+    with pytest.raises(ValueError):
+        mat = torch.eye(3, 4)
+        kt.transform.center_matrix(size, mat)
+
+
+def test_center_matrix_values():
+    """Test centering matrices in 2D and 3D, with different batch sizes."""
+    width = 256
+
+    for dim in (2, 3):
+        for batch in ([], [4], [5, 4]):
+            size = torch.tensor(width).expand(dim)
+            inp = torch.rand(*batch, dim + 1, dim + 1)
+
+            cen = torch.eye(dim + 1)
+            unc = torch.eye(dim + 1)
+            cen[:-1, -1] = -0.5 * (size - 1)
+            unc[:-1, -1] = -cen[:-1, -1]
+            expected = unc @ inp @ cen
+
+            assert kt.transform.center_matrix(size, inp).allclose(expected)

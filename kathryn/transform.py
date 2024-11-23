@@ -285,7 +285,6 @@ def compose_rotation(angle, deg=True, dtype=None):
     return out.type(dtype)
 
 
-
 def decompose_rotation(mat, deg=True, dtype=None):
     """Decompose an N-dimensional rotation matrix into Euler angles.
 
@@ -670,3 +669,42 @@ def compose(*trans, grid=None, absolute=False):
         curr = curr + grid
 
     return curr
+
+
+def center_matrix(size, mat):
+    """Center an N-dimensional matrix transform.
+
+    Convert a matrix transform such that rotations, scaling, and shear apply
+    relative to the center of the field of view.
+
+    Parameters
+    ----------
+    size : (N,) sequence of int or torch.Tensor
+        Spatial image shape.
+    mat : (..., N + 1, N + 1) torch.Tensor
+        Matrix transforms of any batch dimensions.
+
+    Raises
+    ------
+    ValueError
+        For matrices of incompatible size.
+
+    Returns
+    -------
+    (..., N + 1, N + 1) torch.Tensor
+        Centered matrices.
+
+    """
+    mat = torch.as_tensor(mat)
+    size = torch.as_tensor(size, device=mat.device).ravel()
+    ndim = size.numel()
+    if mat.ndim < 2 or not mat.size(-1) == mat.size(-2) == ndim + 1:
+        raise ValueError(f'matrix size {mat.shape} is not a {ndim}D matrix')
+
+    # Conversion matrices. Use double precision.
+    cen = torch.eye(ndim + 1, dtype=torch.float64, device=mat.device)
+    unc = torch.eye(ndim + 1, dtype=torch.float64, device=mat.device)
+    cen[:-1, -1] = -0.5 * (size - 1)
+    unc[:-1, -1] = -cen[:-1, -1]
+
+    return (unc @ mat.type(cen.dtype) @ cen).type(mat.dtype)
