@@ -57,3 +57,42 @@ def test_to_image_variability():
 
     # Batches should differ.
     assert out[0].ne(out[1]).any()
+
+
+def test_one_hot_unchanged():
+    """Test if one-hotting leaves input unchanged."""
+    inp = torch.zeros(1, 1, 4, dtype=torch.int64)
+
+    orig = inp.clone()
+    kt.labels.one_hot(inp, labels=1)
+    assert inp.eq(orig).all()
+
+
+def test_one_hot_illegal_inputs():
+    """Test if one-hotting with illegal input values."""
+    # Input label map should have one channel.
+    x = torch.ones(1, 2, 3, dtype=torch.int64)
+    with pytest.raises(ValueError):
+        kt.labels.one_hot(x, labels=2)
+
+    # Highest label should be one less than the number of labels.
+    x = torch.ones(1, 1, 3, dtype=torch.int64)
+    with pytest.raises(ValueError):
+        kt.labels.one_hot(x, labels=1)
+
+
+def test_one_hot_values():
+    """Test explicit result of one-hot encoding."""
+    labels = 3
+    inp = torch.tensor((*range(labels), -1))
+    inp = inp.view(1, 1, inp.numel())
+    out = kt.labels.one_hot(inp, labels)
+
+    # The number of output channels should equal the non-negative labels.
+    assert out.shape == (1, labels, inp.numel())
+
+    # Index value i should lead to activation of channel i only.
+    assert out[0, :, :-1].eq(torch.eye(labels)).all()
+
+    # Negative values should not have any activation.
+    assert out[0, :, -1].eq(0).all()

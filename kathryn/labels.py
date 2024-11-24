@@ -52,3 +52,33 @@ def to_image(label_map, channels=1, generator=None):
     ind = label_map + off_b + off_c
 
     return lut.view(-1)[ind]
+
+
+def one_hot(x, labels):
+    """Convert label map to one-hot encoding, ignoring negative values.
+
+    Parameters
+    ----------
+    x : (B, 1, *size) torch.Tensor
+        Label map of `torch.int64` values in [0, labels).
+    labels : int
+        Number of labels or output channels.
+
+    Returns
+    -------
+    (B, labels, *size) torch.Tensor
+        One-hot encoding.
+
+    """
+    if x.ndim < 2 or x.size(1) != 1:
+        raise ValueError(f'label map size {x.shape} is not (B, 1, ...)')
+    if x.max() >= labels:
+        raise ValueError(f'highest label {x.max()} is not less than {labels}')
+
+    # Convert negative values to an additional class and remove it later.
+    x = torch.where(x < 0, labels, x)
+    x = torch.nn.functional.one_hot(x, num_classes=labels + 1)
+    x = x[..., :labels]
+
+    # Replace the singleton channel dimension.
+    return x.squeeze(1).movedim(-1, 1)
