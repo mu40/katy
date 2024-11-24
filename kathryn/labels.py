@@ -10,7 +10,7 @@ def to_image(label_map, channels=1, generator=None):
     Parameters
     ----------
     label_map : (B, 1, *size) torch.Tensor
-        Discrete-valued label map.
+        Discrete, positive-valued label map.
     channels : int, optional
         Number of output channels.
     generator : torch.Generator, optional
