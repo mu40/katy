@@ -5,6 +5,7 @@ __version__ = '0.0'
 from . import augment
 from . import index
 from . import filter
+from . import labels
 from . import noise
 from . import model
 from . import random
