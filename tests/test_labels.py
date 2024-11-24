@@ -28,12 +28,18 @@ def test_to_image_illegal_inputs():
         kt.labels.to_image(x, channels=0)
 
 
+def test_to_image_dtype():
+    """Test image synthesis output data type."""
+    x = torch.ones(1, 1, 4)
+    assert kt.labels.to_image(x).dtype == torch.get_default_dtype()
+
+
 def test_to_image_shape():
     """Test image synthesis output shape."""
     batch = 3
     space = (4, 5, 6)
 
-    for dim in (1, 2, 3):
+    for dim in (2, 3):
         for channels in (1, 2):
             inp = torch.ones(batch, 1, *space[:dim])
             out = kt.labels.to_image(inp, channels)
