@@ -2,7 +2,7 @@
 
 
 import torch
-import kathryn as kt
+import katy as kt
 
 
 def test_ind2sub_sub2ind_python():

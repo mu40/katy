@@ -3,7 +3,7 @@
 
 import torch
 import pytest
-import kathryn as kt
+import katy as kt
 
 
 def test_to_image_unchanged():

@@ -3,7 +3,7 @@
 
 import torch
 import itertools
-import kathryn as kt
+import katy as kt
 
 
 def perlin(size, points=2, batch=None, device=None, generator=None):

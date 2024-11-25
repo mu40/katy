@@ -1,5 +1,5 @@
 [project]
-name = 'kathryn'
+name = 'katy'
 
 [tool.pytest.ini_options]
 addopts = '--no-header'

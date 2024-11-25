@@ -2,7 +2,7 @@
 
 
 import torch
-import kathryn as kt
+import katy as kt
 
 
 def gamma(x, gamma=0.5, prob=1, shared=False, generator=None):

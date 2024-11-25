@@ -2,7 +2,7 @@
 
 
 import torch
-import kathryn as kt
+import katy as kt
 
 
 def crop(mask, crop=0.33, prob=1, generator=None):

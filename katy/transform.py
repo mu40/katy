@@ -2,7 +2,7 @@
 
 
 import torch
-import kathryn as kt
+import katy as kt
 
 
 def is_matrix(x):
