@@ -33,7 +33,7 @@ def perlin(size, points=2, batch=None, device=None, generator=None):
     """
     # Inputs.
     dev = dict(device=device)
-    size = torch.as_tensor(size, **dev)
+    size = torch.as_tensor(size, **dev).ravel()
     ndim = size.numel()
     points = torch.as_tensor(points, **dev).ravel().expand(ndim)
     if points.lt(2).any() or points.ge(size).any():

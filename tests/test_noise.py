@@ -8,12 +8,20 @@ import katy as kt
 
 def test_perlin_dimensions():
     """Test Perlin noise shape with various dimensions."""
-    size = (20, 21, 22, 23)
+    size = (10, 11, 12, 13)
 
     for dim in (1, 2, 3):
         for points in (2, 4, 8):
             out = kt.noise.perlin(size=size[:dim], points=points)
             assert out.shape == size[:dim]
+
+
+def test_perlin_scalar_size():
+    """Test Perlin noise generation passing a scalar size."""
+    size = 32
+
+    out = kt.noise.perlin(size)
+    assert out.shape == (size,)
 
 
 def test_perlin_batches():
