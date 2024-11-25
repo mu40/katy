@@ -96,3 +96,39 @@ def test_one_hot_values():
 
     # Negative values should not have any activation.
     assert out[0, :, -1].eq(0).all()
+
+
+def test_rebase_labels():
+    """Test rebasing LUT with list of input labels."""
+    # Inputs.
+    labels = (1, 4, 5, 6)
+    unknown = -1
+
+    # Expected output.
+    size = max(labels) + 1
+    expected = torch.zeros(size, dtype=torch.int64) + unknown
+    for i, label in enumerate(labels):
+        expected[label] = i
+
+    for dtype in (list, tuple, torch.tensor):
+        inp = dtype(labels)
+        out = kt.labels.rebase(inp, unknown=unknown)
+        assert out.dtype == torch.int64
+        assert out.eq(expected).all()
+
+
+def test_rebase_mapping():
+    """Test rebasing LUT with unsorted input mapping."""
+    # Inputs.
+    mapping = {1: 2, 4: 1, 5: 1, 6: 1}
+
+    # Expected output. Default value for unknown input labels should be 0.
+    size = max(mapping) + 1
+    expected = torch.zeros(size, dtype=torch.int64)
+    out_to_ind = {label: i for i, label in enumerate(sorted(mapping.values()))}
+    for inp, out in mapping.items():
+        expected[inp] = out_to_ind[out]
+
+    out = kt.labels.rebase(mapping)
+    assert out.dtype == torch.int64
+    assert out.eq(expected).all()

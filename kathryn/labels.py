@@ -82,3 +82,42 @@ def one_hot(x, labels):
 
     # Replace the singleton channel dimension.
     return x.squeeze(1).movedim(-1, 1)
+
+
+def rebase(labels, unknown=0, device=None):
+    """Build a lookup table (LUT) from labels to contiguous indices.
+
+    Instead of directly rebasing a `label_map`, the function returns a `lut`
+    tensor for efficient rebasing via indexing, that is, via `lut[label_map]`.
+
+    Parameters
+    ----------
+    labels : sequence of int or dict or torch.Tensor
+        All possible label values or a mapping from them to new output labels,
+        enabling you to merge labels before converting to indices.
+    unknown : int, optional
+        Output value for missing input labels.
+    device : torch.device, optional
+        Device of the returned tensor.
+
+    Returns
+    -------
+    torch.Tensor
+        Lookup table.
+
+    """
+    max_label = max(labels)
+    lut = torch.full(size=(max_label + 1,), fill_value=unknown)
+
+    if isinstance(labels, dict):
+        out = sorted(labels.values())
+        out_to_ind = {label: i for i, label in enumerate(out)}
+        for inp, out in labels.items():
+            lut[inp] = out_to_ind[out]
+
+    else:
+        labels = torch.as_tensor(labels)
+        labels, _ = labels.sort()
+        lut[labels] = torch.arange(labels.numel())
+
+    return lut.to(device=device)
