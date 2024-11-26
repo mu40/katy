@@ -261,6 +261,7 @@ def downsample(x, factor=8, method='linear', prob=1, generator=None):
     # Inputs.
     x = torch.as_tensor(x)
     ndim = x.ndim - 2
+    size = x.shape[2:]
 
     # Conform factor bounds to (a_1, b_1, a_2, b_2, ..., a_N, b_N).
     factor = torch.as_tensor(factor, device=x.device).ravel()
@@ -277,23 +278,20 @@ def downsample(x, factor=8, method='linear', prob=1, generator=None):
     prop = dict(device=x.device, generator=generator)
     batch = x.size(0)
     a, b = factor[0::2], factor[1::2]
-    factor = torch.rand(batch, 1, ndim, **prop) * (b - a) + a
-    bit = kt.utility.chance(prob, size=(batch, 1, 1), **prop)
+    factor = torch.rand(batch, ndim, **prop) * (b - a) + a
+    bit = kt.utility.chance(prob, size=(batch, 1), **prop)
     factor = factor * bit + ~bit
 
-    # Shapes and grid.
-    size_1 = torch.as_tensor(x.shape[2:], device=x.device)
-    size_2 = size_1.div(factor).add(0.5).type(torch.int32)
-    grid = kt.transform.grid(size_1, dtype=x.dtype, device=x.device)
-
     # Downsampling. Full grid size for processing batches in one shot.
-    points = grid * factor.view(batch, 1, ndim, *[1] * ndim)
-    out = kt.transform.interpolate(x, points, method='nearest')
+    grid = kt.transform.grid(size, dtype=x.dtype, device=x.device)
+    trans = kt.transform.compose_affine(scale=factor, device=x.device)
+    trans = kt.transform.center_matrix(size, trans)
+    x = kt.transform.transform(x, trans, grid=grid, method='nearest')
 
     # Upsampling.
-    scale = size_2.sub(1) / size_1.sub(1)
-    points = grid * scale.view(batch, 1, ndim, *[1] * ndim)
-    return kt.transform.interpolate(out, points, method=method)
+    trans = kt.transform.compose_affine(scale=1 / factor, device=x.device)
+    trans = kt.transform.center_matrix(size, trans)
+    return kt.transform.transform(x, trans, grid=grid, method=method)
 
 
 def remap(x, points=8, bins=256, prob=1, shared=False, generator=None):
