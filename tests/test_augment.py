@@ -228,3 +228,38 @@ def test_downsample_shared_channels():
     for batch in out:
         assert batch[0].eq(batch[1]).all()
         assert batch[1].eq(batch[2]).all()
+
+
+def test_remap_unchanged():
+    """Test if intensity remapping leaves input unchanged, in 2D."""
+    # Do not test on flat image.
+    inp = torch.rand(1, 1, 8, 8)
+
+    orig = inp.clone()
+    kt.augment.remap(inp)
+    assert inp.eq(orig).all()
+
+
+def test_remap_probability():
+    """Test if remapping with zero probability is normalization, in 1D."""
+    inp = torch.rand(1, 1, 256)
+    out = kt.augment.remap(inp, prob=0)
+
+    inp -= inp.min()
+    inp /= inp.max()
+    assert out.allclose(inp, rtol=1e-2, atol=1e-2)
+
+
+def test_remap_shared_channels():
+    """Test if with sharing, batches differ and channels do not, in 3D."""
+    inp = torch.rand(1, 1, 8, 8, 8).expand(2, 3, -1, -1, -1)
+    out = kt.augment.remap(inp, bins=torch.tensor(128), shared=True)
+
+    # Batches should differ.
+    for channel in range(inp.shape[1]):
+        assert out[0, channel].ne(out[1, channel]).any()
+
+    # Within each batch, all channels should be identical.
+    for batch in out:
+        assert batch[0].eq(batch[1]).all()
+        assert batch[1].eq(batch[2]).all()

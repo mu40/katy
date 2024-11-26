@@ -294,3 +294,81 @@ def downsample(x, factor=8, method='linear', prob=1, generator=None):
     scale = size_2.sub(1) / size_1.sub(1)
     points = grid * scale.view(batch, 1, ndim, *[1] * ndim)
     return kt.transform.interpolate(out, points, method=method)
+
+
+def remap(x, points=8, bins=256, prob=1, shared=False, generator=None):
+    """Remap image intensities using smooth lookup tables.
+
+    Parameters
+    ----------
+    x : (B, C, ...) torch.Tensor
+        Input image.
+    points : int or sequence of int, optional
+        Control-point range. Pass 1 value to set the upper bound `b`, keeping
+        the lower bound `a` at 2. Pass 2 values to set `(a, b)`.
+    bins : int, optional
+        Number of grayscale levels remap.
+    prob : float, optional
+        Remapping probability.
+    shared : bool, optional
+        Remap all channels the same way.
+    generator : torch.Generator, optional
+        Pseudo-random number generator.
+
+    Returns
+    -------
+    (B, C, ...) torch.Tensor
+        Tensor with remapped intensities.
+
+    """
+    # Input.
+    x = torch.as_tensor(x)
+    ndim = x.ndim - 2
+    bins = torch.as_tensor(bins)
+
+    # Randomize across batches, or batches and channels.
+    size = torch.as_tensor(x.shape[:2])
+    size[1 if shared else 2:] = 1
+    prop = dict(device=x.device, generator=generator)
+
+    # Control-point bounds.
+    points = torch.as_tensor(points, device=x.device).ravel()
+    if len(points) not in (1, 2):
+        raise ValueError(f'points {points} is not of length 1 or 2')
+    if len(points) == 1:
+        points = torch.cat((torch.tensor([2]), points))
+
+    # Control-point sampling.
+    a, b = points[0], points[1] + 1
+    if a.lt(2).any() or bins.lt(b).any():
+        raise ValueError(f'controls points {points} is not all in [2, {bins})')
+    points = torch.rand(size[0], **prop) * (b - a) + a
+    points = points.type(torch.int32)
+
+    # Discretization.
+    dim = tuple(range(1 if shared else 2, x.ndim))
+    x = x - x.amin(dim, keepdim=True)
+    x = x / x.amax(dim, keepdim=True)
+    x = x * (bins - 1)
+    x = x.type(torch.int64)
+
+    # Lookup tables. Oversample, as edges are zero.
+    lut = torch.empty(*size, bins)
+    for i, p in enumerate(points):
+        n = kt.noise.perlin(size=bins * 2, points=p, batch=size[1], **prop)
+        lut[i] = n[:, bins // 2:-bins // 2]
+
+    # Normalize to full range. If shared, there will be only one channel.
+    lut -= lut.amin(dim=-1, keepdim=True)
+    lut /= lut.amax(dim=-1, keepdim=True)
+
+    # Randomization.
+    bit = kt.utility.chance(prob, size, **prop).view(-1)
+    lut.view(-1, bins)[~bit] = torch.linspace(0, 1, bins, device=x.device)
+
+    # Indices into LUT.
+    off_c = torch.arange(size[1], device=x.device) * bins
+    off_b = torch.arange(size[0], device=x.device) * size[1] * bins
+    ind = x + off_b.view(-1, 1, *[1] * ndim) + off_c.view(1, -1, *[1] * ndim)
+
+    return lut.view(-1)[ind]
