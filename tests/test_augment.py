@@ -215,14 +215,19 @@ def test_downsample_illegal_values():
     """Test bias modulation with illegal input arguments, in 1D."""
     x = torch.zeros(1, 1, 4)
 
+    # Factors should be positive.
     with pytest.raises(ValueError):
         kt.augment.downsample(x, factor=0)
+
+    # Factors should be less than tensor size.
+    with pytest.raises(ValueError):
+        kt.augment.downsample(x, factor=x.size(-1))
 
 
 def test_downsample_shared_channels():
     """Test if channels differ, with per-axis factor."""
     inp = torch.rand(1, 1, 4, 4).expand(2, 3, -1, -1)
-    out = kt.augment.downsample(inp, factor=(1, 5, 1, 5))
+    out = kt.augment.downsample(inp, factor=(1, 3, 1, 3))
 
     # Within each batch, all channels should be identical.
     for batch in out:

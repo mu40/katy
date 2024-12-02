@@ -230,17 +230,17 @@ def bias(x, floor=(0, 0.5), points=4, prob=1, shared=False, generator=None):
 
 
 def downsample(x, factor=8, method='linear', prob=1, generator=None):
-    """Reduce the resolution of a tensor.
+    """Reduce the resolution of an N-dimensional tensor.
 
-    Symmetrically subsamples a tensor and then upsamples it again, to reduce
-    its resolution. For speed and simplicity, subsampling always uses nearest
-    neighbors. As the function assumes the input has been randomly blurred, we
-    do not bother with anti-aliasing. All channels will see the same effect.
+    Downsamples a tensor and upsamples it again, to simulate upsampled lower
+    resolution data. As the function assumes prior random blurring for
+    augmentation, we do not apply anti-aliasing. For simplicity, downsampling
+    always uses nearest neighbors. All channels will see the same effect.
 
     Parameters
     ----------
-    x : (B, C, ...) torch.Tensor
-        Input tensor.
+    x : (B, C, *size) torch.Tensor
+        Input tensor of spatial N-element size.
     factor : float, optional
         Subsampling range, greater or equal to 1. Pass 1 value `b` to sample
         from [1, b]. Pass 2 values `a` and `b` to sample from [a, b]. Pass
@@ -254,7 +254,7 @@ def downsample(x, factor=8, method='linear', prob=1, generator=None):
 
     Returns
     -------
-    (B, C, ...) torch.Tensor
+    (B, C, *size) torch.Tensor
         Downsampled tensor.
 
     """
@@ -273,6 +273,8 @@ def downsample(x, factor=8, method='linear', prob=1, generator=None):
         factor = torch.cat((torch.ones_like(factor), factor))
     if len(factor) == 2:
         factor = factor.repeat(ndim)
+    if torch.tensor(size).div(factor[1::2]).le(1).any():
+        raise ValueError(f'factors {factor} not all less than size')
 
     # Factor sampling.
     prop = dict(device=x.device, generator=generator)
@@ -281,17 +283,23 @@ def downsample(x, factor=8, method='linear', prob=1, generator=None):
     factor = torch.rand(batch, ndim, **prop) * (b - a) + a
     bit = kt.utility.chance(prob, size=(batch, 1), **prop)
     factor = factor * bit + ~bit
+    factor = 1 / factor
 
-    # Downsampling. Full grid size for processing batches in one shot.
-    grid = kt.transform.grid(size, dtype=x.dtype, device=x.device)
-    trans = kt.transform.compose_affine(scale=factor, device=x.device)
-    trans = kt.transform.center_matrix(size, trans)
-    x = kt.transform.transform(x, trans, grid=grid, method='nearest')
+    if method == 'nearest':
+        method = 'nearest-exact'
+    if method == 'linear' and ndim == 2:
+        method = 'bilinear'
+    if method == 'linear' and ndim == 3:
+        method = 'trilinear'
 
-    # Upsampling.
-    trans = kt.transform.compose_affine(scale=1 / factor, device=x.device)
-    trans = kt.transform.center_matrix(size, trans)
-    return kt.transform.transform(x, trans, grid=grid, method=method)
+    # The built-in function is way faster than applying scaling matrices.
+    f = torch.nn.functional.interpolate
+    out = torch.empty_like(x)
+    for i, s in enumerate(factor):
+        batch = f(x[i:i + 1], scale_factor=s.tolist(), mode='nearest-exact')
+        out[i] = f(batch, size=size, mode=method)
+
+    return out
 
 
 def remap(x, points=8, bins=256, prob=1, shared=False, generator=None):
