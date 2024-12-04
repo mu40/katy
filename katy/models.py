@@ -6,7 +6,7 @@ import torch.nn as nn
 
 
 def make_activation(act, **kwargs):
-    """Instantiate activation function, using default values.
+    """Instantiate activation function with overridable default.
 
     Parameters
     ----------
@@ -21,20 +21,20 @@ def make_activation(act, **kwargs):
         Configured instance.
 
     """
-    if isinstance(act, nn.Module) or act is None:
+    if isinstance(act, nn.Module):
         return act
 
     if isinstance(act, str):
         act = getattr(nn, act)
 
     if act is nn.Softmax:
-        kwargs.setdefault(dim=1)
+        kwargs.setdefault('dim', 1)
 
     if act is nn.LeakyReLU:
-        kwargs.setdefault(negative_slope=0.1)
+        kwargs.setdefault('negative_slope', 0.1)
 
-    if any(act in f for f in (nn.ReLU, nn.ELU, nn.LeakyReLU)):
-        kwargs.setdefault(in_place=True)
+    if any(act == f for f in (nn.ReLU, nn.ELU, nn.LeakyReLU)):
+        kwargs.setdefault('inplace', True)
 
     return act(**kwargs)
 
@@ -46,13 +46,13 @@ class Unet(nn.Module):
         self,
         inp=1,
         out=1,
-        filters=24,
-        mult=2,
-        levels=5,
-        repeats=1,
+        enc=(24, 48, 96, 192, 384),
+        dec=(384, 192, 96, 48, 24),
+        add=(),
+        rep=1,
         dim=3,
         act=nn.ELU,
-        final=nn.Softmax,
+        fin=nn.Softmax,
     ):
         """Initialize the model.
 
@@ -62,20 +62,19 @@ class Unet(nn.Module):
             Number of input channels.
         out : int, optional
             Number of output channels.
-        filters : int, optional
-            Number of features at the highest (first) level.
-        mult : int, optional
-            Feature multiplier. Multiply the number of convolutional features
-            by this number each time you descend one level.
-        levels : int, optional
-            Number of U-Net levels, including the highest level.
-        repeats : int, optional
-            Number of convolutional layers at each encoder and decoder level.
+        enc : sequence of int, optional
+            Number of encoding convolutional filters at each level.
+        dec : sequence of int, optional
+            Number of decoding convolutional filters at each level.
+        add : sequence of int, optional
+            Number of additional convolutional filters at the final level.
+        rep : int, optional
+            Number of repeats for each convolutional operation.
         dim : int, optional
             Number of spatial dimensions N.
         act : str or nn.Module or type, optional
-            Activation function.
-        final : str or nn.Module or type or None, optional
+            Activation function after each convolution.
+        fin : str or nn.Module or type or None, optional
             Final activaton function.
 
         """
@@ -88,70 +87,70 @@ class Unet(nn.Module):
 
         # Encoder.
         n_inp = inp
-        n_out = filters
-        n_enc = []
+        enc = list(enc)
         self.enc = nn.ModuleList()
         self.down = nn.ModuleList()
-        for _ in range(levels - 1):
+        for n_out in enc:
             level = []
-            for _ in range(repeats):
+            for _ in range(rep):
                 level.append(conv(n_inp, n_out, **prop))
                 level.append(make_activation(act))
                 n_inp = n_out
             self.enc.append(nn.Sequential(*level))
             self.down.append(pool(kernel_size=2))
-            n_enc.append(n_out)
-            n_out *= mult
 
         # Decoder.
         self.dec = nn.ModuleList()
         self.up = nn.ModuleList()
-        for _ in range(levels - 1):
+        for n_out in dec:
             level = []
-            for _ in range(repeats):
+            for _ in range(rep):
                 level.append(conv(n_inp, n_out, **prop))
                 level.append(make_activation(act))
                 n_inp = n_out
-            n_inp += n_enc.pop()
+            n_inp += enc.pop()
             self.dec.append(nn.Sequential(*level))
             self.up.append(nn.Upsample(scale_factor=2))
-            n_out //= mult
 
-        # Final layers.
-        out = []
-        for _ in range(repeats - 1):
-            out.append(conv(n_inp, n_out, **prop))
-            out.append(nn.ReLU())
-            n_inp = n_out
-        out.append(conv(n_inp, out, **prop))
-        if final is not None:
-            out.append(make_activation(final))
-        self.out = nn.Sequential(*out)
+        # Additional convolutions.
+        level = []
+        for n_out in add:
+            for _ in range(rep):
+                level.append(conv(n_inp, n_out, **prop))
+                level.append(make_activation(act))
+                n_inp = n_out
+
+        level.append(conv(n_inp, out, **prop))
+        if fin is not None:
+            level.append(make_activation(fin))
+
+        self.add = nn.Sequential(*level)
 
     def forward(self, x):
         """Define the computation performed by the model call.
 
         Parameters
         ----------
-        x : (batch, inp, *size) torch.Tensor
-            Input tensor of spatial N-element size.
+        x : (batch, inp, ...) torch.Tensor
+            Input tensor.
 
         Returns
         -------
-        out : (batch, out, *size) torch.Tensor
-            Model output of spatial N-element size.
+        out : (batch, out, ...) torch.Tensor
+            Model output.
 
         """
-        # Encoder.
-        hist = []
+        # Encoding convolutions.
+        enc = []
         for conv, down in zip(self.enc, self.down):
             x = conv(x)
-            hist.append(x)
+            enc.append(x)
             x = down(x)
 
-        # Decoder.
+        # Decoding convolutions.
         for conv, up in zip(self.dec, self.up):
             x = conv(x)
-            x = torch.cat([hist.pop(), up(x)], dim=1)
+            x = torch.cat([enc.pop(), up(x)], dim=1)
 
-        return self.out(x)
+        # Additional convolutions.
+        return self.add(x)

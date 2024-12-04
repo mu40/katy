@@ -8,7 +8,7 @@ from . import filter
 from . import labels
 from . import losses
 from . import noise
-from . import model
+from . import models
 from . import metrics
 from . import random
 from . import transform
