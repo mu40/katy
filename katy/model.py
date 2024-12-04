@@ -13,7 +13,7 @@ def make_activation(act, **kwargs):
     act : nn.Module or str or type
         Activation function.
     kwargs : dict, optional
-        Key-value settings
+        Key-value settings.
 
     Returns
     -------
@@ -40,7 +40,7 @@ def make_activation(act, **kwargs):
 
 
 class Unet(nn.Module):
-    """A simple U-Net (https://arxiv.org/abs/1505.04597)."""
+    """A simple N-dimensional U-Net (https://arxiv.org/abs/1505.04597)."""
 
     def __init__(
         self,
@@ -72,7 +72,7 @@ class Unet(nn.Module):
         repeats : int, optional
             Number of convolutional layers at each encoder and decoder level.
         dim : int, optional
-            Number of spatial dimensions.
+            Number of spatial dimensions N.
         act : str or nn.Module or type, optional
             Activation function.
         final : str or nn.Module or type or None, optional
@@ -133,13 +133,13 @@ class Unet(nn.Module):
 
         Parameters
         ----------
-        x : (batch, inp, *space) torch.Tensor
-            Input tensor.
+        x : (batch, inp, *size) torch.Tensor
+            Input tensor of spatial N-element size.
 
         Returns
         -------
-        out : (batch, out, *space) torch.Tensor
-            Model output.
+        out : (batch, out, *size) torch.Tensor
+            Model output of spatial N-element size.
 
         """
         # Encoder.
