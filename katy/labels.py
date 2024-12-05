@@ -88,7 +88,9 @@ def rebase(labels, unknown=0, device=None):
     """Build a lookup table (LUT) from labels to contiguous indices.
 
     Instead of directly rebasing a `label_map`, the function returns a `lut`
-    tensor for efficient rebasing via indexing, that is, via `lut[label_map]`.
+    tensor for efficient rebasing via indexing, that is, via:
+
+        `lut[label_map.ravel()].view_as(label_map)`
 
     Parameters
     ----------
@@ -106,18 +108,22 @@ def rebase(labels, unknown=0, device=None):
         Lookup table.
 
     """
-    max_label = max(labels)
+    if not isinstance(unknown, int):
+        raise ValueError(f'value {unknown} is not a Python integer')
+
+    if not isinstance(labels, dict):
+        labels = {x: x for x in labels}
+
+    # Prepare output.
+    max_label = int(max(labels))
     lut = torch.full(size=(max_label + 1,), fill_value=unknown)
 
-    if isinstance(labels, dict):
-        out = sorted(labels.values())
-        out_to_ind = {label: i for i, label in enumerate(out)}
-        for inp, out in labels.items():
-            lut[inp] = out_to_ind[out]
+    # Conversion to indices.
+    out_labels = sorted(labels.values())
+    out_to_ind = {label: i for i, label in enumerate(out_labels)}
 
-    else:
-        labels = torch.as_tensor(labels)
-        labels, _ = labels.sort()
-        lut[labels] = torch.arange(labels.numel())
+    # Python scalars to prevent torch.uint8 interpretation as boolean indices.
+    for inp, out in labels.items():
+        lut[int(inp)] = out_to_ind[out]
 
     return lut.to(device=device)

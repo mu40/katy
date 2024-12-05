@@ -31,6 +31,8 @@ def grid(size, dim=0, **kwargs):
        Output shape.
     dim : int or None, optional
         Stack output along this dimension.
+    **kwargs : dict, optional
+        Key-value backend settings.
 
     Returns
     -------

@@ -12,7 +12,7 @@ def make_activation(act, **kwargs):
     ----------
     act : nn.Module or str or type
         Activation function.
-    kwargs : dict, optional
+    **kwargs : dict, optional
         Key-value settings.
 
     Returns
