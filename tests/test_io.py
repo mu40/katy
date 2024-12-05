@@ -1,6 +1,7 @@
 """Tests for index module."""
 
 
+import torch
 import pytest
 import katy as kt
 
@@ -15,8 +16,17 @@ def test_save_load_generic(tmp_path):
         path = tmp_path / f'testfile.{e}'
 
         kt.io.save(inp, path)
-        out = kt.io.load(path)
-        assert out == inp
+        assert kt.io.load(path) == inp
+
+
+def test_save_load_tensor(tmp_path):
+    """Test saving and restoring a tensor."""
+    # JSON saves tuples as lists.
+    path = tmp_path / 'testfile.pt'
+    inp = torch.rand(8)
+
+    kt.io.save(inp, path)
+    assert kt.io.load(path).allclose(inp)
 
 
 def test_save_illegal_extension(tmp_path):
