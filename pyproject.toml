@@ -16,8 +16,8 @@ select = ['B', 'D', 'E', 'F', 'N', 'RUF', 'Q', 'W', 'UP']
 inline-quotes = 'single'
 
 [tool.ruff.lint.per-file-ignores]
-"__init__.py" = ['F401']
-"readme.md" = ['E501']
+"__init__.py" = ['F401']  # unused-import
+"readme.md" = ['E501']  # line-too-long
 
 [tool.ruff.lint.pydocstyle]
 convention = 'numpy'
