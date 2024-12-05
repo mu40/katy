@@ -3,8 +3,9 @@
 __version__ = '0.0'
 
 from . import augment
-from . import index
 from . import filter
+from . import index
+from . import io
 from . import labels
 from . import losses
 from . import noise
