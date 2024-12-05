@@ -132,3 +132,15 @@ def test_rebase_mapping():
     out = kt.labels.rebase(mapping)
     assert out.dtype == torch.int64
     assert out.eq(expected).all()
+
+
+def test_rebase_illegal_unknown():
+    """Test rebasing LUT with non-integer unknown labels."""
+    # Input label map should have one channel.
+    x = torch.arange(3)
+
+    with pytest.raises(ValueError):
+        kt.labels.rebase(x, unknown=0.1)
+
+    with pytest.raises(ValueError):
+        kt.labels.rebase(x, unknown=torch.tensor(1))
