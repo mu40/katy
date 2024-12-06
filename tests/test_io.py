@@ -17,6 +17,7 @@ def test_save_load_generic(tmp_path):
 
         kt.io.save(inp, path)
         assert kt.io.load(path) == inp
+        assert path.is_file()
 
 
 def test_save_load_tensor(tmp_path):
@@ -27,6 +28,7 @@ def test_save_load_tensor(tmp_path):
 
     kt.io.save(inp, path)
     assert kt.io.load(path).allclose(inp)
+    assert path.is_file()
 
 
 def test_save_illegal_extension(tmp_path):
