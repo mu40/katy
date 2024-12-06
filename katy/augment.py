@@ -53,7 +53,7 @@ def gamma(x, gamma=0.5, prob=1, shared=False, generator=None):
     return x.pow(exp)
 
 
-def noise(x, sd=0.1, prob=1, shared=False, generator=None):
+def noise(x, sd=(0.01, 0.1), prob=1, shared=False, generator=None):
     """Add Gaussian noise to a tensor.
 
     Uniformly samples the standard deviation (SD) of the noise.
