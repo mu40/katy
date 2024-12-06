@@ -185,7 +185,7 @@ def interpolate(x, points, method='linear', padding='zeros'):
     return torch.nn.functional.grid_sample(x, points, mode, padding, align)
 
 
-def transform(x, trans, grid=None, method='linear', padding='zeros'):
+def apply(x, trans, grid=None, method='linear', padding='zeros'):
     """Apply an N-dimensional spatial transform to a tensor.
 
     The function currently supports 2D and 3D inputs. For interpolation,
@@ -260,7 +260,7 @@ def integrate(x, steps, grid=None):
     # extrapolation instead of zeros, to avoid steep cliffs.
     x = x / (2 ** steps)
     for _ in range(steps):
-        x = x + transform(x, x, grid=grid, padding='border')
+        x = x + apply(x, x, grid=grid, padding='border')
 
     return x
 

@@ -25,7 +25,7 @@ def test_interpolate_identity():
         assert out.allclose(inp, atol=1e-5)
 
 
-def test_transform_identity():
+def test_apply_identity():
     """Test applying an identity matrix and field with various options."""
     size = (8, 8, 8)
 
@@ -45,11 +45,11 @@ def test_transform_identity():
                 for method in ('nearest', 'linear'):
                     for padding in ('zeros', 'border', 'reflection'):
                         prop = dict(method=method, padding=padding)
-                        out = kt.transform.transform(inp, trans, **prop)
+                        out = kt.transform.apply(inp, trans, **prop)
                         assert out.allclose(inp, atol=1e-5)
 
 
-def test_transform_shift():
+def test_apply_shift():
     """Test if shifting is equivalent to rolling, except at the border."""
     size = (10, 10, 10)
     shift = 2
@@ -60,7 +60,7 @@ def test_transform_shift():
         # Transform shifting along the training axis.
         trans = torch.eye(dim + 1)
         trans[-2, -1] = shift
-        out = kt.transform.transform(inp, trans, method='nearest')
+        out = kt.transform.apply(inp, trans, method='nearest')
 
         # Roll volume by the same amount. Remove border from comparison.
         ref = inp.roll(-shift, dims=-1)
