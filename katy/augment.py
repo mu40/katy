@@ -379,3 +379,74 @@ def remap(x, points=8, bins=256, prob=1, shared=False, generator=None):
     ind = x + off_b.view(-1, 1, *[1] * ndim) + off_c.view(1, -1, *[1] * ndim)
 
     return lut.view(-1)[ind]
+
+
+def crop(x, mask=None, crop=0.33, prob=1, generator=None):
+    """Crop an input image or label map along a random spatial axis.
+
+    Parameters
+    ----------
+    x : (B, C, *size) torch.Tensor
+        Input image or label map.
+    mask : (B, C, *size) torch.Tensor, optional
+        Boolean mask, defining a region to crop. None means the whole input.
+    crop : float, optional
+        Cropping range, in [0, 1]. Pass 1 value `b` to sample from [0, b].
+        Pass 2 values `a` and `b` to sample from [a, b].
+    prob : float, optional
+        Cropping probability.
+    generator : torch.Generator, optional
+        Pseudo-random number generator.
+
+    Returns
+    -------
+    (B, C, *size) torch.Tensor
+        Cropped input.
+
+    """
+    # Inputs.
+    x = torch.as_tensor(x)
+    ndim = x.ndim - 2
+    size = x.shape[2:]
+
+    # Conform bounds to (a, b).
+    crop = torch.as_tensor(crop, device=x.device).ravel()
+    if len(crop) not in (1, 2):
+        raise ValueError(f'crop {crop} not of length 1, or 2')
+    if crop.lt(0).any() or crop.gt(1).any():
+        raise ValueError(f'crop {crop} includes values outside range [0, 1]')
+    if len(crop) == 1:
+        crop = torch.cat((torch.zeros_like(crop), crop))
+
+    # Draw cropping amount, proportion to apply to lower end.
+    prop = dict(device=x.device, generator=generator)
+    batch = x.shape[:1]
+    bit = kt.utility.chance(prob, size=batch, **prop)
+    a, b = crop
+    crop = bit * torch.rand(batch, **prop) * (b - a) + a
+    dist = torch.rand(batch, **prop)
+
+    # Treat channels as one.
+    if mask is None:
+        mask = torch.ones_like(x)
+    mask = torch.as_tensor(mask).any(dim=1)
+
+    out = torch.zeros_like(mask)
+    for i, batch in enumerate(mask):
+        # Mask extent along random axis.
+        dim = torch.randint(ndim, size=())
+        batch = batch.any(dim=[n for n in range(ndim) if n != dim])
+        low, upp = batch.nonzero().aminmax()
+
+        # Distribute cropping proportion between lower and upper end.
+        cut = upp.sub(low).add(1) * crop[i]
+        add = cut.mul(dist[i]).add(0.5).type(torch.int32)
+        sub = cut.add(0.5).type(torch.int32) - add
+
+        # Everything True except along axis.
+        ind = [slice(0, s) for s in size]
+        ind[dim] = slice(low + add, upp - sub + 1)
+        out[i, *ind] = True
+
+    # Restore channel dimension.
+    return x * out.unsqueeze(1)

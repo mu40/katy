@@ -268,3 +268,62 @@ def test_remap_shared_channels():
     for batch in out:
         assert batch[0].eq(batch[1]).all()
         assert batch[1].eq(batch[2]).all()
+
+
+def test_crop_unchanged():
+    """Test if crop-mask generation leaves input unchanged, in 1D."""
+    # Input of shape: batch, channel, space.
+    inp = torch.ones(1, 1, 4)
+    orig = inp.clone()
+    kt.augment.crop(inp)
+    assert inp.eq(orig).all()
+
+
+def test_crop_properties():
+    """Test type, shape, and channel count after cropping, in 3D."""
+    types = (torch.int64, torch.float32, torch.float64)
+
+    for dtype in types:
+        inp = torch.ones(2, 3, 4, 4, 4, dtype=dtype)
+
+        out = kt.augment.crop(inp, crop=torch.tensor(1))
+        assert out.dtype == inp.dtype
+        assert inp[:, 0, ...].shape == out[:, 0, ...].shape
+
+
+def test_crop_single_axis():
+    """Test if cropping operates only along a single axis, in 2D."""
+    size = torch.tensor((8, 8))
+    inp = torch.ones(1, 1, *size)
+
+    out = kt.augment.crop(inp, crop=0.5)
+    low, upp = out.squeeze().nonzero().aminmax(dim=0)
+    width = upp - low + 1
+    assert width.lt(size).type(torch.int32).sum() <= 1
+
+
+def test_crop_illegal_values():
+    """Test cropping with illegal input arguments, in 2D."""
+    x = torch.empty(1, 1, 4, 4)
+
+    with pytest.raises(ValueError):
+        kt.augment.crop(x, crop=-0.1)
+
+    with pytest.raises(ValueError):
+        kt.augment.crop(x, crop=1.1)
+
+
+def test_crop_mask():
+    """Test if cropping with mask crops relative to that region, in 1D."""
+    width = torch.tensor(8)
+    inp = torch.ones(1, 1, width)
+
+    # Cropping by exactly half the FOV should halve the FOV.
+    out = kt.augment.crop(inp, crop=(0.5, 0.5))
+    assert out.sum().eq(0.5 * width)
+
+    # Cropping by half into a mask that's half the FOV should yield a quarter.
+    mask = inp.clone()
+    mask[..., width // 2:] = 0
+    out = kt.augment.crop(inp, mask=mask, crop=(0.5, 0.5))
+    assert out.sum().eq(0.25 * width)
