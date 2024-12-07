@@ -99,48 +99,79 @@ def test_one_hot_values():
 
 
 def test_rebase_labels():
-    """Test rebasing LUT with list of input labels."""
-    # Inputs.
-    labels = (1, 4, 5, 6)
-    unknown = -1
-
-    # Expected output.
-    size = max(labels) + 1
-    expected = torch.zeros(size, dtype=torch.int64) + unknown
-    for i, label in enumerate(labels):
-        expected[label] = i
+    """Test rebasing labels of various type."""
+    # Input does not have to include all the possible labels.
+    inp = (1, 4, 4, 4, 5)
+    labels = (6, 1, 4, 5)
 
     for dtype in (list, tuple, torch.tensor):
-        inp = dtype(labels)
-        out = kt.labels.rebase(inp, unknown=unknown)
-        assert out.dtype == torch.int64
-        assert out.eq(expected).all()
+        ind, ind_to_inp = kt.labels.rebase(dtype(inp), labels)
+
+        # Expect a `dict` mapping indices back to original labels.
+        assert isinstance(ind_to_inp, dict)
+        assert sorted(ind_to_inp.values()) == sorted(labels)
+        assert ind.dtype == torch.int64
+        assert tuple(ind_to_inp[i.item()] for i in ind) == inp
 
 
 def test_rebase_mapping():
-    """Test rebasing LUT with unsorted input mapping."""
-    # Inputs.
-    mapping = {1: 2, 4: 1, 5: 1, 6: 1}
+    """Test rebasing labels using unsorted input mapping."""
+    # Input labels, all possible labels, mapping.
+    inp = (1, 4, 4, 4, 5)
+    labels = (0, 1, 4, 5)
+    mapping = {1: 2, 4: 1}
 
-    # Expected output. Default value for unknown input labels should be 0.
-    size = max(mapping) + 1
-    expected = torch.zeros(size, dtype=torch.int64)
-    out_to_ind = {label: i for i, label in enumerate(sorted(mapping.values()))}
-    for inp, out in mapping.items():
-        expected[inp] = out_to_ind[out]
+    new_to_ind = {new: i for i, new in enumerate(sorted(mapping.values()))}
+    remapped = [mapping.get(old) for old in inp]
 
-    out = kt.labels.rebase(mapping)
-    assert out.dtype == torch.int64
-    assert out.eq(expected).all()
+    # Default value for labels missing in mapping keys should be -1.
+    unknown = -1
+    indices = [new_to_ind.get(new, unknown) for new in remapped]
+    out, _ = kt.labels.rebase(inp, labels, mapping)
+    assert out.tolist() == indices
+
+    # Set explicit default value.
+    unknown = 0
+    indices = [new_to_ind.get(new, unknown) for new in remapped]
+    out, _ = kt.labels.rebase(inp, labels, mapping, unknown=unknown)
+    assert out.tolist() == indices
 
 
-def test_rebase_illegal_unknown():
-    """Test rebasing LUT with non-integer unknown labels."""
+def test_rebase_illegal_arguments():
+    """Test rebasing labels with illegal input arguments."""
     # Input label map should have one channel.
     x = torch.arange(3)
 
+    # The unknown value must be an `int`.
     with pytest.raises(ValueError):
-        kt.labels.rebase(x, unknown=0.1)
+        kt.labels.rebase(x, labels=x, unknown=0.1)
 
     with pytest.raises(ValueError):
-        kt.labels.rebase(x, unknown=torch.tensor(1))
+        kt.labels.rebase(x, labels=x, unknown=torch.tensor(1))
+
+    # The input labels must not be a `dict`.
+    with pytest.raises(ValueError):
+        kt.labels.rebase(x, labels={i: i for i in x})
+
+
+def test_rebase_disk(tmp_path):
+    """Test rebasing labels with inputs stored on disk."""
+    # Tensors are not JSON serializable.
+    inp = torch.arange(3)
+    labels = inp.unique().tolist()
+    mapping = {i: i for i in labels}
+
+    for ext in ('json', 'pickle', 'pt'):
+        f_lab = tmp_path / f'labels.{ext}'
+        f_map = tmp_path / f'mapping.{ext}'
+
+        kt.io.save(labels, f_lab)
+        kt.io.save(mapping, f_map)
+
+        out, lut = kt.labels.rebase(inp, labels=f_lab)
+        assert out.eq(inp).all()
+        assert lut == mapping
+
+        out, lut = kt.labels.rebase(inp, labels=f_lab, mapping=f_map)
+        assert out.eq(inp).all()
+        assert lut == mapping

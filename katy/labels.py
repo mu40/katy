@@ -1,6 +1,8 @@
 """Label manipulation and image synthesis."""
 
 
+import katy as kt
+import os
 import torch
 
 
@@ -84,46 +86,57 @@ def one_hot(x, labels):
     return x.squeeze(1).movedim(-1, 1)
 
 
-def rebase(labels, unknown=0, device=None):
-    """Build a lookup table (LUT) from labels to contiguous indices.
-
-    Instead of directly rebasing a `label_map`, the function returns a `lut`
-    tensor for efficient rebasing via indexing, that is, via:
-
-        `lut[label_map.ravel()].view_as(label_map)`
+def rebase(x, labels, mapping=None, unknown=-1):
+    """Convert numeric label maps to contiguous indices.
 
     Parameters
     ----------
-    labels : sequence of int or dict or torch.Tensor
-        All possible label values or a mapping from them to new output labels,
-        enabling you to merge labels before converting to indices.
+    x : torch.Tensor
+        Discrete-valued label map.
+    labels : os.PathLike or torch.Tensor or sequence of int
+        All possible input label values.
+    mapping : dict or os.PathLike, optional
+        Key-value mapping. Labels missing from the keys will be removed,
+        labels sharing the same value will be merged prior to conversion.
     unknown : int, optional
-        Output value for missing input labels.
-    device : torch.device, optional
-        Device of the returned tensor.
+        Output value for labels missing from the `mapping` keys. Set this to
+        a negative value to remove labels when calling `one_hot`.
 
     Returns
     -------
-    torch.Tensor
-        Lookup table.
+    tuple
+        Rebased input tensor, mapping from indices to label values.
 
     """
+    x = torch.as_tensor(x, dtype=torch.int64)
     if not isinstance(unknown, int):
         raise ValueError(f'value {unknown} is not a Python integer')
 
-    if not isinstance(labels, dict):
-        labels = {x: x for x in labels}
+    # Possible input labels.
+    if isinstance(labels, (str, os.PathLike)):
+        labels = kt.io.load(labels)
+    if isinstance(labels, dict):
+        raise ValueError('did not expect the list of labels to be a dict')
+    labels = tuple(map(int, labels))
 
-    # Prepare output.
-    max_label = int(max(labels))
-    lut = torch.full(size=(max_label + 1,), fill_value=unknown)
+    # Mapping from old to new labels. Make all keys Python integers, because
+    # JSON stores keys as strings, PyTorch tensors are not hashable, and
+    # torch.uint8 scalars are interpreted as boolean indices.
+    if mapping is None:
+        mapping = {x: x for x in labels}
+    if isinstance(mapping, (str,  os.PathLike)):
+        mapping = {int(k): v for k, v in kt.io.load(mapping).items()}
 
-    # Conversion to indices.
-    out_labels = sorted(labels.values())
-    out_to_ind = {label: i for i, label in enumerate(out_labels)}
+    # Conversion between new labels, indices.
+    new_labels = sorted(mapping.values())
+    new_to_ind = {new: i for i, new in enumerate(new_labels)}
+    ind_to_new = {i: new for new, i in new_to_ind.items()}
 
-    # Python scalars to prevent torch.uint8 interpretation as boolean indices.
-    for inp, out in labels.items():
-        lut[int(inp)] = out_to_ind[out]
+    # Lookup table.
+    highest = max(labels)
+    lut = torch.zeros(highest + 1, dtype=torch.int64, device=x.device)
+    for old in labels:
+        new = mapping.get(old)
+        lut[old] = new_to_ind.get(new, unknown)
 
-    return lut.to(device=device)
+    return lut[x], ind_to_new
