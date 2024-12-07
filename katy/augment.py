@@ -186,11 +186,12 @@ def bias(x, floor=(0, 0.5), points=4, prob=1, shared=False, generator=None):
     # Randomize across batches, or batches and channels.
     size = torch.as_tensor(x.shape)
     size[1 if shared else 2:] = 1
-    prop = dict(device=x.device, generator=generator)
+    dev = dict(device=x.device)
+    prop = dict(**dev, generator=generator)
     bit = kt.utility.chance(prob, size, **prop)
 
     # Bias-field minimum.
-    floor = torch.as_tensor(floor, device=x.device).ravel()
+    floor = torch.as_tensor(floor, **dev).ravel()
     if floor.lt(0).any() or floor.gt(1).any():
         raise ValueError(f'bias floor {floor} is not in range [0, 1]')
     if len(floor) == 1:
@@ -200,17 +201,17 @@ def bias(x, floor=(0, 0.5), points=4, prob=1, shared=False, generator=None):
     floor = bit * floor + ~bit
 
     # Conform control-point bounds to (a_1, b_1, a_2, b_2, ..., a_N, b_N).
-    points = torch.as_tensor(points, device=x.device).ravel()
+    points = torch.as_tensor(points, **dev).ravel()
     if len(points) not in (1, 2, 2 * ndim):
         raise ValueError(f'points {points} is not of length 1, 2, or 2N')
     if len(points) == 1:
-        points = torch.cat((torch.tensor([2]), points))
+        points = torch.cat((torch.tensor([2], **dev), points))
     if len(points) == 2:
         points = points.repeat(ndim)
 
     # Control-point sampling.
     a, b = points[0::2], points[1::2] + 1
-    if a.lt(2).any() or torch.tensor(x.shape[2:]).lt(b).any():
+    if a.lt(2).any() or torch.tensor(x.shape[2:], **dev).lt(b).any():
         raise ValueError(f'controls points {points} is not all in [2, size)')
     points = torch.rand(size[0], ndim, **prop) * (b - a) + a
     points = points.type(torch.int32)
@@ -273,7 +274,7 @@ def downsample(x, factor=8, method='linear', prob=1, generator=None):
         factor = torch.cat((torch.ones_like(factor), factor))
     if len(factor) == 2:
         factor = factor.repeat(ndim)
-    if torch.tensor(size).div(factor[1::2]).le(1).any():
+    if torch.tensor(size, device=x.device).div(factor[1::2]).le(1).any():
         raise ValueError(f'factors {factor} not all less than size')
 
     # Factor sampling.

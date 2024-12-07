@@ -309,8 +309,8 @@ def compose_rotation(angle, deg=True, dtype=None):
         out = torch.stack((row_1, row_2), dim=-2)
 
     elif angle.size(-1) == 3:
-        one = torch.tensor(1).expand(angle.shape[:-1])
-        zero = torch.tensor(0).expand(angle.shape[:-1])
+        one = torch.tensor(1, device=angle.device).expand(angle.shape[:-1])
+        zero = torch.tensor(0, device=angle.device).expand(angle.shape[:-1])
 
         row_1 = torch.stack((one, zero, zero), dim=-1)
         row_2 = torch.stack((zero, c[..., 0], -s[..., 0]), dim=-1)
