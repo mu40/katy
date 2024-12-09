@@ -44,13 +44,13 @@ class Unet(nn.Module):
 
     def __init__(
         self,
+        dim=3,
         inp=1,
         out=1,
         enc=(24, 48, 96, 192, 384),
         dec=(384, 192, 96, 48, 24),
         add=(),
         rep=1,
-        dim=3,
         act=nn.ELU,
         fin=nn.Softmax,
     ):
@@ -58,6 +58,8 @@ class Unet(nn.Module):
 
         Parameters
         ----------
+        dim : int, optional
+            Number of spatial dimensions N.
         inp : int, optional
             Number of input channels.
         out : int, optional
@@ -70,8 +72,6 @@ class Unet(nn.Module):
             Number of additional convolutional filters at the final level.
         rep : int, optional
             Number of repeats for each convolutional operation.
-        dim : int, optional
-            Number of spatial dimensions N.
         act : str or nn.Module or type, optional
             Activation function after each convolution.
         fin : str or nn.Module or type or None, optional
