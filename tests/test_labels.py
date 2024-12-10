@@ -106,7 +106,7 @@ def test_rebase_types():
 
     for x in (tuple(inp), list(inp), torch.tensor(inp)):
         for y in (tuple(labels), list(labels), {f: f for f in labels}):
-            ind, ind_to_inp = kt.labels.rebase(x, labels=y)
+            ind, ind_to_inp = kt.labels.rebase(x, labels=y, translate=True)
 
             # Expect a `dict` mapping `int` indices to `int` labels.
             assert isinstance(ind_to_inp, dict)
@@ -121,7 +121,7 @@ def test_rebase_labels():
     inp = (5, 4, 4, 4, 1)
     labels = (6, 5, 5, 4, 1)
 
-    ind, ind_to_inp = kt.labels.rebase(inp, labels)
+    ind, ind_to_inp = kt.labels.rebase(inp, labels, translate=True)
 
     # Mapping should include all possible, not only the input labels.
     assert set(ind_to_inp.values()) == set(labels)
@@ -147,7 +147,7 @@ def test_rebase_mapping():
     remapped = [mapping.get(old) for old in inp]
 
     # Output `dict` should map only existing original to new labels.
-    out, out_to_new = kt.labels.rebase(inp, labels, mapping)
+    out, out_to_new = kt.labels.rebase(inp, labels, mapping, translate=True)
     assert set(out_to_new.values()) == set(new_labels)
 
     # Indices should reflect ascending order of original labels.
@@ -158,7 +158,7 @@ def test_rebase_mapping():
 
     # Set explicit default value.
     unknown = -2
-    out, _ = kt.labels.rebase(inp, labels, mapping, unknown=unknown)
+    out = kt.labels.rebase(inp, labels, mapping, unknown=unknown)
     assert out.tolist() == [new_to_ind.get(i, unknown) for i in remapped]
 
 
@@ -193,10 +193,10 @@ def test_rebase_disk(tmp_path):
         kt.io.save(labels, f_lab)
         kt.io.save(mapping, f_map)
 
-        out, lut = kt.labels.rebase(inp, labels=f_lab)
+        out, lut = kt.labels.rebase(inp, f_lab, translate=True)
         assert out.eq(inp).all()
         assert lut == mapping
 
-        out, lut = kt.labels.rebase(inp, labels=f_lab, mapping=f_map)
+        out, lut = kt.labels.rebase(inp, f_lab, mapping=f_map, translate=True)
         assert out.eq(inp).all()
         assert lut == mapping

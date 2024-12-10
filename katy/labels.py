@@ -86,7 +86,7 @@ def one_hot(x, labels):
     return x.squeeze(1).movedim(-1, 1)
 
 
-def rebase(x, labels, mapping=None, unknown=0):
+def rebase(x, labels, mapping=None, unknown=0, translate=False):
     """Convert numeric label maps to contiguous indices.
 
     The labels represented by the output indices will correspond to the input
@@ -104,11 +104,16 @@ def rebase(x, labels, mapping=None, unknown=0):
     unknown : int, optional
         Output value for labels missing from the `mapping` keys. Set this to
         a negative value to remove labels when calling `one_hot`.
+    translate : bool, optional
+        Return a dictionary translating the output indices to the original
+        or remapped labels, depending on whether `mapping` is None.
 
     Returns
     -------
-    tuple
-        Rebased input tensor, mapping from indices to label values.
+    torch.Tensor
+        Rebased input tensor.
+    dict, optional
+        Index-to-label mapping, if `translate` is True.
 
     """
     x = torch.as_tensor(x, dtype=torch.int64)
@@ -140,4 +145,4 @@ def rebase(x, labels, mapping=None, unknown=0):
         new = mapping.get(old)
         lut[old] = new_to_ind.get(new, unknown)
 
-    return lut[x], ind_to_new
+    return (lut[x], ind_to_new) if translate else lut[x]
