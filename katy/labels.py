@@ -89,6 +89,9 @@ def one_hot(x, labels):
 def rebase(x, labels, mapping=None, unknown=-1):
     """Convert numeric label maps to contiguous indices.
 
+    The labels represented by the output indices will correspond to the input
+    labels, sorted by ascending numerical value.
+
     Parameters
     ----------
     x : torch.Tensor
@@ -115,7 +118,7 @@ def rebase(x, labels, mapping=None, unknown=-1):
     # Possible input labels.
     if isinstance(labels, (str, os.PathLike)):
         labels = kt.io.load(labels)
-    labels = tuple(map(int, labels))
+    labels = sorted(map(int, labels))
 
     # Mapping from old to new labels. Make all keys Python integers, because
     # JSON stores keys as strings, PyTorch tensors are not hashable, and
@@ -125,8 +128,8 @@ def rebase(x, labels, mapping=None, unknown=-1):
     if isinstance(mapping, (str,  os.PathLike)):
         mapping = {int(k): v for k, v in kt.io.load(mapping).items()}
 
-    # Conversion between new labels, indices.
-    new_labels = sorted(mapping.values())
+    # Conversion between new labels, indices. Order by old label value.
+    new_labels = tuple(mapping[k] for k in mapping if k in labels)
     new_to_ind = {new: i for i, new in enumerate(new_labels)}
     ind_to_new = {i: new for new, i in new_to_ind.items()}
 

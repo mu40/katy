@@ -98,67 +98,68 @@ def test_one_hot_values():
     assert out[0, :, -1].eq(0).all()
 
 
-def test_rebase_inputs():
-    """Test rebasing labels of various input type."""
+def test_rebase_types():
+    """Test rebasing input and output types."""
     # Input does not have to include all the possible labels.
-    inp = (1, 4, 4, 4, 5)
+    inp = (5, 4, 4, 4, 1)
     labels = (6, 1, 4, 5)
 
-    for dtype in (list, tuple, torch.tensor):
-        ind, ind_to_inp = kt.labels.rebase(dtype(inp), labels)
+    for x in (tuple(inp), list(inp), torch.tensor(inp)):
+        for y in (tuple(labels), list(labels), {f: f for f in labels}):
+            ind, ind_to_inp = kt.labels.rebase(x, labels=y)
 
-        # Expect a `dict` mapping indices back to original labels.
-        assert isinstance(ind_to_inp, dict)
-        assert sorted(ind_to_inp.values()) == sorted(labels)
-        assert ind.dtype == torch.int64
-        assert tuple(ind_to_inp[i.item()] for i in ind) == inp
+            # Expect a `dict` mapping `int` indices to `int` labels.
+            assert isinstance(ind_to_inp, dict)
+            assert all(isinstance(f, int) for f in ind_to_inp.keys())
+            assert all(isinstance(f, int) for f in ind_to_inp.values())
+            assert ind.dtype == torch.int64
 
 
 def test_rebase_labels():
     """Test rebasing with various types for `labels` argument."""
     # Input does not have to include all the possible labels.
-    inp = (1, 4, 4, 4, 5)
-    labels = (6, 1, 4, 5)
+    inp = (5, 4, 4, 4, 1)
+    labels = (6, 5, 5, 4, 1)
 
-    # Labels should always be converted as `list(map(int, labels))`.
-    x = list(labels)
-    _, ind_to_inp = kt.labels.rebase(inp, labels=x)
-    assert sorted(ind_to_inp.values()) == sorted(labels)
+    ind, ind_to_inp = kt.labels.rebase(inp, labels)
 
-    x = torch.tensor(labels)
-    _, ind_to_inp = kt.labels.rebase(inp, labels=x)
-    assert sorted(ind_to_inp.values()) == sorted(labels)
+    # Mapping should include all possible, not only the input labels.
+    assert set(ind_to_inp.values()) == set(labels)
 
-    x = {f: f + 99 for f in labels}
-    _, ind_to_inp = kt.labels.rebase(inp, labels=x)
-    assert sorted(ind_to_inp.values()) == sorted(labels)
+    # Mapping should not include duplicates.
+    assert len(ind_to_inp) == len(set(labels))
 
-    x = {f: f for f in torch.tensor(labels)}
-    _, ind_to_inp = kt.labels.rebase(inp, labels=x)
-    assert sorted(ind_to_inp.values()) == sorted(labels)
+    # Indices should correspond to original labels, sorted.
+    assert ind_to_inp == {i: f for i, f in enumerate(sorted(set(labels)))}
 
 
 def test_rebase_mapping():
     """Test rebasing labels using unsorted input mapping."""
     # Input labels, all possible labels, mapping.
-    inp = (1, 4, 4, 4, 5)
-    labels = (0, 1, 4, 5)
-    mapping = {1: 2, 4: 1}
+    inp = (5, 4, 4, 4, 1)
+    labels = (5, 4, 1, 0)
+    mapping = {4: 2, 5: 1, 6: 0}
 
-    new_to_ind = {new: i for i, new in enumerate(sorted(mapping.values()))}
+    # Expected translation.
+    new_labels = [mapping[i] for i in sorted(labels) if i in mapping]
+    ind_to_new = {i: new for i, new in enumerate(new_labels)}
+    new_to_ind = {new: i for i, new in enumerate(new_labels)}
     remapped = [mapping.get(old) for old in inp]
 
-    # Default value for labels missing in mapping keys should be -1.
-    unknown = -1
-    indices = [new_to_ind.get(new, unknown) for new in remapped]
-    out, _ = kt.labels.rebase(inp, labels, mapping)
-    assert out.tolist() == indices
+    # Output `dict` should map only existing original to new labels.
+    out, out_to_new = kt.labels.rebase(inp, labels, mapping)
+    assert set(out_to_new.values()) == set(new_labels)
+
+    # Indices should reflect ascending order of original labels.
+    assert out_to_new == ind_to_new
+
+    # Default for labels missing from mapping should be -1.
+    assert out.tolist() == [new_to_ind.get(i, -1) for i in remapped]
 
     # Set explicit default value.
     unknown = 0
-    indices = [new_to_ind.get(new, unknown) for new in remapped]
     out, _ = kt.labels.rebase(inp, labels, mapping, unknown=unknown)
-    assert out.tolist() == indices
+    assert out.tolist() == [new_to_ind.get(i, unknown) for i in remapped]
 
 
 def test_rebase_illegal_arguments():
@@ -172,6 +173,10 @@ def test_rebase_illegal_arguments():
 
     with pytest.raises(ValueError):
         kt.labels.rebase(x, labels=x, unknown=torch.tensor(1))
+
+    # All possible input labels must be known.
+    with pytest.raises(IndexError):
+        kt.labels.rebase(x, labels=[0])
 
 
 def test_rebase_disk(tmp_path):
