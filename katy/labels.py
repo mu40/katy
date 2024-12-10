@@ -86,7 +86,7 @@ def one_hot(x, labels):
     return x.squeeze(1).movedim(-1, 1)
 
 
-def rebase(x, labels, mapping=None, unknown=-1):
+def rebase(x, labels, mapping=None, unknown=0):
     """Convert numeric label maps to contiguous indices.
 
     The labels represented by the output indices will correspond to the input

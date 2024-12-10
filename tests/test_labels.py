@@ -153,11 +153,11 @@ def test_rebase_mapping():
     # Indices should reflect ascending order of original labels.
     assert out_to_new == ind_to_new
 
-    # Default for labels missing from mapping should be -1.
-    assert out.tolist() == [new_to_ind.get(i, -1) for i in remapped]
+    # Default for labels missing from mapping should be 0.
+    assert out.tolist() == [new_to_ind.get(i, 0) for i in remapped]
 
     # Set explicit default value.
-    unknown = 0
+    unknown = -2
     out, _ = kt.labels.rebase(inp, labels, mapping, unknown=unknown)
     assert out.tolist() == [new_to_ind.get(i, unknown) for i in remapped]
 

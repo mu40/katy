@@ -348,7 +348,7 @@ def test_jacobian_unchanged():
     # Input of shape: batch, channel, space.
     size = (3, 3, 3)
     ndim = len(size)
-    inp = torch.empty(1, ndim, *size)
+    inp = torch.ones(1, ndim, *size)
 
     orig = inp.clone()
     kt.transform.jacobian(inp, det=torch.tensor(False))
@@ -359,7 +359,7 @@ def test_jacobian_illegal_shape():
     """Test computing Jacobian with illegal field shape."""
     size = (3, 3, 3)
     ndim = len(size)
-    field = torch.empty(1, ndim + 1, *size)
+    field = torch.ones(1, ndim + 1, *size)
 
     with pytest.raises(ValueError):
         kt.transform.jacobian(field)
