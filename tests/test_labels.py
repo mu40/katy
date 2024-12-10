@@ -98,8 +98,8 @@ def test_one_hot_values():
     assert out[0, :, -1].eq(0).all()
 
 
-def test_rebase_labels():
-    """Test rebasing labels of various type."""
+def test_rebase_inputs():
+    """Test rebasing labels of various input type."""
     # Input does not have to include all the possible labels.
     inp = (1, 4, 4, 4, 5)
     labels = (6, 1, 4, 5)
@@ -112,6 +112,30 @@ def test_rebase_labels():
         assert sorted(ind_to_inp.values()) == sorted(labels)
         assert ind.dtype == torch.int64
         assert tuple(ind_to_inp[i.item()] for i in ind) == inp
+
+
+def test_rebase_labels():
+    """Test rebasing with various types for `labels` argument."""
+    # Input does not have to include all the possible labels.
+    inp = (1, 4, 4, 4, 5)
+    labels = (6, 1, 4, 5)
+
+    # Labels should always be converted as `list(map(int, labels))`.
+    x = list(labels)
+    _, ind_to_inp = kt.labels.rebase(inp, labels=x)
+    assert sorted(ind_to_inp.values()) == sorted(labels)
+
+    x = torch.tensor(labels)
+    _, ind_to_inp = kt.labels.rebase(inp, labels=x)
+    assert sorted(ind_to_inp.values()) == sorted(labels)
+
+    x = {f: f + 99 for f in labels}
+    _, ind_to_inp = kt.labels.rebase(inp, labels=x)
+    assert sorted(ind_to_inp.values()) == sorted(labels)
+
+    x = {f: f for f in torch.tensor(labels)}
+    _, ind_to_inp = kt.labels.rebase(inp, labels=x)
+    assert sorted(ind_to_inp.values()) == sorted(labels)
 
 
 def test_rebase_mapping():
@@ -148,10 +172,6 @@ def test_rebase_illegal_arguments():
 
     with pytest.raises(ValueError):
         kt.labels.rebase(x, labels=x, unknown=torch.tensor(1))
-
-    # The input labels must not be a `dict`.
-    with pytest.raises(ValueError):
-        kt.labels.rebase(x, labels={i: i for i in x})
 
 
 def test_rebase_disk(tmp_path):

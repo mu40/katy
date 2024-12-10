@@ -115,8 +115,6 @@ def rebase(x, labels, mapping=None, unknown=-1):
     # Possible input labels.
     if isinstance(labels, (str, os.PathLike)):
         labels = kt.io.load(labels)
-    if isinstance(labels, dict):
-        raise ValueError('did not expect the list of labels to be a dict')
     labels = tuple(map(int, labels))
 
     # Mapping from old to new labels. Make all keys Python integers, because
