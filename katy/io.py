@@ -38,7 +38,7 @@ def save(data, path):
         torch.save(data, path)
 
     else:
-        raise ValueError(f'suffix of {path} is not .json, .pickle, or .pt')
+        raise ValueError(f'suffix of "{path}" is not .json, .pickle, or .pt')
 
 
 def load(path):
@@ -70,4 +70,4 @@ def load(path):
     if path.suffix == '.pt':
         return torch.load(path, weights_only=True)
 
-    raise ValueError(f'suffix of {path} is not .json, .pickle, or .pt')
+    raise ValueError(f'suffix of "{path}" is not .json, .pickle, or .pt')
