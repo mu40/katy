@@ -16,7 +16,7 @@ def save(data, path):
 
     Parameters
     ----------
-    data : obj
+    data : object
         Data.
     path : os.PathLike
         File path, with suffix .json, .pickle, or .pt.
@@ -53,7 +53,7 @@ def load(path):
 
     Returns
     -------
-    data : obj
+    data : object
         Data.
 
     """
