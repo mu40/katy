@@ -140,7 +140,7 @@ def blur(x, fwhm=1, prob=1, generator=None):
 
     # Smoothing at per-batch probability.
     bit = kt.utility.chance(prob, size=batch, **prop)
-    dim = 1 + torch.arange(ndim, device=x.device)
+    dim = 1 + torch.arange(ndim)
     out = torch.empty_like(x)
     for i, batch in enumerate(x):
         out[i] = kt.filter.blur(batch, fwhm[i], dim) if bit[i] else batch
@@ -214,7 +214,7 @@ def bias(x, floor=(0, 0.5), points=4, prob=1, shared=False, generator=None):
     if a.lt(2).any() or torch.tensor(x.shape[2:], **dev).lt(b).any():
         raise ValueError(f'controls points {points} is not all in [2, size)')
     points = torch.rand(size[0], ndim, **prop) * (b - a) + a
-    points = points.type(torch.int32)
+    points = points.to(torch.int32)
 
     # Field.
     field = torch.empty_like(x)
@@ -339,7 +339,7 @@ def remap(x, points=8, bins=256, prob=1, shared=False, generator=None):
     prop = dict(device=x.device, generator=generator)
 
     # Control-point bounds.
-    points = torch.as_tensor(points, device=x.device).ravel()
+    points = torch.as_tensor(points).ravel()
     if len(points) not in (1, 2):
         raise ValueError(f'points {points} is not of length 1 or 2')
     if len(points) == 1:
@@ -350,14 +350,14 @@ def remap(x, points=8, bins=256, prob=1, shared=False, generator=None):
     if a.lt(2).any() or bins.lt(b).any():
         raise ValueError(f'controls points {points} is not all in [2, {bins})')
     points = torch.rand(size[0], **prop) * (b - a) + a
-    points = points.type(torch.int32)
+    points = points.to(torch.int32)
 
     # Discretization.
     dim = tuple(range(1 if shared else 2, x.ndim))
     x = x - x.amin(dim, keepdim=True)
     x = x / x.amax(dim, keepdim=True)
     x = x * (bins - 1)
-    x = x.type(torch.int64)
+    x = x.to(torch.int64)
 
     # Lookup tables. Oversample, as edges are zero.
     lut = torch.empty(*size, bins)
@@ -410,7 +410,7 @@ def crop(x, mask=None, crop=0.33, prob=1, generator=None):
     size = x.shape[2:]
 
     # Conform bounds to (a, b).
-    crop = torch.as_tensor(crop, device=x.device).ravel()
+    crop = torch.as_tensor(crop).ravel()
     if len(crop) not in (1, 2):
         raise ValueError(f'crop {crop} not of length 1, or 2')
     if crop.lt(0).any() or crop.gt(1).any():
@@ -422,7 +422,7 @@ def crop(x, mask=None, crop=0.33, prob=1, generator=None):
     prop = dict(device=x.device, generator=generator)
     batch = x.shape[:1]
     bit = kt.utility.chance(prob, size=batch, **prop)
-    a, b = crop
+    a, b = crop.to(x.device)
     crop = bit * torch.rand(batch, **prop) * (b - a) + a
     dist = torch.rand(batch, **prop)
 
@@ -440,8 +440,8 @@ def crop(x, mask=None, crop=0.33, prob=1, generator=None):
 
         # Distribute cropping proportion between lower and upper end.
         cut = upp.sub(low).add(1) * crop[i]
-        add = cut.mul(dist[i]).add(0.5).type(torch.int32)
-        sub = cut.add(0.5).type(torch.int32) - add
+        add = cut.mul(dist[i]).add(0.5).to(torch.int32)
+        sub = cut.add(0.5).to(torch.int32) - add
 
         # Everything True except along axis.
         ind = [slice(0, s) for s in size]

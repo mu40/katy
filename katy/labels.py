@@ -29,7 +29,7 @@ def to_image(label_map, channels=1, generator=None):
         raise ValueError(f'label size {label_map.shape} is not (B, 1, *size)')
 
     dev = dict(device=label_map.device)
-    channels = torch.as_tensor(channels, **dev)
+    channels = torch.as_tensor(channels)
     if channels.numel() > 1 or channels.lt(1):
         raise ValueError(f'channel count {channels} is not a positive scalar')
 
@@ -46,7 +46,8 @@ def to_image(label_map, channels=1, generator=None):
         **dev,
     )
 
-    # Indices into LUT.
+    # Indices into LUT. Keep channels on CPU until here.
+    channels = channels.to(**dev)
     off_c = torch.arange(channels, **dev) * labels
     off_c = off_c.view(1, channels, *[1] * dim)
     off_b = torch.arange(batch, **dev) * channels * labels

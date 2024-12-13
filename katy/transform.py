@@ -101,9 +101,9 @@ def index_to_torch(size, align_corners=False, device=None):
         Matrix transform.
 
     """
-    size = torch.as_tensor(size, device=device).ravel()
+    size = torch.as_tensor(size).ravel()
     ndim = size.numel()
-    one = torch.tensor([1], device=device)
+    one = torch.tensor([1])
 
     # Coordinates indicate the location of pixel centers. With the default
     # `align_corners=False`, values -1 and 1 refer to the outmost pixel
@@ -112,7 +112,7 @@ def index_to_torch(size, align_corners=False, device=None):
     # move the first pixel center from 0 to 0.5, and change the FOV width
     # between oustmost pixel borders from N to N - 1.
     if not align_corners:
-        shift = torch.eye(ndim + 1, device=device)
+        shift = torch.eye(ndim + 1)
         shift[:-1, -1] = 0.5
         scale = torch.cat(((size - 1) / size, one))
         align = torch.diag(scale) @ shift
@@ -123,10 +123,10 @@ def index_to_torch(size, align_corners=False, device=None):
     norm[:-1, -1] = -1
 
     # Reverse the dimensions that serves to index into spactial axes.
-    swap = torch.eye(ndim, device=device).flipud()
+    swap = torch.eye(ndim).flipud()
     swap = torch.block_diag(swap, one)
 
-    return swap @ norm if align_corners else swap @ norm @ align
+    return (swap @ norm if align_corners else swap @ norm @ align).to(device)
 
 
 def torch_to_index(*args, **kwargs):
@@ -334,7 +334,8 @@ def compose_rotation(angle, deg=True, dtype=None):
 
     if dtype is None:
         dtype = torch.get_default_dtype()
-    return out.type(dtype)
+
+    return out.to(dtype)
 
 
 def decompose_rotation(mat, deg=True, dtype=None):
@@ -416,7 +417,7 @@ def decompose_rotation(mat, deg=True, dtype=None):
     if dtype is None:
         dtype = torch.get_default_dtype()
 
-    return (ang.rad2deg() if deg else ang).type(dtype)
+    return (ang.rad2deg() if deg else ang).to(dtype)
 
 
 def compose_affine(
@@ -580,7 +581,7 @@ def decompose_affine(mat, deg=True, dtype=None):
         dtype = torch.get_default_dtype()
 
     out = (shift, angle, scale, shear)
-    return tuple(o.type(dtype) for o in out)
+    return tuple(o.to(dtype) for o in out)
 
 
 def compose(*trans, grid=None, absolute=False):
@@ -698,18 +699,22 @@ def center_matrix(size, mat):
 
     """
     mat = torch.as_tensor(mat)
-    size = torch.as_tensor(size, device=mat.device).ravel()
+    size = torch.as_tensor(size).ravel()
     ndim = size.numel()
     if mat.ndim < 2 or not mat.size(-1) == mat.size(-2) == ndim + 1:
         raise ValueError(f'matrix size {mat.shape} is not a {ndim}D matrix')
 
     # Conversion matrices. Use double precision.
-    cen = torch.eye(ndim + 1, dtype=torch.float64, device=mat.device)
-    unc = torch.eye(ndim + 1, dtype=torch.float64, device=mat.device)
+    cen = torch.eye(ndim + 1, dtype=torch.float64)
+    unc = torch.eye(ndim + 1, dtype=torch.float64)
     cen[:-1, -1] = -0.5 * (size - 1)
     unc[:-1, -1] = -cen[:-1, -1]
 
-    return (unc @ mat.type(cen.dtype) @ cen).type(mat.dtype)
+    # Keep most small operations on CPU.
+    cen = cen.to(mat.device)
+    unc = unc.to(mat.device)
+
+    return (unc @ mat.to(cen.dtype) @ cen).to(mat.dtype)
 
 
 def jacobian(f, det=True, is_disp=True):

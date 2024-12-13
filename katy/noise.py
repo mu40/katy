@@ -33,17 +33,16 @@ def perlin(size, points=2, batch=None, device=None, generator=None):
     """
     # Inputs.
     dev = dict(device=device)
-    size = torch.as_tensor(size, **dev).ravel()
+    size = torch.as_tensor(size).ravel()
     ndim = size.numel()
-    points = torch.as_tensor(points, **dev).ravel().expand(ndim)
+    points = torch.as_tensor(points, device=size.device).ravel().expand(ndim)
     if points.lt(2).any() or points.ge(size).any():
         raise ValueError(f'controls points {points} is not all in [2, size)')
     if batch is None:
         batch = []
 
     # Grid of gradient directions at integral coordinate locations.
-    points = points.ravel().expand(ndim)
-    batch = torch.as_tensor(batch, **dev).ravel()
+    batch = torch.as_tensor(batch).ravel()
     grad = torch.rand(ndim, *batch, *points, generator=generator, **dev)
     grad = grad.mul(2).sub(1).view(ndim, *batch, -1)
 
@@ -53,7 +52,7 @@ def perlin(size, points=2, batch=None, device=None, generator=None):
     grid = torch.stack(grid)
 
     # Integer coordinates of closest corner points.
-    x0 = grid.type(torch.int32)
+    x0 = grid.to(torch.int32)
     for i in range(ndim):
         x0[i] = x0[i].clamp(0, points[i] - 2)
     x1 = x0 + 1

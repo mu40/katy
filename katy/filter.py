@@ -4,8 +4,8 @@
 import torch
 
 
-def gaussian_kernel(fwhm, width=None, dtype=None, device=None):
-    """Construct a one-dimensional Gaussian kernel.
+def gaussian_kernel(fwhm, width=None, device=None):
+    """Construct a centered, one-dimensional Gaussian kernel.
 
     Clamps the standard deviation `sd` to a minimum value of 1e-6.
 
@@ -21,7 +21,7 @@ def gaussian_kernel(fwhm, width=None, dtype=None, device=None):
     Returns
     -------
     (width,) torch.Tensor
-        Centered Gaussian kernelGaussian.
+        Gaussian kernel.
 
     """
     fwhm = torch.as_tensor(fwhm, device=device).squeeze()
@@ -60,11 +60,11 @@ def blur(x, fwhm, dim=None):
 
     # Vector of dimensions.
     if dim is None:
-        dim = torch.arange(x.ndim, device=x.device)
-    dim = torch.as_tensor(dim, device=x.device).ravel()
+        dim = torch.arange(x.ndim)
+    dim = torch.as_tensor(dim).ravel()
 
     # One FWHM per dimension.
-    fwhm = torch.as_tensor(fwhm, device=x.device).ravel().expand(dim.shape)
+    fwhm = torch.as_tensor(fwhm).ravel().expand(dim.shape)
     for i, f in zip(dim, fwhm):
         kern = gaussian_kernel(f, device=x.device).view(1, 1, -1)
 
