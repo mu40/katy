@@ -17,6 +17,10 @@ def dice(true, pred):
         Mean Dice loss.
 
     """
+    # Broadcasting would work but will likely be a bug.
+    if true.shape != pred.shape:
+        raise ValueError(f'shapes {true.shape} and {pred.shape} differ')
+
     # Flatten spatial dimensions.
     true = true.flatten(start_dim=2)
     pred = pred.flatten(start_dim=2)

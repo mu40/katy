@@ -2,6 +2,7 @@
 
 
 import torch
+import pytest
 import katy as kt
 
 
@@ -14,6 +15,15 @@ def test_dice_shape():
         out = kt.losses.dice(inp, inp)
         assert out.ndim == 0
 
+
+def test_dice_broadcastable_shapes():
+    """Test Dice loss on tensors with broadcastable shapes."""
+    x = torch.ones(2, 3, 4, 4)
+    y = torch.ones(2, 1, 4, 4)
+
+    # Expect failure as different shapes are likely a bug.
+    with pytest.raises(ValueError):
+        kt.losses.dice(x, y)
 
 def test_dice_values():
     """Test Dice loss values in 2D."""
