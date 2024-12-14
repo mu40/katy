@@ -200,3 +200,23 @@ def test_rebase_disk(tmp_path):
         out, lut = kt.labels.rebase(inp, f_lab, mapping=f_map, translate=True)
         assert out.eq(inp).all()
         assert lut == mapping
+
+
+def test_rebase_strings(tmp_path):
+    """Test rebasing labels with mapping that has keys of type string."""
+    # JSON stores dictionary keys as strings. Cannot serialize tensors.
+    inp = torch.arange(3)
+    labels = inp.unique().tolist()
+    mapping = {i: i for i in labels}
+
+    # Expect mapping keys to be cast to int.
+    strings = {str(k): v for k, v in mapping.items()}
+    out, lut = kt.labels.rebase(inp, labels, strings, translate=True)
+    assert out.eq(inp).all()
+    assert lut == mapping
+
+    # Expect labels to be cast to int.
+    strings = [str(i) for i in labels]
+    out, lut = kt.labels.rebase(inp, strings, mapping, translate=True)
+    assert out.eq(inp).all()
+    assert lut == mapping

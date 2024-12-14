@@ -132,7 +132,8 @@ def rebase(x, labels, mapping=None, unknown=0, translate=False):
     if mapping is None:
         mapping = {x: x for x in labels}
     if isinstance(mapping, (str,  os.PathLike)):
-        mapping = {int(k): v for k, v in kt.io.load(mapping).items()}
+        mapping = kt.io.load(mapping)
+    mapping = {int(k): v for k, v in mapping.items()}
 
     # Conversion between new labels, indices. Order by old label value.
     new_labels = tuple(mapping[k] for k in mapping if k in labels)
