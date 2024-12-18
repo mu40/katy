@@ -11,7 +11,7 @@ def dice(true, pred, labels=None):
     Parameters
     ----------
     true : (B, C, *size) torch.Tensor
-        Multi-channel tensor of probabilities or single-channel index labels.
+        One-hot or single-channel index labels.
     pred : (B, C, *size) torch.Tensor
         The same as `true`.
     labels : int, optional
