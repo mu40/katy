@@ -148,7 +148,15 @@ def blur(x, fwhm=1, prob=1, generator=None):
     return out
 
 
-def bias(x, floor=(0, 0.5), points=4, prob=1, shared=False, generator=None):
+def bias(
+    x,
+    floor=(0, 0.5),
+    points=4,
+    prob=1,
+    shared=False,
+    generator=None,
+    return_bias=False,
+):
     """Modulate tensor intensities by applying a smooth bias field.
 
     Generates and multiplies the input by a Perlin-noise field. We uniformly
@@ -172,11 +180,15 @@ def bias(x, floor=(0, 0.5), points=4, prob=1, shared=False, generator=None):
         Modulate all channels of a batch with the same field.
     generator : torch.Generator, optional
         Pseudo-random number generator.
+    return_bias : bool, optional
+        Return bias field.
 
     Returns
     -------
     (B, C, ...) torch.Tensor
         Intensity-modulated tensor.
+    (B, D, ...) torch.Tensor
+        Bias field, if `return_bias` is True. `D` is 1 if `shared` is True.
 
     """
     # Input.
@@ -217,7 +229,7 @@ def bias(x, floor=(0, 0.5), points=4, prob=1, shared=False, generator=None):
     points = points.to(torch.int32)
 
     # Field.
-    field = torch.empty_like(x)
+    field = torch.empty(*size[:2], *x.shape[2:], **dev)
     for i, p in enumerate(points):
         field[i] = kt.noise.perlin(x.shape[2:], p, batch=size[1], **prop)
 
@@ -227,7 +239,8 @@ def bias(x, floor=(0, 0.5), points=4, prob=1, shared=False, generator=None):
     field /= field.amax(dim, keepdim=True)
     field = field * (1 - floor) + floor
 
-    return x.mul(field)
+    x = x.mul(field)
+    return (x, field) if return_bias else x
 
 
 def downsample(x, factor=8, method='linear', prob=1, generator=None):
@@ -381,8 +394,10 @@ def remap(x, points=8, bins=256, prob=1, shared=False, generator=None):
     return lut.view(-1)[ind]
 
 
-def crop(x, mask=None, crop=0.33, prob=1, generator=None):
+def crop(x, mask=None, crop=0.33, prob=1, generator=None, return_mask=False):
     """Crop an input image or label map along a random spatial axis.
+
+    Has the same effect on all channels.
 
     Parameters
     ----------
@@ -397,11 +412,15 @@ def crop(x, mask=None, crop=0.33, prob=1, generator=None):
         Cropping probability.
     generator : torch.Generator, optional
         Pseudo-random number generator.
+    return_mask : bool, optional
+        Return cropping mask.
 
     Returns
     -------
     (B, C, *size) torch.Tensor
         Cropped input.
+    (B, 1, *size) torch.Tensor
+        Cropping mask, if `return_mask` is True.
 
     """
     # Inputs.
@@ -449,4 +468,6 @@ def crop(x, mask=None, crop=0.33, prob=1, generator=None):
         out[i, *ind] = True
 
     # Restore channel dimension.
-    return x * out.unsqueeze(1)
+    mask = out.unsqueeze(1)
+    x = x * mask
+    return (x, mask) if return_mask else x

@@ -201,6 +201,23 @@ def test_bias_illegal_values():
         kt.augment.bias(x, floor=+1.1)
 
 
+def test_bias_return_field():
+    """Test returning the bias field."""
+    inp = torch.rand(1, 2, 5, 5)
+
+    # Expect field matching input shape.
+    _, field = kt.augment.bias(inp, return_bias=True)
+    assert field.shape == inp.shape
+
+    # Expect single-channel field with `shared`.
+    out, field = kt.augment.bias(inp, return_bias=True, shared=True)
+    assert field.shape == (inp.size(0), 1, *inp.shape[2:])
+
+    # Expect multiplicative application.
+    assert out.allclose(inp * field)
+
+
+
 def test_downsample_unchanged():
     """Test if bias leaves input unchanged, with tensor input and in 3D."""
     # Input of shape: batch, channel, space.
@@ -327,3 +344,15 @@ def test_crop_mask():
     mask[..., width // 2:] = 0
     out = kt.augment.crop(inp, mask=mask, crop=(0.5, 0.5))
     assert out.sum().eq(0.25 * width)
+
+
+def test_crop_return_mask():
+    """Test returned cropping mask."""
+    inp = torch.ones(1, 2, 3, 3)
+    out, mask = kt.augment.crop(inp, crop=(0.5, 0.5), return_mask=True)
+
+    # Expect single-channel mask.
+    assert mask.shape == (inp.size(0), 1, *inp.shape[2:])
+
+    # Expect multiplicative application.
+    assert out.allclose(inp * mask)
