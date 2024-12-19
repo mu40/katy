@@ -131,7 +131,7 @@ def rebase(x, labels, mapping=None, unknown=0, translate=False):
     # torch.uint8 scalars are interpreted as boolean indices.
     if mapping is None:
         mapping = {x: x for x in labels}
-    if isinstance(mapping, (str,  os.PathLike)):
+    if not isinstance(mapping, dict):
         mapping = kt.io.load(mapping)
     mapping = {int(k): v for k, v in mapping.items()}
 
