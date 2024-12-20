@@ -71,3 +71,37 @@ def load(path):
         return torch.load(path, weights_only=True)
 
     raise ValueError(f'suffix of "{path}" is not .json, .pickle, or .pt')
+
+
+def read_color_table(lut):
+    """Read a FreeSurfer color lookup table.
+
+    The function returns a dictionary associating labels of type `int` with
+    dictionaries of keys 'name' and 'color'. Key 'name' will map to a string,
+    'color' to a tuple of integers defining RGB values between 0 and 255.
+
+    Parameters
+    ----------
+    lut : os.PathLike
+        Path to lookup table.
+
+    Returns
+    -------
+    dict
+        Color table.
+
+    """
+    with open(lut) as f:
+        lines = f.read().splitlines()
+
+    lut = {}
+    for line in lines:
+        if not line.strip() or line.startswith('#'):
+            continue
+
+        label, name, *color = line.split()
+        label = int(label)
+        color = tuple(int(c) for c in color[:3])
+        lut[label] = {'name': name, 'color': color}
+
+    return lut

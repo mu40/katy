@@ -45,3 +45,28 @@ def test_load_illegal_extension(tmp_path):
 
     with pytest.raises(ValueError):
         kt.io.load(path=path)
+
+
+def test_read_color_table(tmp_path):
+    """Test reading a FreeSurfer color table."""
+    lut = (
+        '#No. Label Name:                            R   G   B   A\n'
+        '\n'
+        '0   Unknown                                 0   0   0   0\n'
+        '1   Left-Cerebral-Exterior                  70  130 180 0\n'
+    )
+
+    # Test data.
+    path = tmp_path / 'lut.txt'
+    with open(path, mode='w') as f:
+        f.write(lut)
+
+    lut = kt.io.read_color_table(path)
+    assert isinstance(lut, dict)
+    assert tuple(lut) == (0, 1)
+    assert tuple(lut[0]) == ('name', 'color')
+
+    assert lut[0]['name'] == 'Unknown'
+    assert lut[0]['color'] == (0, 0, 0)
+    assert lut[1]['name'] == 'Left-Cerebral-Exterior'
+    assert lut[1]['color'] == (70, 130, 180)
