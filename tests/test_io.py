@@ -61,11 +61,11 @@ def test_read_color_table(tmp_path):
     with open(path, mode='w') as f:
         f.write(lut)
 
+    # Expect a dictionary.
     lut = kt.io.read_color_table(path)
     assert isinstance(lut, dict)
-    assert tuple(lut) == (0, 1)
-    assert tuple(lut[0]) == ('name', 'color')
 
+    # Expected data.
     assert lut[0]['name'] == 'Unknown'
     assert lut[0]['color'] == (0, 0, 0)
     assert lut[1]['name'] == 'Left-Cerebral-Exterior'

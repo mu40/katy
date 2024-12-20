@@ -202,7 +202,7 @@ def test_rebase_disk(tmp_path):
         assert lut == mapping
 
 
-def test_rebase_strings(tmp_path):
+def test_rebase_strings():
     """Test rebasing labels with mapping that has keys of type string."""
     # JSON stores dictionary keys as strings. Cannot serialize tensors.
     inp = torch.arange(3)
