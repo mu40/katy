@@ -256,18 +256,26 @@ def test_to_rgb_illegal_arguments():
         kt.labels.to_rgb(x, colors, mapping=None)
 
 
-def test_to_rgb_labels():
-    """Test conversion of labels to RGB."""
+def test_to_rgb_labels(tmp_path):
+    """Test conversion of labels to RGB, with colors from file."""
     # Colors.
-    r = {'name': 'red', 'color': (255, 0, 0)}
-    g = {'name': 'green', 'color': (0, 255, 0)}
-    b = {'name': 'blue', 'color': (0, 0, 255)}
-    colors = {1: r, 2: g, 3: b}
+    lut = (
+        '# ID  Label  R   G   B   A\n'
+        '# ------------------------\n'
+        '  1   Red    255   0   0 0\n'
+        '  2   Green  0   255   0 0\n'
+        '  3   Blue   0     0 255 0\n'
+    )
+
+    # Save color map.
+    path = tmp_path / 'lut.txt'
+    with open(path, mode='w') as f:
+        f.write(lut)
 
     # Label map: batch, channels, space.
     x = torch.ones(1, 1, 2, 2)
     x[..., 1] = 2
-    rgb = kt.labels.to_rgb(x, colors)
+    rgb = kt.labels.to_rgb(x, colors=path)
 
     # Expect red in first half of last dimension only.
     assert rgb[:, 0, :, 0].eq(1).all()

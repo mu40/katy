@@ -3,6 +3,7 @@
 
 import torch
 import pytest
+import pathlib
 import katy as kt
 
 
@@ -50,10 +51,10 @@ def test_load_illegal_extension(tmp_path):
 def test_read_color_table(tmp_path):
     """Test reading a FreeSurfer color table."""
     lut = (
-        '#No. Label Name:                            R   G   B   A\n'
+        '#No. Label Name:                R   G   B   A\n'
         '\n'
-        '0   Unknown                                 0   0   0   0\n'
-        '1   Left-Cerebral-Exterior                  70  130 180 0\n'
+        '0   Unknown                     0   0   0   0\n'
+        '1   Left-Cerebral-Exterior      70  130 180 0\n'
     )
 
     # Test data.
@@ -61,8 +62,11 @@ def test_read_color_table(tmp_path):
     with open(path, mode='w') as f:
         f.write(lut)
 
+    # Expect support for `str` and `pathlib.Path`.
+    for dtype in (str, pathlib.Path):
+        lut = kt.io.read_color_table(dtype(path))
+
     # Expect a dictionary.
-    lut = kt.io.read_color_table(path)
     assert isinstance(lut, dict)
 
     # Expected data.
