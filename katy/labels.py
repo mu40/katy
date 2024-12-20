@@ -148,3 +148,58 @@ def rebase(x, labels, mapping=None, unknown=0, translate=False):
         lut[old] = new_to_ind.get(new, unknown)
 
     return (lut[x], ind_to_new) if translate else lut[x]
+
+
+def to_rgb(x, colors, mapping=None):
+    """Convert label maps to RGB color tensors.
+
+    Parameters
+    ----------
+    x : (B, C, ...) torch.Tensor
+        Discrete-valued, index, or one-hot label map. The function assumes
+        non-index label values if `C` is 1 and `mapping` is None.
+    colors : os.PathLike or dict
+        FreeSurfer color lookup table.
+    mapping : dict, optional
+        Mapping from indices to labels. Labels can be names of type `str` or
+        values of type `int` in the color table. Required if `C > 1`.
+
+    Returns
+    -------
+    (B, 3, ...) torch.Tensor
+        RGB values in [0, 1].
+
+    """
+    # Convert one-hot map to indices.
+    x = torch.as_tensor(x)
+    if x.size(1) > 1 and mapping is None:
+        raise ValueError(f'need mapping for one-hot map {x.shape}')
+    if x.size(1) > 1:
+        x = x.argmax(dim=1, keepdim=True)
+
+    # Lookup table.
+    if not isinstance(colors, dict):
+        colors = kt.io.read_color_table(colors)
+
+    # Actual labels.
+    if mapping is None:
+        to_color = {k: v['color'] for k, v in colors.items()}
+
+    # Indices.
+    else:
+        # Mapping from label name or value to color.
+        ntc = {v['name']: v['color'] for v in colors.values()}
+        vtc = {k: v['color'] for k, v in colors.items()}
+        value = next(iter(mapping.values()))
+        trans = ntc if isinstance(value, str) else vtc
+
+        # Mapping from index to color.
+        to_color = {int(k): trans[v] for k, v in mapping.items()}
+
+    # Lookup table.
+    highest = max(to_color.keys())
+    lut = torch.zeros(highest + 1, 3, device=x.device)
+    for i, color in to_color.items():
+        lut[i] = torch.as_tensor(color)
+
+    return lut[x.to(torch.int64)].squeeze(1).movedim(-1, 1) / 255

@@ -220,3 +220,117 @@ def test_rebase_strings():
     out, lut = kt.labels.rebase(inp, strings, mapping, translate=True)
     assert out.eq(inp).all()
     assert lut == mapping
+
+
+
+def test_to_rgb_properties():
+    """Test trivial shape and data type of RGB conversion."""
+    colors = {0: {'name': 'label', 'color': (0, 0, 0)}}
+    mapping = {0: 'label'}
+
+    # Discrete-valued labels in 1D.
+    inp = torch.zeros(1, 1, 3)
+    out = kt.labels.to_rgb(inp, colors)
+    assert out.shape == (inp.shape[0], 3, *inp.shape[2:])
+    assert out.dtype == torch.get_default_dtype()
+
+    # Index labels in 2D.
+    inp = torch.zeros(2, 1, 3, 3)
+    out = kt.labels.to_rgb(inp, colors, mapping)
+    assert out.shape == (inp.shape[0], 3, *inp.shape[2:])
+    assert out.dtype == torch.get_default_dtype()
+
+    # One-hot labels in 3D.
+    inp = torch.zeros(1, 4, 3, 3, 3)
+    out = kt.labels.to_rgb(inp, colors, mapping)
+    assert out.shape == (inp.shape[0], 3, *inp.shape[2:])
+    assert out.dtype == torch.get_default_dtype()
+
+
+def test_to_rgb_illegal_arguments():
+    """Test if RGB conversion of one-hot map requires a mapping."""
+    colors = {0: {'name': 'label', 'color': (0, 0, 0)}}
+    x = torch.zeros(1, 2, 3, 3)
+
+    with pytest.raises(ValueError):
+        kt.labels.to_rgb(x, colors, mapping=None)
+
+
+def test_to_rgb_labels():
+    """Test conversion of labels to RGB."""
+    # Colors.
+    r = {'name': 'red', 'color': (255, 0, 0)}
+    g = {'name': 'green', 'color': (0, 255, 0)}
+    b = {'name': 'blue', 'color': (0, 0, 255)}
+    colors = {1: r, 2: g, 3: b}
+
+    # Label map: batch, channels, space.
+    x = torch.ones(1, 1, 2, 2)
+    x[..., 1] = 2
+    rgb = kt.labels.to_rgb(x, colors)
+
+    # Expect red in first half of last dimension only.
+    assert rgb[:, 0, :, 0].eq(1).all()
+    assert rgb[:, 0, :, 1].eq(0).all()
+
+    # Expect green in second half of last dimension only.
+    assert rgb[:, 1, :, 0].eq(0).all()
+    assert rgb[:, 1, :, 1].eq(1).all()
+
+    # Expect no blue.
+    assert rgb[:, 2, ...].eq(0).all()
+
+
+def test_to_rgb_indices():
+    """Test converting rebased labels to RGB, with index-to-name mapping."""
+    # Colors.
+    r = {'name': 'red', 'color': (255, 0, 0)}
+    g = {'name': 'green', 'color': (0, 255, 0)}
+    colors = {9: r, 7: g}
+
+    # Mapping of indices to label names.
+    mapping = {0: 'red', 1: 'green'}
+
+    # Index iabel map: batch, channels, space.
+    x = torch.zeros(1, 1, 2, 2)
+    x[..., 1] = 1
+    rgb = kt.labels.to_rgb(x, colors, mapping)
+
+    # Expect red in first half of last dimension only.
+    assert rgb[:, 0, :, 0].eq(1).all()
+    assert rgb[:, 0, :, 1].eq(0).all()
+
+    # Expect green in second half of last dimension only.
+    assert rgb[:, 1, :, 0].eq(0).all()
+    assert rgb[:, 1, :, 1].eq(1).all()
+
+    # Expect no blue.
+    assert rgb[:, 2, ...].eq(0).all()
+
+
+def test_to_rgb_one_hot():
+    """Test converting one-hot labels to RGB, with index-to-value mapping."""
+    # Colors.
+    r = {'name': 'red', 'color': (255, 0, 0)}
+    b = {'name': 'blue', 'color': (0, 0, 255)}
+    colors = {9: r, 7: b}
+
+    # Mapping of indices to label values.
+    mapping = {0: 9, 1: 7}
+
+    # One-hot label map: batch, channels, space.
+    x = torch.zeros(3, 2, 4)
+    x[:, 0, :2] = 1
+    x[:, 1, :] = 1 - x[:, 0, :]
+    rgb = kt.labels.to_rgb(x, colors, mapping)
+
+    # Expect red in first half of space only.
+    assert rgb[:, 0, :2].eq(1).all()
+    assert rgb[:, 0, 2:].eq(0).all()
+
+    # Expect no green.
+    assert rgb[:, 1, :].eq(0).all()
+
+    # Expect green in second half of space only
+    assert rgb[:, 2, :2].eq(0).all()
+    assert rgb[:, 2, 2:].eq(1).all()
