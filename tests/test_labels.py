@@ -198,19 +198,19 @@ def test_map_index_mapping():
     mapping = {4: 2, 5: 1, 6: 0}
 
     # Expect old->new->index, unknown values X defaulting to index 0:
-    # 0>X>0, 1>X>0, 4>2>1, 5>1>0.
+    # 0>X>0, 1>X>0, 4>2>0, 5>1>1.
     old_to_ind = kt.labels.map_index(labels, mapping=mapping)
-    assert old_to_ind == {0: 0, 1: 0, 4: 1, 5: 0}
+    assert old_to_ind == {0: 0, 1: 0, 4: 0, 5: 1}
 
     ind_to_new = kt.labels.map_index(labels, mapping, invert=True)
-    assert ind_to_new == {0: 1, 1: 2}
+    assert ind_to_new == {0: 2, 1: 1}
 
-    # Set an explicit index for unknown values: 0>X>-2, 1>X>-2, 4>2>1, 5>1>0.
+    # Set an explicit index for unknown values: 0>X>-2, 1>X>-2, 4>2>0, 5>1>1.
     old_to_ind = kt.labels.map_index(labels, mapping, unknown=-2)
-    assert old_to_ind == {0: -2, 1: -2, 4: 1, 5: 0}
+    assert old_to_ind == {0: -2, 1: -2, 4: 0, 5: 1}
 
     ind_to_new = kt.labels.map_index(labels, mapping, unknown=-2, invert=True)
-    assert ind_to_new == {0: 1, 1: 2}
+    assert ind_to_new == {0: 2, 1: 1}
 
 
 def test_map_index_disk(tmp_path):

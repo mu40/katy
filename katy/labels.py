@@ -118,7 +118,7 @@ def to_rgb(x, colors, mapping=None, dim=1):
 def map_index(labels, mapping=None, unknown=0, invert=False):
     """Construct a mapping from label values to contiguous indices.
 
-    Indices will reflect original or remapped labels in ascending order.
+    Indices will follow the original label values in ascending order.
 
     Parameters
     ----------
@@ -147,7 +147,7 @@ def map_index(labels, mapping=None, unknown=0, invert=False):
     # Possible input labels.
     if isinstance(labels, (str, os.PathLike)):
         labels = kt.io.load(labels)
-    labels = set(map(int, labels))
+    labels = sorted(map(int, labels))
 
     # Mapping from old to new labels. Make all keys Python integers, because
     # JSON stores keys as strings, PyTorch tensors are not hashable, and
@@ -158,8 +158,14 @@ def map_index(labels, mapping=None, unknown=0, invert=False):
         mapping = kt.io.load(mapping)
     mapping = {int(k): v for k, v in mapping.items()}
 
+    # New labels, without duplicates and carefully sorted by old label value.
+    new_labels = []
+    for i in labels:
+        new = mapping.get(i)
+        if new is not None and new not in new_labels:
+            new_labels.append(new)
+
     # Conversion from new labels to indices.
-    new_labels = sorted({mapping[k] for k in mapping if k in labels})
     new_to_ind = {new: i for i, new in enumerate(new_labels)}
     ind_to_new = {i: new for i, new in enumerate(new_labels)}
 
@@ -199,7 +205,7 @@ def rebase(x, *args, **kwargs):
     # Lookup.
     highest = max(mapping)
     lut = torch.zeros(highest + 1, dtype=x.dtype, device=x.device)
-    lut[list(mapping)] = torch.tensor(list(mapping.values()))
+    lut[list(mapping)] = torch.tensor(list(mapping.values()), device=x.device)
     return lut[x]
 
 
