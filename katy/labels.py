@@ -115,31 +115,30 @@ def to_rgb(x, colors, mapping=None, dim=1):
     return lut[x.to(torch.int64)].squeeze(1).movedim(-1, dim) / 255
 
 
-def label_to_index(labels, mapping=None, unknown=0, return_inverse=False):
+def map_index(labels, mapping=None, unknown=0, invert=False):
     """Construct a mapping from label values to contiguous indices.
 
-    Indices will reflect original labels in ascending order.
+    Indices will reflect original or remapped labels in ascending order.
 
     Parameters
     ----------
     labels : os.PathLike or torch.Tensor or sequence of int
-        All possible label values.
+        Unique, possible label values.
     mapping : dict or os.PathLike, optional
         Label translation applied before to indexing. Keys with the same value
         will be merged, labels missing from the keys set to `unknown`.
     unknown : int, optional
         Output index for labels missing from `mapping` keys. Set this to
         a negative value to remove labels when one-hotting.
-    return_inverse : bool, optional
-        Return an inverse. Will map to remapped labels if `mapping` provided.
+    invert : bool, optional
+        Invert the mapping, such that it maps indices to original or remapped
+        labels, if `mapping` provided.
 
     Returns
     -------
     dict
-        Mapping from original labels to indices.
-    dict, optional
-        Return an inverse from indices to original or remapped labels, if
-        `mapping` provided. Only if `return_inverse` is True.
+        Mapping from original labels to indices, if `invert` is False. If it is
+        True, the mapping will be from indices to original or remapped labels.
 
     """
     if not isinstance(unknown, int):
@@ -148,7 +147,7 @@ def label_to_index(labels, mapping=None, unknown=0, return_inverse=False):
     # Possible input labels.
     if isinstance(labels, (str, os.PathLike)):
         labels = kt.io.load(labels)
-    labels = sorted(map(int, labels))
+    labels = set(map(int, labels))
 
     # Mapping from old to new labels. Make all keys Python integers, because
     # JSON stores keys as strings, PyTorch tensors are not hashable, and
@@ -159,59 +158,60 @@ def label_to_index(labels, mapping=None, unknown=0, return_inverse=False):
         mapping = kt.io.load(mapping)
     mapping = {int(k): v for k, v in mapping.items()}
 
-    # Conversion between new labels, indices. Order by old label value.
-    new_labels = tuple(mapping[k] for k in mapping if k in labels)
+    # Conversion from new labels to indices.
+    new_labels = sorted({mapping[k] for k in mapping if k in labels})
     new_to_ind = {new: i for i, new in enumerate(new_labels)}
     ind_to_new = {i: new for i, new in enumerate(new_labels)}
+
+    if invert:
+        return ind_to_new
 
     old_to_ind = {}
     for old in labels:
         new = mapping.get(old)
         old_to_ind[old] = new_to_ind.get(new, unknown)
 
-    return (old_to_ind, ind_to_new) if return_inverse else old_to_ind
+    return old_to_ind
 
 
-def remap(x, mapping):
-    """Remap the values of a discrete-valued label map.
+def rebase(x, *args, **kwargs):
+    """Convert a discrete-valued label map to contiguous indices.
 
     Parameters
     ----------
     x : torch.Tensor
         Label map.
-    mapping : dict or os.PathLike
-        Mapping from old to new labels, all convertible to `int`. Must include
-        all possible label map values as keys.
+    *args : tuple, optional
+        Passed to `map_index`.
+    **kwargs : dict, optional
+        Passed to `map_index`.
 
     Returns
     -------
     torch.Tensor
-        Remapped label map.
+        Rebased labels.
 
     """
+    # Inputs.
     x = torch.as_tensor(x, dtype=torch.int64)
-    if not isinstance(mapping, dict):
-        mapping = kt.io.load(mapping)
+    mapping = map_index(*args, **kwargs)
 
-    # Make all keys Python integers, because JSON stores keys as strings.
-    mapping = {int(k): int(v) for k, v in mapping.items()}
-
-    # Lookup table.
+    # Lookup.
     highest = max(mapping)
-    lut = torch.zeros(highest + 1, dtype=torch.int64, device=x.device)
+    lut = torch.zeros(highest + 1, dtype=x.dtype, device=x.device)
     lut[list(mapping)] = torch.tensor(list(mapping.values()))
     return lut[x]
 
 
-def one_hot(x, labels):
+def one_hot(x, depth):
     """Convert label map to one-hot encoding, ignoring negative values.
 
     Parameters
     ----------
     x : (B, 1, *size) torch.Tensor
         Label map of `torch.int64` values in [0, labels).
-    labels : int
-        Number of labels or output channels.
+    depth : int
+        Number of input classes or output channels.
 
     Returns
     -------
@@ -221,13 +221,13 @@ def one_hot(x, labels):
     """
     if x.ndim < 2 or x.size(1) != 1:
         raise ValueError(f'label map size {x.shape} is not (B, 1, ...)')
-    if x.max() >= labels:
-        raise ValueError(f'highest label {x.max()} is not less than {labels}')
+    if x.max() >= depth:
+        raise ValueError(f'highest label {x.max()} is not less than {depth}')
 
     # Convert negative values to an additional class and remove it later.
-    x = torch.where(x < 0, labels, x)
-    x = torch.nn.functional.one_hot(x, num_classes=labels + 1)
-    x = x[..., :labels]
+    x = torch.where(x < 0, depth, x)
+    x = torch.nn.functional.one_hot(x, num_classes=depth + 1)
+    x = x[..., :depth]
 
     # Replace the singleton channel dimension.
     return x.squeeze(1).movedim(-1, 1)

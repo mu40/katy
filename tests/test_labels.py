@@ -180,45 +180,40 @@ def test_to_rgb_one_hot():
     assert rgb[:, 2, 2:].eq(1).all()
 
 
-def test_label_to_index():
+def test_map_index():
     """Test creating a label-index mapping."""
-    labels = (6, 5, 5, 4, 1)
+    labels = (6, 5, 4, 1)
 
-    out = kt.labels.label_to_index(labels, return_inverse=True)
-    lab_to_ind, ind_to_lab = out
-
+    lab_to_ind = kt.labels.map_index(labels)
     assert lab_to_ind == {1: 0, 4: 1, 5: 2, 6: 3}
+
+    ind_to_lab = kt.labels.map_index(labels, invert=True)
     assert ind_to_lab == {0: 1, 1: 4, 2: 5, 3: 6}
 
 
-def test_label_to_index_mapping():
+def test_map_index_mapping():
     """Test creating a label-index lookup with prior re-mapping."""
     # Input labels, all possible labels, mapping.
     labels = (5, 4, 1, 0)
     mapping = {4: 2, 5: 1, 6: 0}
 
     # Expect old->new->index, unknown values X defaulting to index 0:
-    # 0>X>0, 1>X>0, 4>2>0, 5>1>1.
-    old_to_ind, ind_to_new = kt.labels.label_to_index(
-        labels,
-        mapping,
-        return_inverse=True,
-    )
-    assert old_to_ind == {0: 0, 1: 0, 4: 0, 5: 1}
-    assert ind_to_new == {0: 2, 1: 1}
+    # 0>X>0, 1>X>0, 4>2>1, 5>1>0.
+    old_to_ind = kt.labels.map_index(labels, mapping=mapping)
+    assert old_to_ind == {0: 0, 1: 0, 4: 1, 5: 0}
 
-    # Set an explicit index for unknown values: 0>X>-2, 1>X>-2, 4>2>0, 5>1>1.
-    old_to_ind, ind_to_new = kt.labels.label_to_index(
-        labels,
-        mapping=mapping,
-        unknown=-2,
-        return_inverse=True,
-    )
-    assert old_to_ind == {0: -2, 1: -2, 4: 0, 5: 1}
-    assert ind_to_new == {0: 2, 1: 1}
+    ind_to_new = kt.labels.map_index(labels, mapping, invert=True)
+    assert ind_to_new == {0: 1, 1: 2}
+
+    # Set an explicit index for unknown values: 0>X>-2, 1>X>-2, 4>2>1, 5>1>0.
+    old_to_ind = kt.labels.map_index(labels, mapping, unknown=-2)
+    assert old_to_ind == {0: -2, 1: -2, 4: 1, 5: 0}
+
+    ind_to_new = kt.labels.map_index(labels, mapping, unknown=-2, invert=True)
+    assert ind_to_new == {0: 1, 1: 2}
 
 
-def test_label_to_index_disk(tmp_path):
+def test_map_index_disk(tmp_path):
     """Test creating a label-index mapping from files."""
     # Tensors are not JSON serializable.
     labels = list(range(3))
@@ -230,18 +225,13 @@ def test_label_to_index_disk(tmp_path):
         kt.io.save(labels, f_labels)
         kt.io.save(mapping, f_mapping)
 
-        lab_to_ind, ind_to_lab = kt.labels.label_to_index(
-            f_labels,
-            return_inverse=True,
-        )
-        assert lab_to_ind == mapping
-        assert ind_to_lab == mapping
-
-        lab_to_ind = kt.labels.label_to_index(f_labels, mapping=f_mapping)
-        assert lab_to_ind == mapping
+        assert kt.labels.map_index(f_labels) == mapping
+        assert kt.labels.map_index(f_labels, invert=True) == mapping
+        assert kt.labels.map_index(f_labels, f_mapping) == mapping
+        assert kt.labels.map_index(f_labels, f_mapping, invert=True) == mapping
 
 
-def test_label_to_index_strings():
+def test_map_index_strings():
     """Test label-to-index lookup using string-type label values."""
     # JSON stores dictionary keys as strings. Cannot serialize tensors.
     labels = list(range(3))
@@ -249,62 +239,52 @@ def test_label_to_index_strings():
 
     # Expect mapping keys to be cast to int.
     strings = {str(k): v for k, v in mapping.items()}
-    lab_to_ind, ind_to_new = kt.labels.label_to_index(
-        labels,
-        strings,
-        return_inverse=True,
-    )
-    assert lab_to_ind == mapping
-    assert ind_to_new == mapping
+    assert kt.labels.map_index(labels, strings) == mapping
+    assert kt.labels.map_index(labels, strings, invert=True) == mapping
 
     # Expect labels to be cast to int.
     strings = [str(i) for i in labels]
-    lab_to_ind, ind_to_lab = kt.labels.label_to_index(
-        strings,
-        mapping,
-        return_inverse=True
-    )
-    assert lab_to_ind == mapping
-    assert ind_to_new == mapping
+    assert kt.labels.map_index(strings, mapping) == mapping
+    assert kt.labels.map_index(strings, mapping, invert=True) == mapping
 
 
-def test_label_to_index_illegal_arguments():
+def test_map_index_illegal_arguments():
     """Test rebasing labels with illegal input arguments."""
     # Input label map should have one channel.
     x = torch.arange(3)
 
     # The unknown value must be an `int`.
     with pytest.raises(ValueError):
-        kt.labels.label_to_index(labels=x, unknown=0.1)
+        kt.labels.map_index(labels=x, unknown=0.1)
 
     with pytest.raises(ValueError):
-        kt.labels.label_to_index(labels=x, unknown=torch.tensor(1))
+        kt.labels.map_index(labels=x, unknown=torch.tensor(1))
 
 
-def test_remap_types():
+def test_rebase_types():
     """Test remapping input and output types."""
     # Input does not have to include all the possible labels.
-    x = (0, 1, 1, 2)
-    mapping = {0: 0, 1: 13, 2: -1}
+    x = (5, 6, 6, 7)
+    mapping = {5: 1, 6: 1, 7: 2}
 
     for inp in (tuple(x), list(x), torch.tensor(x)):
-        out = kt.labels.remap(inp, mapping)
+        out = kt.labels.rebase(inp, labels=set(x), mapping=mapping)
         assert out.dtype == torch.int64
-        assert out.tolist() == [mapping[f] for f in x]
+        assert out.tolist() == [0, 0, 0, 1]
 
 
-def test_remap_disk(tmp_path):
+def test_rebase_disk(tmp_path):
     """Test remapping labels with mapping in file."""
     # Tensors are not JSON serializable.
-    x = (0, 1, 1, 2)
-    mapping = {0: 0, 1: 0, 2: 1, 3: 2}
+    x = (5, 6, 6, 7)
+    mapping = {f: f for f in x}
 
     for ext in ('json', 'pickle', 'pt'):
         f_mapping = tmp_path / f'mapping.{ext}'
         kt.io.save(mapping, f_mapping)
 
-        out = kt.labels.remap(x, f_mapping)
-        assert out.tolist() == [mapping[f] for f in x]
+        out = kt.labels.rebase(x, f_mapping)
+        assert out.tolist() == [0, 1, 1, 2]
 
 
 def test_one_hot_unchanged():
@@ -312,7 +292,7 @@ def test_one_hot_unchanged():
     inp = torch.zeros(1, 1, 4, dtype=torch.int64)
 
     orig = inp.clone()
-    kt.labels.one_hot(inp, labels=1)
+    kt.labels.one_hot(inp, depth=1)
     assert inp.eq(orig).all()
 
 
@@ -321,26 +301,26 @@ def test_one_hot_illegal_inputs():
     # Input label map should have one channel.
     x = torch.ones(1, 2, 3, dtype=torch.int64)
     with pytest.raises(ValueError):
-        kt.labels.one_hot(x, labels=2)
+        kt.labels.one_hot(x, depth=2)
 
     # Highest label should be one less than the number of labels.
     x = torch.ones(1, 1, 3, dtype=torch.int64)
     with pytest.raises(ValueError):
-        kt.labels.one_hot(x, labels=1)
+        kt.labels.one_hot(x, depth=1)
 
 
 def test_one_hot_values():
     """Test explicit result of one-hot encoding."""
-    labels = 3
-    inp = torch.tensor((*range(labels), -1))
+    depth = 3
+    inp = torch.tensor((*range(depth), -1))
     inp = inp.view(1, 1, inp.numel())
-    out = kt.labels.one_hot(inp, labels)
+    out = kt.labels.one_hot(inp, depth)
 
     # The number of output channels should equal the non-negative labels.
-    assert out.shape == (1, labels, inp.numel())
+    assert out.shape == (1, depth, inp.numel())
 
     # Index value i should lead to activation of channel i only.
-    assert out[0, :, :-1].eq(torch.eye(labels)).all()
+    assert out[0, :, :-1].eq(torch.eye(depth)).all()
 
     # Negative values should not have any activation.
     assert out[0, :, -1].eq(0).all()
