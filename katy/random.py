@@ -128,7 +128,7 @@ def warp(x, disp=25, points=16, damp=0.33, steps=0, generator=None):
     if a.lt(2).any() or torch.tensor(space, **dev).lt(b).any():
         raise ValueError(f'controls points {points} is not all in [2, size)')
     points = torch.rand(batch, ndim, **prop) * (b - a) + a
-    points = points.to(torch.int32)
+    points = points.to(torch.int64)
 
     # Damping factor, reducing amplitudes of higher (effective) frequencies.
     damp = torch.as_tensor(damp, **dev).ravel()

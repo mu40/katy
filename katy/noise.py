@@ -52,7 +52,7 @@ def perlin(size, points=2, batch=None, device=None, generator=None):
     grid = torch.stack(grid)
 
     # Integer coordinates of closest corner points.
-    x0 = grid.to(torch.int32)
+    x0 = grid.to(torch.int64)
     for i in range(ndim):
         x0[i] = x0[i].clamp(0, points[i] - 2)
     x1 = x0 + 1

@@ -226,7 +226,7 @@ def bias(
     if a.lt(2).any() or torch.tensor(x.shape[2:], **dev).lt(b).any():
         raise ValueError(f'controls points {points} is not all in [2, size)')
     points = torch.rand(size[0], ndim, **prop) * (b - a) + a
-    points = points.to(torch.int32)
+    points = points.to(torch.int64)
 
     # Field.
     field = torch.empty(*size[:2], *x.shape[2:], **dev)
@@ -363,7 +363,7 @@ def remap(x, points=8, bins=256, prob=1, shared=False, generator=None):
     if a.lt(2).any() or bins.lt(b).any():
         raise ValueError(f'controls points {points} is not all in [2, {bins})')
     points = torch.rand(size[0], **prop) * (b - a) + a
-    points = points.to(torch.int32)
+    points = points.to(torch.int64)
 
     # Discretization.
     dim = tuple(range(1 if shared else 2, x.ndim))
@@ -459,8 +459,8 @@ def crop(x, mask=None, crop=0.33, prob=1, generator=None, return_mask=False):
 
         # Distribute cropping proportion between lower and upper end.
         cut = upp.sub(low).add(1) * crop[i]
-        add = cut.mul(dist[i]).add(0.5).to(torch.int32)
-        sub = cut.add(0.5).to(torch.int32) - add
+        add = cut.mul(dist[i]).add(0.5).to(torch.int64)
+        sub = cut.add(0.5).to(torch.int64) - add
 
         # Everything True except along axis.
         ind = [slice(0, s) for s in size]
