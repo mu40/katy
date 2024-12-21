@@ -65,19 +65,19 @@ def test_to_rgb_properties():
     mapping = {0: 'label'}
 
     # Discrete-valued labels in 1D.
-    inp = torch.zeros(1, 1, 3)
+    inp = torch.zeros(1, 1, 2)
     out = kt.labels.to_rgb(inp, colors)
     assert out.shape == (inp.shape[0], 3, *inp.shape[2:])
     assert out.dtype == torch.get_default_dtype()
 
     # Index labels in 2D.
-    inp = torch.zeros(2, 1, 3, 3)
-    out = kt.labels.to_rgb(inp, colors, mapping)
-    assert out.shape == (inp.shape[0], 3, *inp.shape[2:])
+    inp = torch.zeros(2, 1, 4, 4)
+    out = kt.labels.to_rgb(inp, colors, mapping, dim=-1)
+    assert out.shape == (inp.shape[0], *inp.shape[2:], 3)
     assert out.dtype == torch.get_default_dtype()
 
     # One-hot labels in 3D.
-    inp = torch.zeros(1, 4, 3, 3, 3)
+    inp = torch.zeros(1, 4, 2, 2, 2)
     out = kt.labels.to_rgb(inp, colors, mapping)
     assert out.shape == (inp.shape[0], 3, *inp.shape[2:])
     assert out.dtype == torch.get_default_dtype()

@@ -57,7 +57,7 @@ def to_image(label_map, channels=1, generator=None):
     return lut.view(-1)[ind]
 
 
-def to_rgb(x, colors, mapping=None):
+def to_rgb(x, colors, mapping=None, dim=1):
     """Convert label maps to RGB color tensors.
 
     Parameters
@@ -70,11 +70,13 @@ def to_rgb(x, colors, mapping=None):
     mapping : dict, optional
         Mapping from indices to labels. Labels can be names of type `str` or
         values of type `int` in the color table. Required if `C > 1`.
+    dim : int, optional
+        Output channel dimension.
 
     Returns
     -------
-    (B, 3, ...) torch.Tensor
-        RGB values in [0, 1].
+    (B, ...) torch.Tensor
+        RGB values in [0, 1], with 3 channels along dimension `dim`.
 
     """
     # Convert one-hot map to indices.
@@ -110,7 +112,7 @@ def to_rgb(x, colors, mapping=None):
         lut[i] = torch.as_tensor(color)
 
     # Do not cast to integers before `argmax`.
-    return lut[x.to(torch.int64)].squeeze(1).movedim(-1, 1) / 255
+    return lut[x.to(torch.int64)].squeeze(1).movedim(-1, dim) / 255
 
 
 def label_to_index(labels, mapping=None, unknown=0, return_inverse=False):
