@@ -236,4 +236,4 @@ def one_hot(x, depth):
     x = x[..., :depth]
 
     # Replace the singleton channel dimension.
-    return x.squeeze(1).movedim(-1, 1)
+    return x.squeeze(1).movedim(-1, 1).to(torch.get_default_dtype())

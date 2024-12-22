@@ -296,6 +296,13 @@ def test_one_hot_unchanged():
     assert inp.eq(orig).all()
 
 
+def test_one_hot_dtype():
+    """Test if one-hotting outputs standard floating point type."""
+    inp = torch.zeros(1, 1, 4, dtype=torch.int64)
+    out = kt.labels.one_hot(inp, depth=1)
+    assert out.dtype == torch.get_default_dtype()
+
+
 def test_one_hot_illegal_inputs():
     """Test if one-hotting with illegal input values."""
     # Input label map should have one channel.
