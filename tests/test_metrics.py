@@ -8,16 +8,20 @@ import katy as kt
 
 def test_dice_shape():
     """Test Dice metric output shape."""
-    # Channel count of one-hot inputs should define output channels.
+    # Channel count of one-hot inputs defines output channels.
     inp = torch.ones(2, 3, 4, 4)
     out = kt.metrics.dice(inp, inp)
     assert out.shape == inp.shape[:2]
 
-    # Number of labels should define output channels for index labels.
-    labels = 7
+    # Number of labels define output channels.
     inp = torch.ones(1, 1, 4, 4, dtype=torch.int64)
     out = kt.metrics.dice(inp, inp, labels=7)
-    assert out.shape == (inp.size(0), labels)
+    assert out.shape == (inp.size(0), 1)
+
+    # Number of labels define output channels.
+    inp = torch.ones(1, 1, 4, 4, dtype=torch.int64)
+    out = kt.metrics.dice(inp, inp, labels=(10, 11))
+    assert out.shape == (inp.size(0), 2)
 
 
 def test_dice_indices():
@@ -25,7 +29,7 @@ def test_dice_indices():
     x = torch.tensor((0, 3, 3, 2)).unsqueeze(0).unsqueeze(0)
     y = torch.tensor((0, 1, 3, 3)).unsqueeze(0).unsqueeze(0)
 
-    dice = kt.metrics.dice(x, y, labels=5).squeeze()
+    dice = kt.metrics.dice(x, y, labels=(0, 1, 2, 3, 4)).squeeze()
     assert dice[0] == 1
     assert dice[1] == 0
     assert dice[2] == 0
@@ -35,7 +39,7 @@ def test_dice_indices():
 
 def test_dice_illegal_inputs():
     """Test computing Dice metric with illegal arguments."""
-    # One-hot maps should have more than one channel.
+    # Discrete-valued label maps require label definition.
     x = torch.zeros(1, 1, 3, 3)
     y = torch.zeros(1, 1, 3, 3)
     with pytest.raises(ValueError):

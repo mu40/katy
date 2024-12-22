@@ -11,11 +11,11 @@ def dice(true, pred, labels=None):
     Parameters
     ----------
     true : (B, C, *size) torch.Tensor
-        One-hot or single-channel index labels.
+        One-hot or discrete-valued label map.
     pred : (B, C, *size) torch.Tensor
-        The same as `true`.
-    labels : int, optional
-        Number of labels. Required for index labels. None for one-hot maps.
+        One-hot or discrete-valued label map.
+    labels : sequence of int, optional
+        Label values or one-hot indices. Not required for one-hot maps.
 
     Returns
     -------
@@ -26,19 +26,34 @@ def dice(true, pred, labels=None):
     true = torch.as_tensor(true)
     pred = torch.as_tensor(pred)
     if labels is None and true.size(1) == 1:
-        raise ValueError('single-channel one-hot maps are likely a bug')
+        raise ValueError('labels required except for one-hot maps')
     if true.shape != pred.shape:
         raise ValueError(f'sizes {true.shape} and {pred.shape} differ')
 
     # Convert probabilities to index labels. Destroys gradients.
-    if labels is None:
-        labels = true.size(1)
+    if true.size(1) > 1:
+        if labels is None:
+            labels = range(true.size(1))
+
         true = true.argmax(dim=1, keepdim=True)
         pred = pred.argmax(dim=1, keepdim=True)
 
+    # Label selection.
+    true = true.to(torch.int64)
+    pred = pred.to(torch.int64)
+    labels = torch.as_tensor(labels, device=true.device)
+    highest = max(true.max(), pred.max())
+    highest = max(highest, labels.max())
+
+    lut = torch.full(size=[highest + 1], fill_value=-1, device=true.device)
+    depth = labels.numel()
+    lut[labels] = torch.arange(depth, device=true.device)
+
     # One-hot, creating a new channel dimension.
-    true = kt.labels.one_hot(true, labels).flatten(start_dim=2)
-    pred = kt.labels.one_hot(pred, labels).flatten(start_dim=2)
+    true = lut[true]
+    pred = lut[pred]
+    true = kt.labels.one_hot(true, depth).flatten(start_dim=2)
+    pred = kt.labels.one_hot(pred, depth).flatten(start_dim=2)
 
     # Nominator, denominator.
     top = 2 * (true * pred).sum(-1)
