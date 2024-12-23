@@ -64,6 +64,14 @@ def test_resize_size():
         assert out.shape == (batch, channel, *[size_new[0]] * dim)
 
 
+def test_resize_identity():
+    """Test if resizing to the same shape returns the same tensor."""
+    size = (3, 3)
+    x = torch.ones(1, 1, *size)
+
+    assert kt.utility.resize(x, size) is x
+
+
 def test_resize_fill():
     """Test resizing fill value."""
     x = torch.ones(1, 1, 5)

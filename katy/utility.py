@@ -54,6 +54,8 @@ def resize(x, size, fill=0):
     size_old = torch.as_tensor(x.shape)
     size_new = torch.as_tensor(size).ravel().expand(ndim)
     size_new = torch.cat((size_old[:2], size_new))
+    if size_old.eq(size_new).all():
+        return x
 
     # Indexing. Non-zero starting indices into the input are equivalent to
     # cropping, and those into the output are equivalent to padding.
