@@ -6,12 +6,12 @@ import os
 import torch
 
 
-def to_image(label_map, channels=1, generator=None):
+def to_image(x, channels=1, generator=None):
     """Synthesize gray-scale images from a discrete-valued label map.
 
     Parameters
     ----------
-    label_map : (B, 1, *size) torch.Tensor
+    x : (B, 1, *size) torch.Tensor
         Discrete, positive-valued label map.
     channels : int, optional
         Number of output channels.
@@ -24,35 +24,28 @@ def to_image(label_map, channels=1, generator=None):
         Synthetic image.
 
     """
-    label_map = torch.as_tensor(label_map, dtype=torch.int64)
-    if label_map.ndim < 3 or label_map.size(1) != 1:
-        raise ValueError(f'label size {label_map.shape} is not (B, 1, *size)')
+    x = torch.as_tensor(x, dtype=torch.int64)
+    ndim = x.ndim - 2
+    if ndim < 1 or x.size(1) != 1:
+        raise ValueError(f'label map size {x.shape} is not (B, 1, *size)')
 
-    dev = dict(device=label_map.device)
+    dev = dict(device=x.device)
     channels = torch.as_tensor(channels)
     if channels.numel() > 1 or channels.lt(1):
         raise ValueError(f'channel count {channels} is not a positive scalar')
 
-    # Dimensions.
-    dim = label_map.ndim - 2
-    labels = label_map.max() + 1
-    batch = label_map.size(0)
-
     # Lookup table.
-    lut = torch.rand(
-        size=(batch, channels, labels),
-        dtype=torch.get_default_dtype(),
-        generator=generator,
-        **dev,
-    )
+    batch = x.size(0)
+    labels = x.max() + 1
+    lut = torch.rand(batch, channels, labels, generator=generator, **dev)
 
     # Indices into LUT. Keep channels on CPU until here.
     channels = channels.to(**dev)
     off_c = torch.arange(channels, **dev) * labels
-    off_c = off_c.view(1, channels, *[1] * dim)
+    off_c = off_c.view(1, channels, *[1] * ndim)
     off_b = torch.arange(batch, **dev) * channels * labels
-    off_b = off_b.view(-1, 1, *[1] * dim)
-    ind = label_map + off_b + off_c
+    off_b = off_b.view(-1, 1, *[1] * ndim)
+    ind = x + off_b + off_c
 
     return lut.view(-1)[ind]
 

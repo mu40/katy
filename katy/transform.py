@@ -164,9 +164,8 @@ def interpolate(x, points, method='linear', padding='zeros'):
 
     """
     # Inputs.
-    dtype = torch.get_default_dtype()
-    x = torch.as_tensor(x, dtype=dtype)
-    points = torch.as_tensor(points, dtype=dtype)
+    x = torch.as_tensor(x, dtype=torch.get_default_dtype())
+    points = torch.as_tensor(points, dtype=x.dtype)
 
     # Convert to PyTorch's normalized coordinates. Using `align_corners=True`
     # should be slightly more efficient. The result will be identical here.
@@ -213,9 +212,8 @@ def apply(x, trans, grid=None, method='linear', padding='zeros'):
 
     """
     # Inputs.
-    dtype = torch.get_default_dtype()
-    x = torch.as_tensor(x, dtype=dtype)
-    trans = torch.as_tensor(trans, dtype=dtype)
+    x = torch.as_tensor(x, dtype=torch.get_default_dtype())
+    trans = torch.as_tensor(trans, dtype=x.dtype)
 
     # Grid.
     size = x.shape[2:]
@@ -246,8 +244,7 @@ def integrate(x, steps, grid=None):
         Integral of the vector field.
 
     """
-    dtype = torch.get_default_dtype()
-    x = torch.as_tensor(x, dtype=dtype)
+    x = torch.as_tensor(x, dtype=torch.get_default_dtype())
     if steps < 0:
         raise ValueError(f'integration step number {steps} is less than 0')
     if steps == 0:
