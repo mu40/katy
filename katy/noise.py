@@ -19,7 +19,7 @@ def perlin(size, points=2, batch=None, device=None, generator=None):
         Number of control points in [2, size). The lower, the smoother. Pass
         1 value to use for all axes or N values - one for each axis.
     batch : sequence of int or torch.Tensor, optional
-        Batch size.
+        Batch size. Batches differ in gradients but share `points`.
     device : torch.device, optional
         Device of the returned tensor.
     generator : torch.Generator, optional
