@@ -1,6 +1,7 @@
 """Utility module."""
 
 
+import functools
 import torch
 
 
@@ -68,3 +69,106 @@ def resize(x, size, fill=0):
     out = torch.full(size_new.tolist(), fill, device=x.device)
     out[ind_new] = x[ind_old]
     return out
+
+
+def batched(f):
+    """Add batch support to a function that processes multi-channel tensors.
+
+    Parameters
+    ----------
+    f : callable
+        Callable taking a `torch.Tensor` of shape `(C, *size)` as its first
+        argument and returning individually stackable outputs.
+
+    Returns
+    -------
+    function
+        Function wrapping `f`, with the added keyword argument `batched=True`.
+        If `batched` is False, it behaves like `f`. If `batched` is True, it
+        will take inputs `(B, C, *size)` inputs and return `(B, ...)` outputs.
+
+    """
+    @functools.wraps(f)
+    def wrapper(x, *args, batched=True, **kwargs):
+        # Unchanged behavior.
+        if not batched:
+            return f(x, *args, **kwargs)
+
+        # Batch processing.
+        out = [f(batch, *args, **kwargs) for batch in x]
+        if isinstance(out[0], torch.Tensor):
+            return torch.stack(out)
+
+        # Function returned several outputs.
+        return tuple(torch.stack(o) for o in zip(*out))
+
+    return wrapper
+
+
+def channels(shared):
+    """Make a function treat the channels of a tensor independently.
+
+    Parameters
+    ----------
+    f : callable
+        Callable taking a `torch.Tensor` of shape `(C, *size)` as its first
+        argument and returning separately concatenable outputs.
+    shared : bool
+        Default value of the `shared` keyword argument of the output function.
+
+    Returns
+    -------
+    function
+        Function wrapping `f`, with the added keyword argument `shared`. If
+        `shared` is True, the function behaves like `f`. If `shared` is False,
+        it will process each channel separately.
+
+    """
+    def wrapper(f):
+
+        @functools.wraps(f)
+        def process(x, *args, shared=shared, **kwargs):
+            # Default shared-channel behavior.
+            if shared:
+                return f(x, *args, **kwargs)
+
+            # Separate processing.
+            out = [f(c, *args, **kwargs) for c in x.split(1)]
+            if isinstance(out[0], torch.Tensor):
+                return torch.cat(out)
+
+            # Function returned several outputs.
+            return tuple(torch.cat(o) for o in zip(*out))
+
+        return process
+
+    return wrapper
+
+
+def randomized(f):
+    """Randomize the application of a function that modifies a tensor.
+
+    Parameters
+    ----------
+    f : callable
+        Callable with one or more positional arguments.
+
+    Returns
+    -------
+    function
+        Function wrapping `f`, with the added keyword argument `prob=1`,
+        controlling the chance of `f` being applied. When `f` is not applied,
+        the function will return the the first argument, unmodified.
+
+    """
+    @functools.wraps(f)
+    def wrapper(x, *args, prob=1, **kwargs):
+        generator = kwargs.get('generator')
+        device = None if generator is None else generator.device
+
+        if chance(prob, device=device, generator=generator):
+            return f(x, *args, **kwargs)
+
+        return x
+
+    return wrapper
