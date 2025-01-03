@@ -747,3 +747,55 @@ def jacobian(f, det=True, is_disp=True):
         df = df + torch.eye(ndim, device=df.device)
 
     return torch.linalg.det(df) if det else df
+
+
+def fit_matrix(x, y, weights=None, ridge=1e-6):
+    """Fit an N-dimensional affine transform between two point sets.
+
+    Computes a `matrix` transform between two sets of `M` corresponding points
+    with ordinary or weighted closed-form least squares, such that:
+    `y = (matrix[..., :-1, :-1] @ x.mT + matrix[..., :-1, -1:]).mT`.
+
+    Parameters
+    ----------
+    x : (..., M, N) torch.Tensor
+        Source coordinates.
+    y : (..., M, N) torch.Tensor
+        Target coordinates.
+    weights : (..., M) torch.Tensor, optional
+        Weights, for weighted least squares.
+    ridge : float, optional
+        Parameter, for regularized least squares.
+
+    Returns
+    -------
+    (..., N + 1, N + 1) torch.Tensor
+        Fitted matrix.
+
+    """
+    x = torch.as_tensor(x, dtype=torch.float64)
+    y = torch.as_tensor(y, dtype=x.dtype)
+    ndim = x.size(-1)
+    if x.shape[-2:] != y.shape[-2:]:
+        raise ValueError(f'incompatible point sizes {x.shape} and {y.shape}')
+
+    # Row of ones, for shape `(..., M, N + 1)`.
+    ones = torch.ones(size=(*x.shape[:-1], 1), dtype=x.dtype, device=x.device)
+    x = torch.cat((x, ones), dim=-1)
+    xt = x.mT
+
+    # Weight points, not dimensions.
+    ridge = ridge * torch.eye(ndim + 1, dtype=x.dtype, device=x.device)
+    if weights is not None:
+        xt = xt * torch.as_tensor(weights, dtype=x.dtype).unsqueeze(-2)
+
+    # Least squares.
+    beta = (xt @ x + ridge).inverse() @ xt @ y
+
+    # Last row.
+    size = (*beta.shape[:-2], ndim + 1, ndim + 1)
+    out = torch.zeros(size, dtype=torch.get_default_dtype(), device=x.device)
+    out[..., :ndim, :] = beta.mT
+    out[..., -1, -1] = 1
+
+    return out

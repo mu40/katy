@@ -385,3 +385,72 @@ def test_jacobian_values():
             inp = kt.transform.compose(mat, grid=grid, absolute=not is_disp)
             out = kt.transform.jacobian(inp, is_disp=is_disp)
             assert out.allclose(det)
+
+
+def test_fit_matrix_trivial():
+    """Test output shape and dtype when fitting matrix transforms."""
+    # Expect a square matrix of size (N + 1) in N dimensions.
+    dim = 3
+    x = torch.rand(5, dim)
+    out = kt.transform.fit_matrix(x, x, ridge=1e-4)
+    assert out.shape == (dim + 1, dim + 1)
+
+    # Expect output to have input batch dimensions.
+    batch = (3, 4)
+    dim = 2
+    x = torch.rand(*batch, 5, dim)
+    out = kt.transform.fit_matrix(x, x)
+    assert out.shape == (*batch, dim + 1, dim + 1)
+
+    # Expect default data type.
+    assert out.dtype == torch.get_default_dtype()
+
+
+def test_fit_matrix_scale():
+    """Test if matrix fit recovers scaling without noise, in 3D."""
+    dim = 3
+    scale = 2
+    x = torch.rand(20, dim)
+    y = scale * x
+
+    expected = (*[scale] * dim, 1)
+    expected = torch.tensor(expected, dtype=torch.get_default_dtype()).diag()
+
+    out = kt.transform.fit_matrix(x, y, ridge=0)
+    assert out.allclose(expected)
+
+
+def test_fit_matrix_shift():
+    """Test if matrix fit recovers translation without noise, in 2D."""
+    dim = 2
+    shift = 7
+    x = torch.rand(10, dim)
+    y = x + shift
+
+    expected = torch.eye(dim + 1)
+    expected[:-1, -1] = shift
+
+    out = kt.transform.fit_matrix(x, y, ridge=0)
+    assert out.allclose(expected, atol=1e-6)
+
+
+def test_fit_matrix_weighted():
+    """Test matrix fit with down-weighted outlier."""
+    dim = 2
+    shift = -5
+    points = 10
+
+    # Noise-free data.
+    x = torch.rand(points, dim)
+    y = x + shift
+
+    # Outlier with reduced weight.
+    y[-1, :] = 100
+    weights = torch.ones(points)
+    weights[-1] = 0
+
+    expected = torch.eye(dim + 1)
+    expected[:-1, -1] = shift
+
+    out = kt.transform.fit_matrix(x, y, weights=weights)
+    assert out.allclose(expected, atol=1e-4)
