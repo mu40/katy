@@ -47,7 +47,7 @@ def gamma(x, gamma=0.5, prob=1, shared=False, generator=None):
     exp = torch.rand(*size, **prop) * (b - a) + a
 
     # Randomize application.
-    bit = kt.utility.chance(prob, size, **prop)
+    bit = kt.random.chance(prob, size, **prop)
     exp = bit * exp + ~bit * 1
 
     return x.pow(exp)
@@ -88,7 +88,7 @@ def noise(x, sd=(0.01, 0.1), prob=1, shared=False, generator=None):
     size[1 if shared else 2:] = 1
     a, b = (0, sd) if len(sd) == 1 else sd
     sd = torch.rand(*size, **prop) * (b - a) + a
-    sd = sd * kt.utility.chance(prob, size, **prop)
+    sd = sd * kt.random.chance(prob, size, **prop)
 
     return x + sd * torch.randn(x.shape, **prop)
 
@@ -139,7 +139,7 @@ def blur(x, fwhm=1, prob=1, generator=None):
     fwhm = torch.rand(size, **prop) * (b - a) + a
 
     # Smoothing at per-batch probability.
-    bit = kt.utility.chance(prob, size=batch, **prop)
+    bit = kt.random.chance(prob, size=batch, **prop)
     dim = 1 + torch.arange(ndim)
     out = torch.empty_like(x)
     for i, batch in enumerate(x):
@@ -200,7 +200,7 @@ def bias(
     size[1 if shared else 2:] = 1
     dev = dict(device=x.device)
     prop = dict(**dev, generator=generator)
-    bit = kt.utility.chance(prob, size, **prop)
+    bit = kt.random.chance(prob, size, **prop)
 
     # Bias-field minimum.
     floor = torch.as_tensor(floor, **dev).ravel()
@@ -295,7 +295,7 @@ def downsample(x, factor=8, method='linear', prob=1, generator=None):
     batch = x.size(0)
     a, b = factor[0::2], factor[1::2]
     factor = torch.rand(batch, ndim, **prop) * (b - a) + a
-    bit = kt.utility.chance(prob, size=(batch, 1), **prop)
+    bit = kt.random.chance(prob, size=(batch, 1), **prop)
     factor = factor * bit + ~bit
     factor = 1 / factor
 
@@ -383,7 +383,7 @@ def remap(x, points=8, bins=256, prob=1, shared=False, generator=None):
     lut /= lut.amax(dim=-1, keepdim=True)
 
     # Randomization.
-    bit = kt.utility.chance(prob, size, **prop).view(-1)
+    bit = kt.random.chance(prob, size, **prop).view(-1)
     lut.view(-1, bins)[~bit] = torch.linspace(0, 1, bins, device=x.device)
 
     # Indices into LUT.
@@ -440,7 +440,7 @@ def crop(x, mask=None, crop=0.33, prob=1, generator=None, return_mask=False):
     # Draw cropping amount, proportion to apply to lower end.
     prop = dict(device=x.device, generator=generator)
     batch = x.shape[:1]
-    bit = kt.utility.chance(prob, size=batch, **prop)
+    bit = kt.random.chance(prob, size=batch, **prop)
     a, b = crop.to(x.device)
     crop = bit * torch.rand(batch, **prop) * (b - a) + a
     dist = torch.rand(batch, **prop)
