@@ -67,3 +67,45 @@ def test_resize_symmetry():
     # If decrease is odd, expect one fewer element at upper end.
     out = kt.utility.resize(inp, size=3).squeeze()
     assert out.tolist() == x[:-1]
+
+
+def test_barycenter_trivial():
+    """Test type and shape of barycenter, in 3D."""
+    space = (4, 4, 4)
+    x = torch.zeros(2, 3, *space)
+    out = kt.utility.barycenter(x)
+
+    # Expect shape `(batch, channel, dimensions)`.
+    assert out.shape == (*x.shape[:2], len(space))
+
+    # Expect zero barycenter for zero input.
+    assert out.eq(0).all()
+
+    # Expect default type.
+    assert out.dtype == torch.get_default_dtype()
+
+
+def test_barycenter_negative():
+    """Test barycenter of negative values, in 1D."""
+    x = torch.full(size=(1, 1, 8), fill_value=-1)
+
+    # Expect clamping of negative values to zero.
+    out = kt.utility.barycenter(x)
+    assert out.eq(0).all()
+
+
+def test_barycenter_values():
+    """Test barycenter computation, in 2D."""
+    # Single voxel.
+    x = torch.zeros(1, 1, 8, 8)
+    x[..., 2, 3] = 3
+    out = kt.utility.barycenter(x).squeeze()
+    assert out[0] == 2
+    assert out[1] == 3
+
+    # Last line.
+    x = torch.zeros(1, 1, 8, 8)
+    x[..., -1] = 1
+    out = kt.utility.barycenter(x).squeeze()
+    assert out[0] == 3.5
+    assert out[1] == 7
