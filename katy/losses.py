@@ -29,6 +29,6 @@ def dice(true, pred):
     top = 2 * (true * pred).sum(-1)
     bot = (true * true).sum(-1) + (pred * pred).sum(-1)
 
-    # Avoid dividion by zero for all-zero inputs.
+    # Avoid division by zero for all-zero inputs.
     dice = top / bot.clamp(min=1e-6)
     return 1 - dice.mean()
