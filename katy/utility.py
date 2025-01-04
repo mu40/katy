@@ -1,8 +1,49 @@
 """Utility module."""
 
 
+import functools
 import torch
 import katy as kt
+
+
+def batch(*, batch):
+    """Add batch support to a function that processes multi-channel tensors.
+
+    Parameters
+    ----------
+    f : callable
+        Callable taking a `torch.Tensor` of shape `(C, *size)` as its first
+        argument and returning separately stackable outputs.
+    batch : bool
+        Default value of the `batch` argument of the output function.
+
+    Returns
+    -------
+    function
+        Function wrapping `f` with an added keyword argument `batch`. If False,
+        the function behaves like `f`. If True, the function expects a leading
+        batch dimension, mapping `f` and stacking outputs along it.
+
+    """
+    def wrapper(f):
+
+        @functools.wraps(f)
+        def batch_func(x, *args, batch=batch, **kwargs):
+            # Unchanged behavior.
+            if not batch:
+                return f(x, *args, **kwargs)
+
+            # Batch processing.
+            out = [f(batch, *args, **kwargs) for batch in x]
+            if isinstance(out[0], torch.Tensor):
+                return torch.stack(out)
+
+            # Individual stacking of multiple outputs.
+            return tuple(torch.stack(o) for o in zip(*out))
+
+        return batch_func
+
+    return wrapper
 
 
 def resize(x, size, fill=0):

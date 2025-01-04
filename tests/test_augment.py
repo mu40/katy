@@ -356,3 +356,32 @@ def test_crop_return_mask():
 
     # Expect multiplicative application.
     assert out.allclose(inp * mask)
+
+
+def test_lines_count():
+    """Test corrupting lines of tensor with or without batch dimension."""
+    sizes = {True: (1, 1, 20), False: (1, 20)}
+
+    for batch, size in sizes.items():
+        x = torch.full(size, fill_value=-1)
+        out = kt.augment.lines(x, lines=(4, 4), batch=batch)
+
+        # Expect unchanged size, some positive lines. Duplicates possible.
+        assert out.shape == size
+        assert 1 <= out.squeeze().ge(0).sum() <= 4
+
+
+def test_lines_probability():
+    """Test if line corruption with zero probability is identity."""
+    inp = torch.zeros(1, 1, 8, 8)
+    out = kt.augment.lines(inp, prob=0)
+    assert out.eq(inp).all()
+
+
+def test_lines_illegal_value():
+    """Test corrupting an illegal number of lines."""
+    x = torch.zeros(1, 1, 4, 4)
+
+    # Number of lines should be greater zero.
+    with pytest.raises(ValueError):
+        kt.augment.lines(x, lines=0)

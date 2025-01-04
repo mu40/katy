@@ -4,8 +4,10 @@
 import torch
 import katy as kt
 
+from . import utility
 
-def gamma(x, gamma=0.5, prob=1, shared=False, generator=None):
+
+def gamma(x, gamma=0.5, *, prob=1, shared=False, generator=None):
     """Apply a random gamma transform to the intensities of a tensor.
 
     See https://en.wikipedia.org/wiki/Gamma_correction.
@@ -53,7 +55,7 @@ def gamma(x, gamma=0.5, prob=1, shared=False, generator=None):
     return x.pow(exp)
 
 
-def noise(x, sd=(0.01, 0.1), prob=1, shared=False, generator=None):
+def noise(x, sd=(0.01, 0.1), *, prob=1, shared=False, generator=None):
     """Add Gaussian noise to a tensor.
 
     Uniformly samples the standard deviation (SD) of the noise.
@@ -93,7 +95,7 @@ def noise(x, sd=(0.01, 0.1), prob=1, shared=False, generator=None):
     return x + sd * torch.randn(x.shape, **prop)
 
 
-def blur(x, fwhm=1, prob=1, generator=None):
+def blur(x, fwhm=1, *, prob=1, generator=None):
     """Blur a tensor by convolving its N spatial axes with Gaussian kernels.
 
     Uniformly samples anisotropic blurring full widths at half maximum (FWHM)
@@ -152,6 +154,7 @@ def bias(
     x,
     floor=(0, 0.5),
     points=4,
+    *,
     prob=1,
     shared=False,
     generator=None,
@@ -243,7 +246,7 @@ def bias(
     return (x, field) if return_bias else x
 
 
-def downsample(x, factor=4, method='linear', prob=1, generator=None):
+def downsample(x, factor=4, *, method='linear', prob=1, generator=None):
     """Reduce the resolution of an N-dimensional tensor.
 
     Downsamples a tensor and upsamples it again, to simulate upsampled lower
@@ -317,7 +320,7 @@ def downsample(x, factor=4, method='linear', prob=1, generator=None):
     return out
 
 
-def remap(x, points=8, bins=256, prob=1, shared=False, generator=None):
+def remap(x, points=8, bins=256, *, prob=1, shared=False, generator=None):
     """Remap image intensities using smooth lookup tables.
 
     Parameters
@@ -395,7 +398,15 @@ def remap(x, points=8, bins=256, prob=1, shared=False, generator=None):
     return lut.view(-1)[ind]
 
 
-def crop(x, mask=None, crop=0.33, prob=1, generator=None, return_mask=False):
+def crop(
+    x,
+    mask=None,
+    crop=0.33,
+    *,
+    prob=1,
+    generator=None,
+    return_mask=False,
+):
     """Crop an input image or label map along a random spatial axis.
 
     Has the same effect on all channels.
@@ -472,3 +483,59 @@ def crop(x, mask=None, crop=0.33, prob=1, generator=None, return_mask=False):
     mask = out.unsqueeze(1)
     x = x * mask
     return (x, mask) if return_mask else x
+
+
+@utility.batch(batch=True)
+def lines(x, lines=3, *, prob=1, generator=None):
+    """Fill lines along a spatial axis with a random value between 0 and 1.
+
+    Parameters
+    ----------
+    x : (..., C, *size) torch.Tensor
+        Input tensor with or without batch dimension, depending on `batch`.
+    lines : float, optional
+        Line sampling range, greater than 0. Pass 1 value `b` to sample from
+        [1, b]. Pass 2 values `a` and `b` to sample from [a, b].
+    batch : bool, optional
+        Expect batched inputs.
+    prob : float, optional
+        Line-corruption probability.
+    generator : torch.Generator, optional
+        Pseudo-random number generator.
+
+    Returns
+    -------
+    (..., C, *size) torch.Tensor
+        Corrupted tensor.
+
+    """
+    # Input of shape `(C, *size)`. Batches handled by decorator.
+    x = torch.as_tensor(x)
+    ndim = x.ndim - 1
+    size = x.shape[1:]
+
+    # Conform bounds to (a, b).
+    lines = torch.as_tensor(lines).ravel()
+    if len(lines) not in (1, 2):
+        raise ValueError(f'lines {lines} is not of length 1 or 2')
+    if lines.lt(1).any():
+        raise ValueError(f'lines {lines} includes values less than 1')
+    if len(lines) == 1:
+        lines = torch.cat((torch.ones_like(lines), lines))
+
+    # Axis.
+    prop = dict(device=x.device, generator=generator)
+    dim = torch.randint(ndim, size=(), **prop)
+
+    # Number of lines.
+    a, b = lines
+    lines = torch.randint(a, b + 1, size=(), **prop)
+    lines = lines * kt.random.chance(prob, **prop)
+
+    # Line selection.
+    ind = torch.rand(lines, **prop)
+    ind = ind.mul(size[dim] - 1).add(0.5).to(torch.int64)
+
+    # Fill value.
+    val = torch.rand((), **prop)
+    return x.clone().index_fill(dim + 1, ind, val)
