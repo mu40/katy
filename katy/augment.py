@@ -397,28 +397,28 @@ def remap(x, points=8, bins=256, *, prob=1, shared=False, generator=None):
     return lut.view(-1)[ind]
 
 
+@utility.batch(batch=True)
 def crop(
     x,
-    mask=None,
     crop=0.33,
     *,
     prob=1,
     generator=None,
     return_mask=False,
 ):
-    """Crop an input image or label map along a random spatial axis.
+    """Crop a tensor along a random spatial axis.
 
     Has the same effect on all channels.
 
     Parameters
     ----------
-    x : (B, C, *size) torch.Tensor
-        Input image or label map.
-    mask : (B, C, *size) torch.Tensor, optional
-        Boolean mask, defining a region to crop. None means the whole input.
+    x : (..., C, *size) torch.Tensor
+        Input with or without batch dimension, depending on `batch`.
     crop : float, optional
         Cropping range, in [0, 1]. Pass 1 value `b` to sample from [0, b].
         Pass 2 values `a` and `b` to sample from [a, b].
+    batch : bool, optional
+        Expect batched inputs.
     prob : float, optional
         Cropping probability.
     generator : torch.Generator, optional
@@ -428,16 +428,16 @@ def crop(
 
     Returns
     -------
-    (B, C, *size) torch.Tensor
+    (..., C, *size) torch.Tensor
         Cropped input.
-    (B, 1, *size) torch.Tensor
+    (..., 1, *size) torch.Tensor
         Cropping mask, if `return_mask` is True.
 
     """
-    # Inputs.
+    # Input of shape `(C, *size)`. Batches handled by decorator.
     x = torch.as_tensor(x)
-    ndim = x.ndim - 2
-    size = x.shape[2:]
+    ndim = x.ndim - 1
+    size = x.shape[1:]
 
     # Conform bounds to (a, b).
     crop = torch.as_tensor(crop).ravel()
@@ -450,37 +450,26 @@ def crop(
 
     # Draw cropping amount, proportion to apply to lower end.
     prop = dict(device=x.device, generator=generator)
-    batch = x.shape[:1]
-    bit = kt.random.chance(prob, size=batch, **prop)
-    a, b = crop.to(x.device)
-    crop = bit * torch.rand(batch, **prop) * (b - a) + a
-    dist = torch.rand(batch, **prop)
+    a, b = crop
+    crop = torch.rand(1, **prop) * (b - a) + a
+    crop = crop * kt.random.chance(prob, **prop)
 
-    # Treat channels as one.
-    if mask is None:
-        mask = torch.ones_like(x)
-    mask = torch.as_tensor(mask).any(dim=1)
+    # Distribute cropping between lower and upper end of random axis.
+    dim = torch.randint(ndim, size=())
+    crop = crop * size[dim]
+    low = torch.rand(1, **prop)
+    low = (crop * low).to(torch.int64)
+    upp = (crop - low).to(torch.int64)
 
-    out = torch.zeros_like(mask)
-    for i, batch in enumerate(mask):
-        # Mask extent along random axis.
-        dim = torch.randint(ndim, size=())
-        batch = batch.any(dim=[n for n in range(ndim) if n != dim])
-        low, upp = batch.nonzero().aminmax()
+    # Everything True except along axis.
+    ind = [slice(0, s) for s in size]
+    ind[dim] = slice(low, size[dim] - upp)
 
-        # Distribute cropping proportion between lower and upper end.
-        cut = upp.sub(low).add(1) * crop[i]
-        add = cut.mul(dist[i]).add(0.5).to(torch.int64)
-        sub = cut.add(0.5).to(torch.int64) - add
-
-        # Everything True except along axis.
-        ind = [slice(0, s) for s in size]
-        ind[dim] = slice(low + add, upp - sub + 1)
-        out[i, *ind] = True
-
-    # Restore channel dimension.
-    mask = out.unsqueeze(1)
+    # Singleton channel dimension.
+    mask = torch.zeros_like(x[:1])
+    mask[:, *ind] = 1
     x = x * mask
+
     return (x, mask) if return_mask else x
 
 

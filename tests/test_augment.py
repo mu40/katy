@@ -330,20 +330,14 @@ def test_crop_illegal_values():
         kt.augment.crop(x, crop=1.1)
 
 
-def test_crop_mask():
-    """Test if cropping with mask crops relative to that region, in 1D."""
+def test_crop_half():
+    """Test cropping by exactly half the FOV, in 1D."""
     width = torch.tensor(8)
     inp = torch.ones(1, 1, width)
 
     # Cropping by exactly half the FOV should halve the FOV.
     out = kt.augment.crop(inp, crop=(0.5, 0.5))
     assert out.sum().eq(0.5 * width)
-
-    # Cropping by half into a mask that's half the FOV should yield a quarter.
-    mask = inp.clone()
-    mask[..., width // 2:] = 0
-    out = kt.augment.crop(inp, mask=mask, crop=(0.5, 0.5))
-    assert out.sum().eq(0.25 * width)
 
 
 def test_crop_return_mask():
