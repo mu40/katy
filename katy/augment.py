@@ -278,7 +278,7 @@ def downsample(x, factor=4, method='linear', prob=1, generator=None):
     size = x.shape[2:]
 
     # Conform factor bounds to (a_1, b_1, a_2, b_2, ..., a_N, b_N).
-    factor = torch.as_tensor(factor, device=x.device).ravel()
+    factor = torch.as_tensor(factor).ravel()
     if len(factor) not in (1, 2, 2 * ndim):
         raise ValueError(f'factor {factor} is not of length 1, 2, or 2N')
     if factor.lt(1).any():
@@ -287,12 +287,13 @@ def downsample(x, factor=4, method='linear', prob=1, generator=None):
         factor = torch.cat((torch.ones_like(factor), factor))
     if len(factor) == 2:
         factor = factor.repeat(ndim)
-    if torch.tensor(size, device=x.device).div(factor[1::2]).le(1).any():
+    if torch.tensor(size).div(factor[1::2]).le(1).any():
         raise ValueError(f'factors {factor} not all less than size')
 
     # Factor sampling.
     prop = dict(device=x.device, generator=generator)
     batch = x.size(0)
+    factor = factor.to(x.device)
     a, b = factor[0::2], factor[1::2]
     factor = torch.rand(batch, ndim, **prop) * (b - a) + a
     bit = kt.random.chance(prob, size=(batch, 1), **prop)
