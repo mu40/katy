@@ -331,13 +331,16 @@ def test_crop_illegal_values():
 
 
 def test_crop_half():
-    """Test cropping by exactly half the FOV, in 1D."""
+    """Test cropping half the FOV, with and without batch dimension in 1D."""
     width = torch.tensor(8)
-    inp = torch.ones(1, 1, width)
+    sizes = {True: (1, 1, width), False: (1, width)}
 
-    # Cropping by exactly half the FOV should halve the FOV.
-    out = kt.augment.crop(inp, crop=(0.5, 0.5))
-    assert out.sum().eq(0.5 * width)
+    for batch, size in sizes.items():
+        x = torch.ones(size)
+
+        # Cropping by half the FOV should halve the FOV.
+        out = kt.augment.crop(x, crop=(0.5, 0.5), batch=batch)
+        assert out.sum().eq(0.5 * width)
 
 
 def test_crop_return_mask():
