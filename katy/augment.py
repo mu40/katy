@@ -243,7 +243,7 @@ def bias(
     return (x, field) if return_bias else x
 
 
-def downsample(x, factor=8, method='linear', prob=1, generator=None):
+def downsample(x, factor=4, method='linear', prob=1, generator=None):
     """Reduce the resolution of an N-dimensional tensor.
 
     Downsamples a tensor and upsamples it again, to simulate upsampled lower
