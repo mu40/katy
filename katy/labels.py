@@ -6,7 +6,7 @@ import os
 import torch
 
 
-def to_image(x, channels=1, generator=None):
+def to_image(x, channels=1, *, generator=None):
     """Synthesize gray-scale images from a discrete-valued label map.
 
     Parameters

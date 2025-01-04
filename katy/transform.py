@@ -80,7 +80,7 @@ def grid_matmul(x, matrix):
     return x.view(*x.shape[:-1], *size)
 
 
-def index_to_torch(size, align_corners=False, device=None):
+def index_to_torch(size, align_corners=False, *, device=None):
     """Construct a matrix transforming index to "PyTorch" coordinates.
 
     Constructs a transform from indices to the normalized space used by
@@ -262,7 +262,7 @@ def integrate(x, steps, grid=None):
     return x
 
 
-def compose_rotation(angle, deg=True, dtype=None):
+def compose_rotation(angle, deg=True, *, dtype=None):
     """Compose an N-dimensional rotation matrices from angles.
 
     The function composes intrinsic 2D or 3D rotation matrices in a
@@ -335,7 +335,7 @@ def compose_rotation(angle, deg=True, dtype=None):
     return out.to(dtype)
 
 
-def decompose_rotation(mat, deg=True, dtype=None):
+def decompose_rotation(mat, deg=True, *, dtype=None):
     """Decompose an N-dimensional rotation matrix into Euler angles.
 
     We decompose right-handed intrinsic rotations R = X @ Y @ Z, where X, Y,
@@ -423,6 +423,7 @@ def compose_affine(
     scale=None,
     shear=None,
     deg=True,
+    *,
     dtype=None,
     device=None,
 ):
@@ -520,7 +521,7 @@ def compose_affine(
     return full
 
 
-def decompose_affine(mat, deg=True, dtype=None):
+def decompose_affine(mat, deg=True, *, dtype=None):
     """Derive affine parameters from N-dimensional matrix transforms.
 
     The function composes 2D or 3D matrix transforms from parameters defining

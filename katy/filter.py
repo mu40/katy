@@ -4,7 +4,7 @@
 import torch
 
 
-def gaussian_kernel(fwhm, width=None, device=None):
+def gaussian_kernel(fwhm, width=None, *, device=None):
     """Construct a centered, one-dimensional Gaussian kernel.
 
     Clamps the standard deviation `sd` to a minimum value of 1e-6.

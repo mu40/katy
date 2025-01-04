@@ -6,7 +6,7 @@ import itertools
 import katy as kt
 
 
-def perlin(size, points=2, batch=None, device=None, generator=None):
+def perlin(size, points=2, *, batch=None, device=None, generator=None):
     """Generate Perlin noise in N dimensions.
 
     Inspired by https://adrianb.io/2014/08/09/perlinnoise.html.
@@ -87,7 +87,7 @@ def perlin(size, points=2, batch=None, device=None, generator=None):
     return out
 
 
-def octaves(size, points, pers, batch=None, device=None, generator=None,):
+def octaves(size, points, pers, *, batch=None, device=None, generator=None):
     """Generate and mix M isotropic octaves of Perlin noise in N dimensions.
 
     Inspired by https://www.arendpeter.com/Perlin_Noise.html.
