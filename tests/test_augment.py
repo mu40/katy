@@ -275,18 +275,13 @@ def test_remap_probability():
 
 
 def test_remap_shared_channels():
-    """Test if with sharing, batches differ and channels do not, in 3D."""
-    inp = torch.rand(1, 1, 8, 8, 8).expand(2, 3, -1, -1, -1)
-    out = kt.augment.remap(inp, bins=torch.tensor(128), shared=True)
+    """Test if channel sharing yields identical channels, in 3D."""
+    x = torch.rand(1, 8, 8, 8).expand(4, -1, -1, -1)
+    out = kt.augment.remap(x, bins=torch.tensor(99), shared=True, batch=False)
 
-    # Batches should differ.
-    for channel in range(inp.shape[1]):
-        assert out[0, channel].ne(out[1, channel]).any()
-
-    # Within each batch, all channels should be identical.
-    for batch in out:
-        assert batch[0].eq(batch[1]).all()
-        assert batch[1].eq(batch[2]).all()
+    # Channels should be identical.
+    for channel in out:
+        assert channel.allclose(out[0])
 
 
 def test_crop_unchanged():

@@ -317,18 +317,21 @@ def downsample(x, factor=4, *, method='linear', prob=1, generator=None):
     return f(x, size=size, mode=method).squeeze(0)
 
 
+@utility.batch(batch=True)
 def remap(x, points=8, bins=256, *, prob=1, shared=False, generator=None):
     """Remap image intensities using smooth lookup tables.
 
     Parameters
     ----------
-    x : (B, C, ...) torch.Tensor
-        Input image.
+    x : (..., C, *size) torch.Tensor
+        Input with or without batch dimension, depending on `batch`.
     points : int or sequence of int, optional
         Control-point range. Pass 1 value to set the upper bound `b`, keeping
         the lower bound `a` at 2. Pass 2 values to set `(a, b)`.
     bins : int, optional
         Number of grayscale levels remap.
+    batch : bool, optional
+        Expect batched inputs.
     prob : float, optional
         Remapping probability.
     shared : bool, optional
@@ -338,18 +341,17 @@ def remap(x, points=8, bins=256, *, prob=1, shared=False, generator=None):
 
     Returns
     -------
-    (B, C, ...) torch.Tensor
-        Tensor with remapped intensities.
+    (..., C, ...) torch.Tensor
+        Remapped intensities.
 
     """
-    # Input.
+    # Input of shape `(C, *size)`. Batches handled by decorator.
     x = torch.as_tensor(x)
-    ndim = x.ndim - 2
+    ndim = x.ndim - 1
     bins = torch.as_tensor(bins)
 
-    # Randomize across batches, or batches and channels.
-    size = torch.as_tensor(x.shape[:2])
-    size[1 if shared else 2:] = 1
+    # Shared channels.
+    channels = 1 if shared else x.size(0)
     prop = dict(device=x.device, generator=generator)
 
     # Control-point bounds.
@@ -363,36 +365,32 @@ def remap(x, points=8, bins=256, *, prob=1, shared=False, generator=None):
     a, b = points[0], points[1] + 1
     if a.lt(2).any() or bins.lt(b).any():
         raise ValueError(f'controls points {points} is not all in [2, {bins})')
-    points = torch.rand(size[0], **prop) * (b - a) + a
+    points = torch.rand(1, **prop) * (b - a) + a
     points = points.to(torch.int64)
 
     # Discretization.
-    dim = tuple(range(1 if shared else 2, x.ndim))
+    dim = tuple(range(0 if shared else 1, x.ndim))
     x = x - x.amin(dim, keepdim=True)
     x = x / x.amax(dim, keepdim=True)
     x = x * (bins - 1)
     x = x.to(torch.int64)
 
     # Lookup tables. Oversample, as edges are zero.
-    lut = torch.empty(*size, bins)
-    for i, p in enumerate(points):
-        n = kt.noise.perlin(size=bins * 2, points=p, batch=size[1], **prop)
-        lut[i] = n[:, bins // 2:-bins // 2]
+    lut = kt.noise.perlin(bins * 2, points, batch=channels, **prop)
+    lut = lut[:, bins // 2:-bins // 2]
 
     # Normalize to full range. If shared, there will be only one channel.
     lut -= lut.amin(dim=-1, keepdim=True)
     lut /= lut.amax(dim=-1, keepdim=True)
 
     # Randomization.
-    bit = kt.random.chance(prob, size, **prop).view(-1)
-    lut.view(-1, bins)[~bit] = torch.linspace(0, 1, bins, device=x.device)
+    bit = kt.random.chance(prob, size=channels, **prop).view(-1)
+    lut[~bit] = torch.linspace(0, 1, bins, device=x.device)
 
     # Indices into LUT.
-    off_c = torch.arange(size[1], device=x.device) * bins
-    off_b = torch.arange(size[0], device=x.device) * size[1] * bins
-    ind = x + off_b.view(-1, 1, *[1] * ndim) + off_c.view(1, -1, *[1] * ndim)
-
-    return lut.view(-1)[ind]
+    offset = torch.arange(channels, device=x.device) * bins
+    ind = x + offset.view(-1, *[1] * ndim)
+    return lut.reshape(-1)[ind]
 
 
 @utility.batch(batch=True)
