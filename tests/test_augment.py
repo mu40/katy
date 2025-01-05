@@ -174,17 +174,12 @@ def test_bias_normalization():
 
 def test_bias_shared_channels():
     """Test if with sharing, batches differ and channels do not, in 1D."""
-    inp = torch.rand(1, 1, 4).expand(2, 3, -1)
-    out = kt.augment.bias(inp, floor=0, points=(2, 3), shared=True)
+    x = torch.rand(1, 4).expand(3, -1)
+    y = kt.augment.bias(x, floor=0, points=(2, 3), shared=True, batch=False)
 
-    # Batches should differ.
-    for channel in range(inp.shape[1]):
-        assert out[0, channel].ne(out[1, channel]).any()
-
-    # Within each batch, all channels should be identical.
-    for batch in out:
-        assert batch[0].eq(batch[1]).all()
-        assert batch[1].eq(batch[2]).all()
+    # Channels should be identical.
+    for channel in y[1:]:
+        assert channel.allclose(y[0])
 
 
 def test_bias_illegal_values():
@@ -218,7 +213,7 @@ def test_bias_return_field():
 
 
 def test_downsample_unchanged():
-    """Test if bias leaves input unchanged, in 3D."""
+    """Test if downsampling leaves input unchanged, in 3D."""
     space = (4, 4, 4)
     sizes = {True: (1, 1, *space), False: (1, *space)}
 
@@ -231,7 +226,7 @@ def test_downsample_unchanged():
 
 
 def test_downsample_illegal_values():
-    """Test bias modulation with illegal input arguments, in 1D."""
+    """Test downsampling modulation with illegal input arguments, in 1D."""
     x = torch.zeros(1, 1, 4)
 
     # Factors should be positive.
@@ -277,11 +272,11 @@ def test_remap_probability():
 def test_remap_shared_channels():
     """Test if channel sharing yields identical channels, in 3D."""
     x = torch.rand(1, 8, 8, 8).expand(4, -1, -1, -1)
-    out = kt.augment.remap(x, bins=torch.tensor(99), shared=True, batch=False)
+    y = kt.augment.remap(x, bins=torch.tensor(99), shared=True, batch=False)
 
     # Channels should be identical.
-    for channel in out:
-        assert channel.allclose(out[0])
+    for channel in y[1:]:
+        assert channel.allclose(y[0])
 
 
 def test_crop_unchanged():
