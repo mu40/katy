@@ -217,15 +217,17 @@ def test_bias_return_field():
     assert out.allclose(inp * field)
 
 
-
 def test_downsample_unchanged():
-    """Test if bias leaves input unchanged, with tensor input and in 3D."""
-    # Input of shape: batch, channel, space.
-    inp = torch.ones(1, 1, 4, 4, 4)
+    """Test if bias leaves input unchanged, in 3D."""
+    space = (4, 4, 4)
+    sizes = {True: (1, 1, *space), False: (1, *space)}
 
-    orig = inp.clone()
-    kt.augment.downsample(inp, factor=torch.tensor(2))
-    assert inp.eq(orig).all()
+    for batch, size in sizes.items():
+        x = torch.ones(size)
+        orig = x.clone()
+
+        kt.augment.downsample(x, factor=torch.tensor(2), batch=batch)
+        assert x.eq(orig).all()
 
 
 def test_downsample_illegal_values():

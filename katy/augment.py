@@ -245,8 +245,9 @@ def bias(
     return (x, field) if return_bias else x
 
 
+@utility.batch(batch=True)
 def downsample(x, factor=4, *, method='linear', prob=1, generator=None):
-    """Reduce the resolution of an N-dimensional tensor.
+    """Reduce the resolution of a tensor.
 
     Downsamples a tensor and upsamples it again, to simulate upsampled lower
     resolution data. As the function assumes prior random blurring for
@@ -255,14 +256,16 @@ def downsample(x, factor=4, *, method='linear', prob=1, generator=None):
 
     Parameters
     ----------
-    x : (B, C, *size) torch.Tensor
-        Input tensor of spatial N-element size.
+    x : (..., C, *size) torch.Tensor
+        Input with or without batch dimension, depending on `batch`.
     factor : float, optional
         Subsampling range, greater or equal to 1. Pass 1 value `b` to sample
         from [1, b]. Pass 2 values `a` and `b` to sample from [a, b]. Pass
         `2 * N` values to set `(a_1, b_1, ..., a_N, b_N)` for N spatial axes.
     method : {'nearest', 'linear'}, optional
         Upsampling method. Use nearest for discrete-valued label maps.
+    batch : bool, optional
+        Expect batched inputs.
     prob : float, optional
         Downsampling probability.
     generator : torch.Generator, optional
@@ -270,14 +273,14 @@ def downsample(x, factor=4, *, method='linear', prob=1, generator=None):
 
     Returns
     -------
-    (B, C, *size) torch.Tensor
+    (..., C, *size) torch.Tensor
         Downsampled tensor.
 
     """
-    # Inputs.
+    # Input of shape `(C, *size)`. Batches handled by decorator.
     x = torch.as_tensor(x)
-    ndim = x.ndim - 2
-    size = x.shape[2:]
+    ndim = x.ndim - 1
+    size = x.shape[1:]
 
     # Conform factor bounds to (a_1, b_1, a_2, b_2, ..., a_N, b_N).
     factor = torch.as_tensor(factor).ravel()
@@ -294,11 +297,10 @@ def downsample(x, factor=4, *, method='linear', prob=1, generator=None):
 
     # Factor sampling.
     prop = dict(device=x.device, generator=generator)
-    batch = x.size(0)
     factor = factor.to(x.device)
     a, b = factor[0::2], factor[1::2]
-    factor = torch.rand(batch, ndim, **prop) * (b - a) + a
-    bit = kt.random.chance(prob, size=(batch, 1), **prop)
+    factor = torch.rand(ndim, **prop) * (b - a) + a
+    bit = kt.random.chance(prob, **prop)
     factor = factor * bit + ~bit
     factor = 1 / factor
 
@@ -311,12 +313,8 @@ def downsample(x, factor=4, *, method='linear', prob=1, generator=None):
 
     # The built-in function is way faster than applying scaling matrices.
     f = torch.nn.functional.interpolate
-    out = torch.empty_like(x)
-    for i, s in enumerate(factor):
-        batch = f(x[i:i + 1], scale_factor=s.tolist(), mode='nearest-exact')
-        out[i] = f(batch, size=size, mode=method)
-
-    return out
+    x = f(x.unsqueeze(0), scale_factor=factor.tolist(), mode='nearest-exact')
+    return f(x, size=size, mode=method).squeeze(0)
 
 
 def remap(x, points=8, bins=256, *, prob=1, shared=False, generator=None):
