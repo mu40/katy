@@ -61,3 +61,54 @@ def dice(true, pred, labels=None):
 
     # Avoid dividion by zero for all-zero inputs.
     return top / bot.clamp(min=1e-6)
+
+
+def ncc(x, y, width=3, eps=1e-6):
+    """Compute (local) normalized cross correlation.
+
+    Actually computes squared NCC, for differentiability.
+
+    Parameters
+    ----------
+    x : (B, C, *size) torch.Tensor
+        Input.
+    y : (B, C, *size) torch.Tensor
+        Input.
+    width : int, optional
+        Window size.
+    eps : float, optional
+        Epsilon, to avoid dividing by zero.
+
+    Returns
+    -------
+    (B, C) torch.Tensor
+        Mean NCC.
+
+    """
+    x = torch.as_tensor(x, dtype=torch.get_default_dtype())
+    y = torch.as_tensor(y, dtype=torch.get_default_dtype())
+    if x.shape != y.shape:
+        raise ValueError(f'shapes {x.shape} and {y.shape} differ')
+
+    # Average over patches via convolution.
+    ndim = x.ndim - 2
+    size = (x.size(1), 1, *[width] * ndim)
+    mean = torch.ones(size, device=x.device)
+    mean = mean / torch.tensor(size[2:]).prod()
+
+    # Separate convolutions, with as many groups as channels.
+    conv = getattr(torch.nn.functional, f'conv{ndim}d')
+    prop = dict(weight=mean, groups=x.size(1), padding='same')
+
+    # Remove mean.
+    x = x - conv(x, **prop)
+    y = y - conv(y, **prop)
+
+    # Variance.
+    var_x = conv(x * x, **prop).clamp(min=eps)
+    var_y = conv(y * y, **prop).clamp(min=eps)
+
+    # Cross correlation.
+    cc = conv(x * y, **prop).clamp(min=eps)
+    cc = cc * cc / var_x / var_y
+    return cc.flatten(2).mean(-1)

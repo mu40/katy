@@ -65,3 +65,23 @@ def test_dice_channels():
     xx = torch.cat((x, x), dim=1)
     xy = torch.cat((x, y), dim=1)
     assert kt.losses.dice(xx, xy).eq(0.5)
+
+
+def test_ncc_trivial():
+    """Test computing NCC."""
+    inp = torch.zeros(4, 3, 2, 2, 2, dtype=torch.int64)
+    out = kt.losses.ncc(inp, inp, width=5)
+
+    assert out.dtype == torch.get_default_dtype()
+    assert out.ndim == 0
+    assert out == -1
+
+
+def test_ncc_noise():
+    """Test NCC on uncorrelated noise."""
+    x = torch.rand(2, 3, 20)
+    y = torch.rand_like(x)
+
+    # Expect square of mid-range score for uncorrelated noise.
+    out = kt.losses.ncc(x, y)
+    assert -0.5 < out < -0.1

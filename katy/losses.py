@@ -1,6 +1,9 @@
 """Differentiable losses."""
 
 
+import katy as kt
+
+
 def dice(true, pred):
     """Compute a soft-dice loss (https://arxiv.org/abs/1606.04797).
 
@@ -32,3 +35,17 @@ def dice(true, pred):
     # Avoid division by zero for all-zero inputs.
     dice = top / bot.clamp(min=1e-6)
     return 1 - dice.mean()
+
+
+def ncc(*args, **kwargs):
+    """Compute a (local) normalized cross correlation loss.
+
+    See `katy.metrics.ncc` for details.
+
+    Returns
+    -------
+    torch.Tensor
+        Negated mean NCC.
+
+    """
+    return kt.metrics.ncc(*args, **kwargs).mean().mul(-1)

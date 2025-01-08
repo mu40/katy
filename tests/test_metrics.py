@@ -71,3 +71,27 @@ def test_dice_probabilities():
     # Argmax of single channel should yield 1.
     assert kt.metrics.dice(x, y).eq(0.5).all()
     assert kt.metrics.dice(y, x).eq(0.5).all()
+
+
+def test_ncc_trivial():
+    """Test computing NCC."""
+    inp = torch.zeros(4, 3, 2, 2, dtype=torch.int64)
+    out = kt.metrics.ncc(inp, inp, width=3)
+
+    assert out.dtype == torch.get_default_dtype()
+    assert out.shape == inp.shape[:2]
+    assert out.eq(1).all()
+
+
+def test_ncc_channels():
+    """Test computing NCC channel-wise."""
+    width = 8
+    x = torch.zeros(1, 2, width, width)
+    x[..., width // 2] = 1
+    y = x * 2
+    y[:, 1] = y[:, 1].mT.clone()
+
+    # Expect 1 for scaled image. Lower score for transposed image.
+    out = kt.metrics.ncc(x, y).squeeze()
+    assert out[0] == 1
+    assert 0.1 < out[1] < 0.3
