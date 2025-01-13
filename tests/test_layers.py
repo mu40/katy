@@ -7,36 +7,35 @@ import katy as kt
 
 def test_hyper_linear_shape():
     """Test hyper linear transform shape."""
-    # `in_features is the trailing dimension of the input tensor`.
+    # `in_features` is the trailing dimension of the input tensor.
     batch = 2
-    f_in = 3
-    f_out = 4
+    i = 3
+    o = 4
 
     # Input tensor and hypernetwork output.
-    x = torch.zeros(batch, f_in)
+    x = torch.zeros(batch, i)
     h = torch.zeros(batch, 5)
 
-    out = kt.layers.HyperLinear(in_features=f_in, out_features=f_out)(x, h)
-    assert out.shape == (batch, f_out)
+    out = kt.layers.HyperLinear(in_features=i, out_features=o)(x, h)
+    assert out.shape == (batch, o)
 
 
 def test_hyper_conv_shape():
     """Test hyper convolution shape, in 2D."""
-    # `in_features is the trailing dimension of the input tensor`.
     batch = 2
-    ci = 1
-    co = 4
+    i = 1
+    o = 4
     space = (3, 3)
 
     # Input tensor and hypernetwork output.
-    x = torch.zeros(batch, ci, *space)
+    x = torch.zeros(batch, i, *space)
     h = torch.zeros(batch, 5)
-    dim = len(space)
+    ndim = len(space)
 
     # Without padding, expect 2 voxels less for kernel size 3.
-    out = kt.layers.HyperConv(dim, ci, co, kernel_size=3)(x, h)
-    assert out.shape == (batch, co, *(s - 2 for s in space))
+    out = kt.layers.HyperConv(ndim, i, o, kernel_size=3)(x, h)
+    assert out.shape == (batch, o, *(s - 2 for s in space))
 
     # With padding, expect same size.
-    out = kt.layers.HyperConv(dim, ci, co, kernel_size=3, padding='same')(x, h)
-    assert out.shape == (batch, co, *space)
+    out = kt.layers.HyperConv(ndim, i, o, kernel_size=3, padding='same')(x, h)
+    assert out.shape == (batch, o, *space)
