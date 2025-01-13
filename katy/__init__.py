@@ -7,6 +7,7 @@ from . import filter
 from . import index
 from . import io
 from . import labels
+from . import layers
 from . import losses
 from . import noise
 from . import models
