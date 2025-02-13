@@ -6,7 +6,14 @@ import itertools
 import katy as kt
 
 
-def perlin(size, points=2, *, batch=None, device=None, generator=None):
+def perlin(size,
+    points=2,
+    *,
+    batch=None,
+    return_grad=False,
+    device=None,
+    generator=None,
+):
     """Generate Perlin noise in N dimensions.
 
     Inspired by https://adrianb.io/2014/08/09/perlinnoise.html.
@@ -20,6 +27,8 @@ def perlin(size, points=2, *, batch=None, device=None, generator=None):
         1 value to use for all axes or N values - one for each axis.
     batch : sequence of int or torch.Tensor, optional
         Batch size. Batches differ in gradients but share `points`.
+    return_grad : bool, optional
+        Return the gradient field.
     device : torch.device, optional
         Device of the returned tensor.
     generator : torch.Generator, optional
@@ -29,6 +38,8 @@ def perlin(size, points=2, *, batch=None, device=None, generator=None):
     -------
     (*batch, *size) torch.Tensor
         Perlin noise, roughly varying between -0.5 and 0.5.
+    (ndim, *batch, *points) torch.Tensor
+        Gradient vectors, if `return_grad` is True.
 
     """
     # Inputs.
@@ -84,7 +95,7 @@ def perlin(size, points=2, *, batch=None, device=None, generator=None):
             weight *= weights[c][i]
         out += weight * dot
 
-    return out
+    return (out, grad.view(ndim, *batch, *points)) if return_grad else out
 
 
 def octaves(size, points, pers, *, batch=None, device=None, generator=None):
