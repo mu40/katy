@@ -9,7 +9,7 @@ set -e
 
 
 # Wrap calls to run checks in container.
-sif="$HOME/l/sif/pytorch_2.5.1-cuda12.4-cudnn9-runtime.sif"
+sif="$HOME/l/sif/pytorch_2.6.0-cuda12.6-cudnn9-runtime.sif"
 env() { app_exec.sh "$sif" "$@" ; }
 
 
