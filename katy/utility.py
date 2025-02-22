@@ -80,7 +80,7 @@ def resize(x, size, fill=0):
     ind_old = tuple(map(slice, a_old, a_old + overlap))
     ind_new = tuple(map(slice, a_new, a_new + overlap))
 
-    out = torch.full(size_new.tolist(), fill, device=x.device)
+    out = torch.full(size_new.tolist(), fill, dtype=x.dtype, device=x.device)
     out[ind_new] = x[ind_old]
     return out
 

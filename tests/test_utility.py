@@ -5,6 +5,13 @@ import torch
 import katy as kt
 
 
+def test_resize_dtype():
+    """Test data type persistence when resizing tensors."""
+    for dtype in (torch.int64, torch.float32):
+        x = torch.ones(1, 1, 3, 3, dtype=dtype)
+        assert kt.utility.resize(x, size=2).dtype == dtype
+
+
 def test_resize_size():
     """Test output shape when resizing tensors in 1D, 2D, and 3D."""
     batch = 1
