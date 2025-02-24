@@ -5,6 +5,26 @@ import torch
 import katy as kt
 
 
+def test_count():
+    """Test counting model parameters."""
+    layer = torch.nn.Linear(in_features=1, out_features=1)
+
+    # Expect only trainable parameters.
+    assert kt.models.count(layer) == 2
+    assert kt.models.count(layer, grad_only=True) == 2
+
+
+def test_count_frozen():
+    """Test counting frozen parameters."""
+    layer = torch.nn.Linear(in_features=1, out_features=1)
+    for p in layer.parameters():
+        p.requires_grad = False
+
+    # Expect only frozen parameters.
+    assert kt.models.count(layer) == 2
+    assert kt.models.count(layer, grad_only=True) == 0
+
+
 def test_make_activation_create():
     """Test making activation functions from strings and types."""
     names = ('ReLU', 'ELU', 'LeakyReLU', 'Softmax', 'Sigmoid')

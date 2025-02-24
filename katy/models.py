@@ -5,6 +5,29 @@ import torch
 import torch.nn as nn
 
 
+def count(model, grad_only=False):
+    """Count the number of module parameters.
+
+    Parameters
+    ----------
+    model : torch.nn.Module
+        Layer or model.
+    grad_only : bool, optional
+        Only count trainable parameters.
+
+    Returns
+    -------
+    int
+        Number of parameters.
+
+    """
+    par =  model.parameters()
+    if grad_only:
+        par = filter(lambda p: p.requires_grad, par)
+
+    return sum(p.numel() for p in par)
+
+
 def make_activation(act, **kwargs):
     """Instantiate activation function with overridable default.
 
