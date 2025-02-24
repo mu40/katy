@@ -56,23 +56,23 @@ def test_gamma_shared_channels():
     inp = torch.rand(1, 1, 3, 3, 3).expand(-1, 2, -1, -1, -1).clone()
 
     # Identical channels after shared augmentation.
-    out = kt.augment.gamma(inp, shared=True).squeeze()
+    out = kt.augment.gamma(inp, gamma=(0.5, 2), shared=True).squeeze()
     assert out[0].allclose(out[1])
 
     # Different channels after separate augmentation.
-    out = kt.augment.gamma(inp, shared=False).squeeze()
+    out = kt.augment.gamma(inp, gamma=0.5, shared=False).squeeze()
     assert out[0].ne(out[1]).any()
 
 
 def test_gamma_illegal_values():
-    """Test passing gamma values outside (0, 1) range."""
+    """Test passing gamma values leading to zero or negative exponents."""
     x = torch.zeros(1, 1, 4, 4)
 
     with pytest.raises(ValueError):
-        kt.augment.gamma(x, gamma=0)
+        kt.augment.gamma(x, gamma=1)
 
     with pytest.raises(ValueError):
-        kt.augment.gamma(x, gamma=1)
+        kt.augment.gamma(x, gamma=(0, 1))
 
 
 def test_noise_unchanged():

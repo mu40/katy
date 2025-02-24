@@ -16,8 +16,9 @@ def gamma(x, gamma=0.5, *, prob=1, shared=False, generator=None):
     ----------
     x : (B, C, ...) torch.Tensor
         Input tensor.
-    gamma : float, optional
-        Value in (0, 1), leading to exponents in [1 - gamma, 1 + gamma].
+    gamma : float or sequence of float, optional
+        Exponent range. Pass 1 value `a` to sample from [1 - a, 1 + a]. Pass 2
+        values `(a, b)` to sample from [a, b]. The range must be greater zero.
     prob : float, optional
         Probability of transforming a channel.
     shared : bool, optional
@@ -31,8 +32,14 @@ def gamma(x, gamma=0.5, *, prob=1, shared=False, generator=None):
         Transformed tensor, normalized into [0, 1].
 
     """
-    if not 0 < gamma < 1:
-        raise ValueError(f'gamma {gamma} is not in range (0, 1)')
+    # Conform gamma.
+    gamma = torch.as_tensor(gamma).ravel()
+    if len(gamma) not in (1, 2):
+        raise ValueError(f'gamma {gamma} is not of length 1 or 2')
+    if len(gamma) == 1:
+        gamma = torch.tensor((1 - gamma, 1 + gamma))
+    if gamma.le(0).any():
+        raise ValueError(f'gamma range {gamma} must be greater 0')
 
     # Need intensities in [0, 1] range.
     x = torch.as_tensor(x)
@@ -44,8 +51,7 @@ def gamma(x, gamma=0.5, *, prob=1, shared=False, generator=None):
     prop = dict(device=x.device, generator=generator)
     size = torch.as_tensor(x.shape)
     size[1 if shared else 2:] = 1
-    a = 1 - gamma
-    b = 1 + gamma
+    a, b = gamma
     exp = torch.rand(*size, **prop) * (b - a) + a
 
     # Randomize application.
