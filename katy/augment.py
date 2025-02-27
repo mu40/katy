@@ -142,15 +142,14 @@ def blur(x, fwhm=1, *, prob=1, generator=None):
     if len(fwhm) == 2:
         fwhm = fwhm.repeat(ndim)
 
-    # FWHM sampling.
-    prop = dict(device=x.device, generator=generator)
-    a, b = fwhm[0::2], fwhm[1::2]
-    fwhm = torch.rand(ndim, **prop) * (b - a) + a
-
     # Smoothing at per-batch probability.
+    prop = dict(device=x.device, generator=generator)
     if not kt.random.chance(prob, **prop):
         return x
 
+    # Blur.
+    a, b = fwhm[0::2], fwhm[1::2]
+    fwhm = torch.rand(ndim, **prop) * (b - a) + a
     dim = 1 + torch.arange(ndim)
     return kt.filter.blur(x, fwhm, dim)
 
