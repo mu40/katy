@@ -531,3 +531,53 @@ def lines(x, lines=3, *, prob=1, generator=None):
     # Fill value.
     val = torch.rand((), **prop)
     return x.clone().index_fill(dim + 1, ind, val)
+
+
+@utility.batch(batch=True)
+def roll(x, shift=0.1, *, prob=1, generator=None):
+    """Roll a tensor along a random spatial axis.
+
+    Parameters
+    ----------
+    x : (..., C, *size) torch.Tensor
+        Input image or label map.
+    shift : float or sequence of float, optional
+        Shift range relative to `size`, in [0, 1]. Pass 1 value `b` to
+        sample from [0, b]. Pass 2 values `(a, b)` to sample from [a, b].
+    batch : bool, optional
+        Expect batched inputs.
+    prob : float, optional
+        Rolling probability.
+    generator : torch.Generator, optional
+        Pseudo-random number generator.
+
+    Returns
+    -------
+    (..., C, *size) torch.Tensor
+        Rolled input.
+
+    """
+    # Input of shape `(C, *size)`. Batches handled by decorator.
+    x = torch.as_tensor(x)
+    ndim = x.ndim - 1
+
+    # Conform bounds to (a, b).
+    shift = torch.as_tensor(shift).ravel()
+    if len(shift) not in (1, 2):
+        raise ValueError(f'shift {shift} is not of length 1, or 2')
+    if shift.lt(0).any() or shift.gt(1).any():
+        raise ValueError(f'shift {shift} has values outside range [0, 1]')
+    if len(shift) == 1:
+        shift = torch.cat((torch.zeros_like(shift), shift))
+
+    prop = dict(device=x.device, generator=generator)
+    if not kt.random.chance(prob, **prop):
+        return x
+
+    # Draw shifts.
+    a, b = shift
+    shift = torch.rand(1, **prop) * (b - a) + a
+    shift = shift * (-1) ** kt.random.chance(0.5, **prop)
+
+    dim = torch.randint(ndim, size=()) + 1
+    return x.roll(shifts=int(shift * x.shape[dim]), dims=int(dim))

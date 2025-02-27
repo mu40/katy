@@ -374,3 +374,54 @@ def test_lines_illegal_value():
     # Number of lines should be greater zero.
     with pytest.raises(ValueError):
         kt.augment.lines(x, lines=0)
+
+
+def test_roll_illegal_value():
+    """Test rolling tensors with illegal shift values."""
+    x = torch.zeros(1, 1, 4)
+
+    # Should pass 1 or 2 shifts.
+    with pytest.raises(ValueError):
+        kt.augment.roll(x, shift=(0, 1, 2))
+
+    # Should shift by value in [0, 1].
+    with pytest.raises(ValueError):
+        kt.augment.roll(x, shift=-1)
+
+    # Should shift by value in [0, 1].
+    with pytest.raises(ValueError):
+        kt.augment.roll(x, shift=(0, 1.1))
+
+
+def test_roll_unchanged():
+    """Test if rolling leaves input unchanged, in 3D."""
+    # Input of shape: batch, channel, space.
+    x = torch.ones(1, 1, 2, 2, 2)
+    y = x.clone()
+    kt.augment.roll(x)
+    assert x.eq(y).all()
+
+
+def test_roll_properties():
+    """Test if rolled type and shape remain the same, in 2D."""
+    types = (torch.int64, torch.float32, torch.float64)
+
+    for dtype in types:
+        x = torch.ones(2, 3, 4, 4, dtype=dtype)
+        y = kt.augment.roll(x, shift=torch.tensor(0.3))
+        assert y.dtype == x.dtype
+        assert y.shape == x.shape
+
+
+def test_roll_half():
+    """Test effect of rolling by half the tensor, in 1D."""
+    x = torch.zeros(1, 1, 10)
+    x[..., :5] = 1
+
+    # Roll by half.
+    y = kt.augment.roll(x, shift=(0.5, 0.5))
+
+    # Expected results.
+    a = x.roll(+5)
+    b = x.roll(-5)
+    assert y.eq(a).all() or y.eq(b).all()
