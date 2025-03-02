@@ -150,7 +150,7 @@ def blur(x, fwhm=1, *, prob=1, generator=None):
     # Blur.
     a, b = fwhm[0::2], fwhm[1::2]
     fwhm = torch.rand(ndim, **prop) * (b - a) + a
-    dim = 1 + torch.arange(ndim)
+    dim = torch.arange(1, 1 + ndim)
     return kt.filter.blur(x, fwhm, dim)
 
 
