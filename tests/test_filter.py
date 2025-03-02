@@ -26,7 +26,7 @@ def test_blur_unchanged():
     fwhm = torch.tensor(1)
     orig = inp.clone()
     kt.filter.blur(inp, fwhm)
-    assert inp.eq(orig).all()
+    assert inp.equal(orig)
 
 
 def test_blur_fwhm_zero():

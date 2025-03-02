@@ -73,11 +73,11 @@ def test_integrate_properties():
     orig = inp.clone()
 
     # Input should not change.
-    assert inp.eq(orig).all()
+    assert inp.equal(orig)
 
     # Output should differ from input.
     out = kt.transform.integrate(inp, steps=5)
-    assert out.ne(inp).any()
+    assert not out.equal(inp)
 
 
 def test_integrate_zero_steps():

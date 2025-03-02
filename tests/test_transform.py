@@ -309,7 +309,7 @@ def test_center_matrix_unchanged():
 
     orig = mat.clone()
     kt.transform.center_matrix(size, mat)
-    assert mat.eq(orig).all()
+    assert mat.equal(orig)
 
 
 def test_center_matrix_incompatible():
@@ -352,7 +352,7 @@ def test_jacobian_unchanged():
 
     orig = inp.clone()
     kt.transform.jacobian(inp, det=torch.tensor(False))
-    assert inp.eq(orig).all()
+    assert inp.equal(orig)
 
 
 def test_jacobian_illegal_shape():

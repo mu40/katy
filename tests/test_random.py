@@ -51,7 +51,7 @@ def test_affine_unchanged():
     inp = torch.ones(1, 1, 4, 4)
     orig = inp.clone()
     kt.random.affine(inp)
-    assert inp.eq(orig).all()
+    assert inp.equal(orig)
 
 
 def test_affine_batches():
@@ -129,7 +129,7 @@ def test_warp_unchanged():
     inp = torch.ones(1, 1, 3, 3)
     orig = inp.clone()
     kt.random.warp(inp, points=2)
-    assert inp.eq(orig).all()
+    assert inp.equal(orig)
 
 
 def test_warp_shape():

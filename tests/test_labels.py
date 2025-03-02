@@ -12,7 +12,7 @@ def test_to_image_unchanged():
 
     orig = inp.clone()
     kt.labels.to_image(inp)
-    assert inp.eq(orig).all()
+    assert inp.equal(orig)
 
 
 def test_to_image_illegal_inputs():
@@ -53,10 +53,10 @@ def test_to_image_variability():
 
     # In each batch, each channels should differ.
     for batch in out:
-        assert batch[0].ne(batch[1]).any()
+        assert not batch[0].equal(batch[1])
 
     # Batches should differ.
-    assert out[0].ne(out[1]).any()
+    assert not out[0].equal(out[1])
 
 
 def test_to_rgb_properties():
@@ -293,7 +293,7 @@ def test_one_hot_unchanged():
 
     orig = inp.clone()
     kt.labels.one_hot(inp, depth=1)
-    assert inp.eq(orig).all()
+    assert inp.equal(orig)
 
 
 def test_one_hot_dtype():

@@ -13,7 +13,7 @@ def test_gamma_unchanged():
 
     orig = inp.clone()
     kt.augment.gamma(inp)
-    assert inp.eq(orig).all()
+    assert inp.equal(orig)
 
 
 def test_gamma_probability():
@@ -23,7 +23,7 @@ def test_gamma_probability():
 
     inp -= inp.min()
     inp /= inp.max()
-    assert out.eq(inp).all()
+    assert out.equal(inp)
 
 
 def test_gamma_normalization():
@@ -61,7 +61,7 @@ def test_gamma_shared_channels():
 
     # Different channels after separate augmentation.
     out = kt.augment.gamma(inp, gamma=0.5, shared=False).squeeze()
-    assert out[0].ne(out[1]).any()
+    assert not out[0].equal(out[1])
 
 
 def test_gamma_illegal_values():
@@ -82,7 +82,7 @@ def test_noise_unchanged():
 
     orig = inp.clone()
     kt.augment.noise(inp)
-    assert inp.eq(orig).all()
+    assert inp.equal(orig)
 
 
 def test_noise_change():
@@ -92,11 +92,11 @@ def test_noise_change():
 
     # Adding noise should change the input.
     out = kt.augment.noise(inp, prob=1)
-    assert out.ne(inp).any()
+    assert not out.equal(inp)
 
     # Nothing should change at zero probability.
     out = kt.augment.noise(inp, prob=torch.tensor(0))
-    assert out.eq(inp).all()
+    assert out.equal(inp)
 
 
 def test_blur_unchanged():
@@ -106,7 +106,7 @@ def test_blur_unchanged():
 
     orig = inp.clone()
     kt.augment.blur(inp, fwhm=1)
-    assert inp.eq(orig).all()
+    assert inp.equal(orig)
 
 
 def test_blur_illegal_fwhm():
@@ -124,7 +124,7 @@ def test_blur_shared_channels():
 
     out = kt.augment.blur(inp, fwhm=5)
     for batch in out:
-        assert batch[0].eq(batch[1]).all()
+        assert batch[0].equal(batch[1])
 
 
 def test_blur_deterministic():
@@ -139,15 +139,15 @@ def test_blur_deterministic():
 
         # Sampling FWHM between identical values should yield the same result.
         out = kt.augment.blur(inp, fwhm=(fwhm, fwhm))
-        assert out.eq(ref).all()
+        assert out.equal(ref)
 
         # The same applies when specifying identical bounds for each axis.
         out = kt.augment.blur(inp, fwhm=torch.tensor(fwhm).repeat(2 * dim))
-        assert out.eq(ref).all()
+        assert out.equal(ref)
 
         # However, expect a different result when sampling between [0, fwhm).
         out = kt.augment.blur(inp, fwhm=torch.tensor(fwhm))
-        assert out.ne(ref).any()
+        assert not out.equal(ref)
 
 
 def test_bias_unchanged():
@@ -157,7 +157,7 @@ def test_bias_unchanged():
 
     orig = inp.clone()
     kt.augment.bias(inp, floor=torch.tensor(0), points=torch.tensor((2, 3)))
-    assert inp.eq(orig).all()
+    assert inp.equal(orig)
 
 
 def test_bias_normalization():
@@ -222,7 +222,7 @@ def test_downsample_unchanged():
         orig = x.clone()
 
         kt.augment.downsample(x, factor=torch.tensor(2), batch=batch)
-        assert x.eq(orig).all()
+        assert x.equal(orig)
 
 
 def test_downsample_illegal_values():
@@ -245,8 +245,8 @@ def test_downsample_shared_channels():
 
     # Within each batch, all channels should be identical.
     for batch in out:
-        assert batch[0].eq(batch[1]).all()
-        assert batch[1].eq(batch[2]).all()
+        assert batch[0].equal(batch[1])
+        assert batch[1].equal(batch[2])
 
 
 def test_remap_unchanged():
@@ -256,7 +256,7 @@ def test_remap_unchanged():
 
     orig = inp.clone()
     kt.augment.remap(inp)
-    assert inp.eq(orig).all()
+    assert inp.equal(orig)
 
 
 def test_remap_probability():
@@ -285,7 +285,7 @@ def test_crop_unchanged():
     inp = torch.ones(1, 1, 4)
     orig = inp.clone()
     kt.augment.crop(inp)
-    assert inp.eq(orig).all()
+    assert inp.equal(orig)
 
 
 def test_crop_properties():
@@ -364,7 +364,7 @@ def test_lines_probability():
     """Test if line corruption with zero probability is identity."""
     inp = torch.zeros(1, 1, 8, 8)
     out = kt.augment.lines(inp, prob=0)
-    assert out.eq(inp).all()
+    assert out.equal(inp)
 
 
 def test_lines_illegal_value():
@@ -399,7 +399,7 @@ def test_roll_unchanged():
     x = torch.ones(1, 1, 2, 2, 2)
     y = x.clone()
     kt.augment.roll(x)
-    assert x.eq(y).all()
+    assert x.equal(y)
 
 
 def test_roll_properties():
@@ -424,4 +424,4 @@ def test_roll_half():
     # Expected results.
     a = x.roll(+5)
     b = x.roll(-5)
-    assert y.eq(a).all() or y.eq(b).all()
+    assert y.equal(a) or y.equal(b)
