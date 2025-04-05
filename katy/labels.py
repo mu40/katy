@@ -99,8 +99,8 @@ def to_rgb(x, colors, mapping=None, dim=1):
         to_color = {int(k): trans[v] for k, v in mapping.items()}
 
     # Lookup table.
-    highest = max(to_color)
-    lut = torch.zeros(highest + 1, 3, device=x.device)
+    size = max(to_color) + 1
+    lut = torch.zeros(size, 3, device=x.device)
     for i, color in to_color.items():
         lut[i] = torch.as_tensor(color)
 
@@ -108,125 +108,114 @@ def to_rgb(x, colors, mapping=None, dim=1):
     return lut[x.to(torch.int64)].squeeze(1).movedim(-1, dim) / 255
 
 
-def map_index(labels, mapping=None, unknown=0, invert=False):
-    """Construct a mapping from label values to contiguous indices.
-
-    Indices will follow the original label values in ascending order.
-
-    Parameters
-    ----------
-    labels : os.PathLike or torch.Tensor or sequence of int
-        Unique, possible label values.
-    mapping : dict or os.PathLike, optional
-        Label translation applied before to indexing. Keys with the same value
-        will be merged, labels missing from the keys set to `unknown`.
-    unknown : int, optional
-        Output index for labels missing from `mapping` keys. Set this to
-        a negative value to remove labels when one-hotting.
-    invert : bool, optional
-        Invert the mapping, such that it maps indices to original or remapped
-        labels, if `mapping` provided.
-
-    Returns
-    -------
-    dict
-        Mapping from original labels to indices, if `invert` is False. If it is
-        True, the mapping will be from indices to original or remapped labels.
-
-    """
-    if not isinstance(unknown, int):
-        raise ValueError(f'value {unknown} is not a Python integer')
-
-    # Possible input labels.
-    if isinstance(labels, (str, os.PathLike)):
-        labels = kt.io.load(labels)
-    labels = sorted(map(int, labels))
-
-    # Mapping from old to new labels. Make all keys Python integers, because
-    # JSON stores keys as strings, PyTorch tensors are not hashable, and
-    # torch.uint8 scalars are interpreted as boolean indices.
-    if mapping is None:
-        mapping = {x: x for x in labels}
-    if not isinstance(mapping, dict):
-        mapping = kt.io.load(mapping)
-    mapping = {int(k): v for k, v in mapping.items()}
-
-    # New labels, without duplicates and carefully sorted by old label value.
-    new_labels = []
-    for i in labels:
-        new = mapping.get(i)
-        if new is not None and new not in new_labels:
-            new_labels.append(new)
-
-    # Conversion from new labels to indices.
-    new_to_ind = {new: i for i, new in enumerate(new_labels)}
-    ind_to_new = {i: new for i, new in enumerate(new_labels)}
-
-    if invert:
-        return ind_to_new
-
-    old_to_ind = {}
-    for old in labels:
-        new = mapping.get(old)
-        old_to_ind[old] = new_to_ind.get(new, unknown)
-
-    return old_to_ind
-
-
-def rebase(x, *args, **kwargs):
-    """Convert a discrete-valued label map to contiguous indices.
+def remap(x, mapping=None, unknown=None):
+    """Remap the values of a discrete label map.
 
     Parameters
     ----------
     x : torch.Tensor
-        Label map.
-    *args : tuple, optional
-        Passed to `map_index`.
-    **kwargs : dict, optional
-        Passed to `map_index`.
+        Label map of non-negative values.
+    mapping : dict or os.PathLike, optional
+        Labels missing from keys will become `unknown`. None returns the input.
+    unknown : int, optional
+        Value for labels missing from `mapping` keys. None means identity.
 
     Returns
     -------
     torch.Tensor
-        Rebased labels.
+        Relabeled label map.
 
     """
-    # Inputs.
     x = torch.as_tensor(x, dtype=torch.int64)
-    mapping = map_index(*args, **kwargs)
+    if mapping is None:
+        return x
 
-    # Lookup.
-    highest = max(mapping)
-    lut = torch.zeros(highest + 1, dtype=x.dtype, device=x.device)
-    lut[list(mapping)] = torch.tensor(list(mapping.values()), device=x.device)
-    return lut[x]
+    # Mapping from old to new labels. Make all keys Python integers, because
+    # JSON stores keys as strings, PyTorch tensors are not hashable, and
+    # torch.uint8 scalars are interpreted as boolean indices.
+    if isinstance(mapping, (str, os.PathLike)):
+        mapping = kt.io.load(mapping)
+    mapping = {int(k): v for k, v in mapping.items()}
+
+    # Lookup table.
+    size = max(max(mapping), x.max()) + 1
+    if unknown is None:
+        lut = torch.arange(size)
+    else:
+        lut = torch.full([size], fill_value=unknown)
+
+    lut[list(mapping)] = torch.tensor(list(mapping.values()))
+    return lut.to(x.device)[x]
 
 
-def one_hot(x, depth):
-    """Convert label map to one-hot encoding, ignoring negative values.
+def one_hot(x, labels):
+    """One-hot encode a discrete label map.
 
     Parameters
     ----------
     x : (B, 1, *size) torch.Tensor
-        Label map of `torch.int64` values in [0, labels).
-    depth : int
-        Number of input classes or output channels.
+        Label map of non-negative values.
+    labels : os.PathLike or sequence of int
+        Unique integer labels to one-hot encode in order. Unspecified labels
+        will be mapped to the first output channel.
 
     Returns
     -------
-    (B, labels, *size) torch.Tensor
-        One-hot encoding.
+    (B, C, *size) torch.Tensor
+        One-hot probability map, where `C` is `len(labels)`.
 
     """
+    x = torch.as_tensor(x, dtype=torch.int64)
     if x.ndim < 2 or x.size(1) != 1:
-        raise ValueError(f'label map size {x.shape} is not (B, 1, ...)')
-    if x.max() >= depth:
-        raise ValueError(f'highest label {x.max()} is not less than {depth}')
+        raise ValueError(f'label map {x.shape} is not (B, 1, ...)')
 
-    # Convert negative values to an additional class and remove it later.
-    x = torch.where(x < 0, depth, x)
-    x = torch.nn.functional.one_hot(x, num_classes=depth + 1)
-    x = x[..., :depth]
+    if isinstance(labels, (str, os.PathLike)):
+        labels = kt.io.load(labels)
+    if not isinstance(labels, torch.Tensor):
+        labels = list(map(int, labels))
+
+    labels = torch.as_tensor(labels).ravel()
+    if len(labels.unique(sorted=False)) != len(labels):
+        raise ValueError(f'label values {labels} are not unique')
+
+    # Lookup table.
+    size = max(x.max(), labels.max()) + 1
+    lut = torch.zeros(size, dtype=torch.int64)
+    lut[labels] = torch.arange(len(labels))
 
     # Replace the singleton channel dimension.
+    x = lut.to(x.device)[x]
+    x = torch.nn.functional.one_hot(x, num_classes=len(labels))
     return x.squeeze(1).movedim(-1, 1).to(torch.get_default_dtype())
+
+
+def collapse(x, labels):
+    """Convert a one-hot map to discrete labels.
+
+    Parameters
+    ----------
+    x : (B, C, *size) torch.Tensor
+        One-hot probability map.
+    labels : os.PathLike or sequence of int
+        Label values that correspond to the C one-hot channels.
+
+    Returns
+    -------
+    (B, 1, *size) torch.Tensor
+        Discrete label map.
+
+    """
+    x = torch.as_tensor(x)
+    if x.ndim < 2 or x.size(1) == 1:
+        raise ValueError(f'one-hot map {x.shape} is not (B, C, ...), C > 1')
+
+    if isinstance(labels, (str, os.PathLike)):
+        labels = kt.io.load(labels)
+    if not isinstance(labels, torch.Tensor):
+        labels = list(map(int, labels))
+
+    labels = torch.as_tensor(labels, device=x.device).ravel()
+    if len(labels) != x.size(1):
+        raise ValueError(f'{x.size(1)} channels != {len(labels)} labels')
+
+    return labels[x.argmax(dim=1, keepdim=True)]

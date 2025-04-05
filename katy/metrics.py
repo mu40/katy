@@ -33,27 +33,26 @@ def dice(true, pred, labels=None):
     # Convert probabilities to index labels. Destroys gradients.
     if true.size(1) > 1:
         if labels is None:
-            labels = range(true.size(1))
-
+            labels = torch.arange(true.size(1))
         true = true.argmax(dim=1, keepdim=True)
         pred = pred.argmax(dim=1, keepdim=True)
 
-    # Label selection.
-    true = true.to(torch.int64)
-    pred = pred.to(torch.int64)
-    labels = torch.as_tensor(labels, device=true.device)
-    highest = max(true.max(), pred.max())
-    highest = max(highest, labels.max())
+    # Label selection. Increment to map unspecified labels in channel 0.
+    true = 1 + true.to(torch.int64)
+    pred = 1 + pred.to(torch.int64)
+    labels = torch.as_tensor(labels).ravel()
+    labels = torch.cat((torch.as_tensor([0]), 1 + labels))
 
-    lut = torch.full(size=[highest + 1], fill_value=-1, device=true.device)
-    depth = labels.numel()
-    lut[labels] = torch.arange(depth, device=true.device)
+    size = max(true.max(), pred.max(), labels.max()) + 1
+    lut = torch.zeros(size, dtype=torch.int64, device=labels.device)
+    lut[labels] = torch.arange(len(labels))
+    lut = lut.to(true.device)
 
-    # One-hot, creating a new channel dimension.
+    # One-hot encoding, dropping first channel.
     true = lut[true]
     pred = lut[pred]
-    true = kt.labels.one_hot(true, depth).flatten(start_dim=2)
-    pred = kt.labels.one_hot(pred, depth).flatten(start_dim=2)
+    true = kt.labels.one_hot(true, labels)[:, 1:].flatten(start_dim=2)
+    pred = kt.labels.one_hot(pred, labels)[:, 1:].flatten(start_dim=2)
 
     # Nominator, denominator.
     top = 2 * (true * pred).sum(-1)
