@@ -50,19 +50,17 @@ def to_image(x, channels=1, *, generator=None):
     return lut.view(-1)[ind]
 
 
-def to_rgb(x, colors, mapping=None, dim=1):
+def to_rgb(x, colors, labels=None, dim=1):
     """Convert label maps to RGB color tensors.
 
     Parameters
     ----------
     x : (B, C, ...) torch.Tensor
-        Discrete-valued, index, or one-hot label map. The function assumes
-        non-index label values if `C` is 1 and `mapping` is None.
+        Discrete or one-hot label map.
     colors : os.PathLike or dict
         FreeSurfer color lookup table.
-    mapping : dict, optional
-        Mapping from indices to labels. Labels can be names of type `str` or
-        values of type `int` in the color table. Required if `C > 1`.
+    labels : dict, optional
+        Labels corresponding to the C one-hot channels. Required if `C > 1.`
     dim : int, optional
         Output channel dimension.
 
@@ -72,36 +70,22 @@ def to_rgb(x, colors, mapping=None, dim=1):
         RGB values in [0, 1], with 3 channels along dimension `dim`.
 
     """
-    # Convert one-hot map to indices.
+    # Conversion to discrete labels.
     x = torch.as_tensor(x)
-    if x.size(1) > 1 and mapping is None:
-        raise ValueError(f'need mapping for one-hot map {x.shape}')
+    if x.size(1) > 1 and labels is None:
+        raise ValueError(f'need labels for one-hot map {x.shape}')
     if x.size(1) > 1:
-        x = x.argmax(dim=1, keepdim=True)
+        x = collapse(x, labels)
 
     # Lookup table.
     if not isinstance(colors, dict):
         colors = kt.io.read_colors(colors)
-
-    # Actual labels.
-    if mapping is None:
-        to_color = {k: v['color'] for k, v in colors.items()}
-
-    # Indices.
-    else:
-        # Mapping from label name or value to color.
-        ntc = {v['name']: v['color'] for v in colors.values()}
-        vtc = {k: v['color'] for k, v in colors.items()}
-        value = next(iter(mapping.values()))
-        trans = ntc if isinstance(value, str) else vtc
-
-        # Mapping from index to color.
-        to_color = {int(k): trans[v] for k, v in mapping.items()}
+    colors = {k: v['color'] for k, v in colors.items()}
 
     # Lookup table.
-    size = max(to_color) + 1
+    size = max(colors) + 1
     lut = torch.zeros(size, 3, device=x.device)
-    for i, color in to_color.items():
+    for i, color in colors.items():
         lut[i] = torch.as_tensor(color)
 
     # Do not cast to integers before `argmax`.
