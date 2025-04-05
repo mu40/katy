@@ -1,46 +1,44 @@
 """Module of metrics, which may not be differentiable."""
 
-
+import os
 import torch
 import katy as kt
 
 
-def dice(true, pred, labels=None):
+def dice(true, pred, labels):
     """Compute hard Dice scores (https://www.jstor.org/stable/1932409).
 
     Parameters
     ----------
-    true : (B, C, *size) torch.Tensor
-        One-hot or discrete-valued label map.
-    pred : (B, C, *size) torch.Tensor
-        One-hot or discrete-valued label map.
-    labels : sequence of int, optional
-        Label values or one-hot indices. Not required for one-hot maps.
+    true : (B, 1, *size) torch.Tensor
+        Discrete label map.
+    pred : (B, 1, *size) torch.Tensor
+        Discrete label map.
+    labels : os.PathLike or sequence of int
+        Label values to include.
 
     Returns
     -------
     (B, C) torch.Tensor
-        Dice scores.
+        Dice scores, where `C` is the number of labels.
 
     """
     true = torch.as_tensor(true)
     pred = torch.as_tensor(pred)
-    if labels is None and true.size(1) == 1:
-        raise ValueError('labels required except for one-hot maps')
     if true.shape != pred.shape:
         raise ValueError(f'sizes {true.shape} and {pred.shape} differ')
 
-    # Convert probabilities to index labels. Destroys gradients.
-    if true.size(1) > 1:
-        if labels is None:
-            labels = torch.arange(true.size(1))
-        true = true.argmax(dim=1, keepdim=True)
-        pred = pred.argmax(dim=1, keepdim=True)
+    if isinstance(labels, (str, os.PathLike)):
+        labels = kt.io.load(labels)
+    if isinstance(labels, int):
+        labels = [labels]
+    if not isinstance(labels, torch.Tensor):
+        labels = list(map(int, labels))
+    labels = torch.as_tensor(labels).ravel()
 
     # Label selection. Increment to map unspecified labels in channel 0.
     true = 1 + true.to(torch.int64)
     pred = 1 + pred.to(torch.int64)
-    labels = torch.as_tensor(labels).ravel()
     labels = torch.cat((torch.as_tensor([0]), 1 + labels))
 
     size = max(true.max(), pred.max(), labels.max()) + 1
@@ -49,10 +47,10 @@ def dice(true, pred, labels=None):
     lut = lut.to(true.device)
 
     # One-hot encoding, dropping channel 0.
-    true = lut[true]
-    pred = lut[pred]
-    true = kt.labels.one_hot(true, labels)[:, 1:].flatten(start_dim=2)
-    pred = kt.labels.one_hot(pred, labels)[:, 1:].flatten(start_dim=2)
+    true = kt.labels.one_hot(lut[true], labels)
+    pred = kt.labels.one_hot(lut[pred], labels)
+    true = true[:, 1:].flatten(start_dim=2)
+    pred = pred[:, 1:].flatten(start_dim=2)
 
     # Nominator, denominator.
     top = 2 * (true * pred).sum(-1)

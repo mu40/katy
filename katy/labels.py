@@ -59,7 +59,7 @@ def to_rgb(x, colors, labels=None, dim=1):
         Discrete or one-hot label map.
     colors : os.PathLike or dict
         FreeSurfer color lookup table.
-    labels : dict, optional
+    labels : os.PathLike or sequence of int
         Labels corresponding to the C one-hot channels. Required if `C > 1.`
     dim : int, optional
         Output channel dimension.

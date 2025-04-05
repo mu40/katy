@@ -93,7 +93,7 @@ def test_dilate_dimensions():
 
 def test_erode_trivial():
     """Test erosion output data type and values."""
-    for dtype in (torch.long, torch.float16):
+    for dtype in (torch.long, torch.float32):
         x = torch.tensor((0.0, 1.1, 2.2, 3.3), dtype=dtype)
         y = kt.filter.erode(x, dim=-1)
 
