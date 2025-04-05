@@ -23,6 +23,7 @@ def dice(true, pred, labels):
         Dice scores, where `C` is the number of labels.
 
     """
+    prop = dict(dtype=torch.int64, device=true.device)
     true = torch.as_tensor(true)
     pred = torch.as_tensor(pred)
     if true.shape != pred.shape:
@@ -30,25 +31,25 @@ def dice(true, pred, labels):
 
     if isinstance(labels, (str, os.PathLike)):
         labels = kt.io.load(labels)
-    if isinstance(labels, int):
-        labels = [labels]
-    if not isinstance(labels, torch.Tensor):
+    if isinstance(labels, dict):
         labels = list(map(int, labels))
-    labels = torch.as_tensor(labels).ravel()
+    labels = torch.as_tensor(labels, **prop).ravel()
 
-    # Label selection. Increment to map unspecified labels in channel 0.
+    # Increment to make unwanted labels 0.
     true = 1 + true.to(torch.int64)
     pred = 1 + pred.to(torch.int64)
-    labels = torch.cat((torch.as_tensor([0]), 1 + labels))
+    zero = torch.tensor([0], **prop)
+    labels = torch.cat((zero, 1 + labels))
 
+    # Translation to indices. Unspecified labels become 0.
     size = max(true.max(), pred.max(), labels.max()) + 1
-    lut = torch.zeros(size, dtype=torch.int64, device=labels.device)
-    lut[labels] = torch.arange(len(labels))
-    lut = lut.to(true.device)
+    lut = torch.zeros(size, **prop)
+    ind = torch.arange(len(labels), **prop)
+    lut[labels] = ind
 
-    # One-hot encoding, dropping channel 0.
-    true = kt.labels.one_hot(lut[true], labels)
-    pred = kt.labels.one_hot(lut[pred], labels)
+    # One-hot. Drop channel 0.
+    true = kt.labels.one_hot(lut[true], labels=ind)
+    pred = kt.labels.one_hot(lut[pred], labels=ind)
     true = true[:, 1:].flatten(start_dim=2)
     pred = pred[:, 1:].flatten(start_dim=2)
 

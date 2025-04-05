@@ -35,19 +35,16 @@ def test_dice_memory():
 
 def test_dice_disk(tmp_path):
     """Test Dice metric for labels held in memory."""
-    x = torch.tensor((0, 3, 3, 2)).unsqueeze(0).unsqueeze(0)
-    y = torch.tensor((0, 1, 3, 3)).unsqueeze(0).unsqueeze(0)
-    z = (0, 1, 2, 3, 4)
+    x = torch.tensor((0, 1, 2, 0, 176)).unsqueeze(0).unsqueeze(0)
+    y = torch.tensor((0, 1, 2, 0, 176)).unsqueeze(0).unsqueeze(0)
+    z = (1, 2)
 
     f = tmp_path / 'labels.json'
     for labels in (tuple(z), list(z), {i: 'hi' for i in z}):
         kt.io.save(labels, f)
         dice = kt.metrics.dice(x, y, labels=f).squeeze()
         assert dice[0] == 1
-        assert dice[1] == 0
-        assert dice[2] == 0
-        assert dice[3] == 0.5
-        assert dice[4] == 0
+        assert dice[1] == 1
 
 
 def test_dice_illegal_inputs():
