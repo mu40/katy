@@ -1,8 +1,8 @@
 """Module of metrics, which may not be differentiable."""
 
+import katy as kt
 import os
 import torch
-import katy as kt
 
 
 def dice(true, pred, labels):

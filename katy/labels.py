@@ -1,6 +1,5 @@
 """Label manipulation and image synthesis."""
 
-
 import katy as kt
 import os
 import torch

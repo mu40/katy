@@ -1,8 +1,7 @@
 """Augmentation module."""
 
-
-import torch
 import katy as kt
+import torch
 
 from . import utility
 

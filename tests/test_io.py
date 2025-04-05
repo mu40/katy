@@ -1,10 +1,9 @@
 """Tests for index module."""
 
-
-import torch
-import pytest
-import pathlib
 import katy as kt
+import pathlib
+import pytest
+import torch
 
 
 def test_save_load_generic(tmp_path):

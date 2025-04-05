@@ -1,8 +1,7 @@
 """Tests for models module."""
 
-
-import torch
 import katy as kt
+import torch
 
 
 def test_count():

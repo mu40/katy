@@ -1,9 +1,8 @@
 """Noise module."""
 
-
-import torch
 import itertools
 import katy as kt
+import torch
 
 
 def perlin(size,

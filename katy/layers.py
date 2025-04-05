@@ -1,6 +1,5 @@
 """Building blocks for neural networks."""
 
-
 import functools
 import torch
 import torch.nn as nn

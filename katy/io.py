@@ -1,6 +1,5 @@
 """IO module."""
 
-
 import json
 import os
 import pathlib

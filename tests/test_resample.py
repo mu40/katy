@@ -1,9 +1,8 @@
 """Tests for resampling module."""
 
-
-import torch
-import pytest
 import katy as kt
+import pytest
+import torch
 
 
 def test_interpolate_identity():

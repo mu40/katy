@@ -1,8 +1,7 @@
 """Tests for index module."""
 
-
-import torch
 import katy as kt
+import torch
 
 
 def test_ind2sub_sub2ind_python():

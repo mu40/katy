@@ -1,6 +1,5 @@
 """Filter module."""
 
-
 import torch
 
 

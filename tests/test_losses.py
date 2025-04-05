@@ -1,9 +1,8 @@
 """Tests for losses module."""
 
-
-import torch
-import pytest
 import katy as kt
+import pytest
+import torch
 
 
 def test_dice_shape():

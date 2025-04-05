@@ -1,8 +1,7 @@
 """Tests for utility module."""
 
-
-import torch
 import katy as kt
+import torch
 
 
 def test_resize_dtype():

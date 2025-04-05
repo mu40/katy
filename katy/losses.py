@@ -1,6 +1,5 @@
 """Differentiable losses."""
 
-
 import katy as kt
 
 

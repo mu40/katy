@@ -1,9 +1,8 @@
 """Utility module."""
 
-
 import functools
-import torch
 import katy as kt
+import torch
 
 
 def batch(*, batch):

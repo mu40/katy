@@ -1,8 +1,7 @@
 """Tests for label-manipulation and image-synthesis module."""
 
-
-import torch
 import katy as kt
+import torch
 
 
 def test_hyper_linear_shape():

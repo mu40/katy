@@ -1,8 +1,7 @@
 """Generation module."""
 
-
-import torch
 import katy as kt
+import torch
 
 
 def chance(prob, size=1, *, device=None, generator=None):

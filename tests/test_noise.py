@@ -1,9 +1,8 @@
 """Tests for index module."""
 
-
-import torch
-import pytest
 import katy as kt
+import pytest
+import torch
 
 
 def test_perlin_dimensions():
