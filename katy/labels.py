@@ -81,7 +81,7 @@ def to_rgb(x, colors, mapping=None, dim=1):
 
     # Lookup table.
     if not isinstance(colors, dict):
-        colors = kt.io.read_color_table(colors)
+        colors = kt.io.read_colors(colors)
 
     # Actual labels.
     if mapping is None:

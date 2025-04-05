@@ -48,7 +48,7 @@ def dice(true, pred, labels=None):
     lut[labels] = torch.arange(len(labels))
     lut = lut.to(true.device)
 
-    # One-hot encoding, dropping first channel.
+    # One-hot encoding, dropping channel 0.
     true = lut[true]
     pred = lut[pred]
     true = kt.labels.one_hot(true, labels)[:, 1:].flatten(start_dim=2)

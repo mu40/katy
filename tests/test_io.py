@@ -48,7 +48,7 @@ def test_load_illegal_extension(tmp_path):
         kt.io.load(path=path)
 
 
-def test_read_color_table(tmp_path):
+def test_read_colors(tmp_path):
     """Test reading a FreeSurfer color table."""
     lut = (
         '#No. Label Name:                R   G   B   A\n'
@@ -64,7 +64,7 @@ def test_read_color_table(tmp_path):
 
     # Expect support for `str` and `pathlib.Path`.
     for dtype in (str, pathlib.Path):
-        lut = kt.io.read_color_table(dtype(path))
+        lut = kt.io.read_colors(dtype(path))
 
     # Expect a dictionary.
     assert isinstance(lut, dict)

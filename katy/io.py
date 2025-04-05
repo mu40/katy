@@ -73,7 +73,7 @@ def load(path):
     raise ValueError(f'suffix of "{path}" is not .json, .pickle, or .pt')
 
 
-def read_color_table(lut):
+def read_colors(lut):
     """Read a FreeSurfer color lookup table.
 
     The function returns a dictionary associating labels of type `int` with
