@@ -1,6 +1,7 @@
 """Augmentation module."""
 
 import katy as kt
+import os
 import torch
 
 from . import utility
@@ -579,3 +580,63 @@ def roll(x, shift=0.1, *, prob=1, generator=None):
 
     dim = torch.randint(ndim, size=()) + 1
     return x.roll(shifts=int(shift * x.shape[dim]), dims=int(dim))
+
+
+@utility.batch(batch=True)
+def flip(x, dim=0, labels=None, generator=None):
+    """Flip an N-dimensional tensor along a random axis.
+
+    x : torch.Tensor
+        Input tensor with or without batch dimension, depending on `batch`.
+    dim : int or sequence of int
+        Spatial dimensions to draw from, in [-N, N). None means all.
+    labels : os.PathLike or dict, optional
+        Label-name mapping for left-right remapping.
+    batch : bool, optional
+        Expect batched inputs.
+    generator : torch.Generator, optional
+        Pseudo-random number generator.
+
+    Returns
+    -------
+    torch.Tensor
+        Potentially flipped tensor.
+
+    """
+    # Input of shape `(C, *size)`. Batches handled by decorator.
+    x = torch.as_tensor(x)
+    ndim = x.ndim - 1
+
+    if dim is None:
+        dim = range(ndim)
+    dim = torch.as_tensor(dim).ravel()
+    if dim.lt(-ndim).any() or dim.ge(ndim).any():
+        raise ValueError(f'dimensions {dim} not in [-{ndim}, {ndim - 1}]')
+
+    # No flip as probable as any flip.
+    ind = torch.randint(low=-1, high=len(dim), size=(), generator=generator)
+    if ind < 0:
+        return x
+    dim = dim[ind]
+
+    # Mapping from labels to names. Make all keys Python integers, because
+    # JSON stores keys as strings, PyTorch tensors are not hashable, and
+    # torch.uint8 scalars are interpreted as boolean indices.
+    if isinstance(labels, (str, os.PathLike)):
+        labels = kt.io.load(labels)
+
+    if labels:
+        labels = {int(k): v.lower() for k, v in labels.items()}
+        retour = {v: k for k, v in labels.items()}
+        for k, v in labels.items():
+            if 'left' in v:
+                labels[k] = retour[v.replace('left', 'right')]
+            elif 'right' in v:
+                labels[k] = retour[v.replace('right', 'left')]
+            else:
+                labels[k] = k
+
+        x = kt.labels.remap(x, mapping=labels)
+
+    # Account for channel dimension.
+    return x.flip(dim if dim < 0 else dim + 1)
