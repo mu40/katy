@@ -424,3 +424,63 @@ def test_roll_half():
     a = x.roll(+5)
     b = x.roll(-5)
     assert y.equal(a) or y.equal(b)
+
+
+def test_flip_default():
+    """Test randomly flipping tensors along default dimension."""
+    # Input of shape: batch, channel, space.
+    inp = torch.arange(16, dtype=torch.float32).reshape(1, 1, 4, 4)
+    flipped = (inp.flip(2), inp.flip(3))
+
+    # Expect flip along first spatial axis or no flip.
+    for _ in range(10):
+        out = kt.augment.flip(inp)
+        assert out.equal(inp) or out.equal(flipped[0])
+        assert not out.equal(flipped[1])
+
+
+def test_flip_dim():
+    """Test randomly flipping tensors along specific dimensions."""
+    # Input of shape: batch, channel, space.
+    inp = torch.arange(4).reshape(1, 1, 2, 2)
+    flipped = (inp.flip(2), inp.flip(3))
+
+    for dim in (0, 1):
+        for _ in range(10):
+            out = kt.augment.flip(inp, dim)
+            assert out.equal(inp) or out.equal(flipped[dim])
+            assert not out.equal(flipped[1 - dim])
+
+
+def test_flip_remap():
+    """Test tensor flipping with left-right remapping, negative dimension."""
+    # Input of shape: batch, channel, space.
+    inp = torch.as_tensor((
+        (0, 1),
+        (2, 3),
+    )).unsqueeze(0).unsqueeze(0)
+
+    labels = {0: 'Left-Unknown', 1: 'Right-Unknown', 2: 'Banana'}
+    mapped = torch.as_tensor((
+        (0, 1),
+        (3, 2),
+    )).unsqueeze(0).unsqueeze(0)
+
+    # Expect unchanged first line due to 0-1 remapping.
+    for _ in range(10):
+        out = kt.augment.flip(inp, dim=-1, labels=labels)
+        assert out.equal(inp) or out.equal(mapped)
+        assert not out.equal(inp.flip(-1))
+        assert not out.equal(inp.flip(-2))
+
+
+def test_flip_illegal_values():
+    """Test tensors flipping with illegal arguments."""
+    x = torch.zeros(1, 1, 4)
+
+    # Should pass spatial dimension in [0, N).
+    with pytest.raises(ValueError):
+        kt.augment.flip(x, dim=1)
+
+    with pytest.raises(ValueError):
+        kt.augment.flip(x, dim=-2)
