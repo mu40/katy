@@ -583,7 +583,7 @@ def roll(x, shift=0.1, *, prob=1, generator=None):
 
 
 @utility.batch(batch=True)
-def flip(x, dim=0, labels=None, generator=None):
+def flip(x, dim=0, labels=None, *, generator=None):
     """Flip an N-dimensional tensor along a random axis.
 
     x : torch.Tensor
