@@ -474,6 +474,17 @@ def test_flip_remap():
         assert not out.equal(inp.flip(-2))
 
 
+def test_flip_dtype():
+    """Test tensor flipping output type when remapping."""
+    # Input of shape: batch, channel, space.
+    x = torch.zeros((1, 1, 2, 2, 2), dtype=torch.float32)
+    labels = {0: 'Left-Unknown', 1: 'Right-Unknown', 2: 'Banana'}
+
+    # Expect unchanged type.
+    for _ in range(10):
+        assert kt.augment.flip(x, labels=labels).dtype == x.dtype
+
+
 def test_flip_illegal_values():
     """Test tensors flipping with illegal arguments."""
     x = torch.zeros(1, 1, 4)
