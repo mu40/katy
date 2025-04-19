@@ -13,27 +13,35 @@ sif="$HOME/l/sif/pytorch_2.6.0-cuda12.6-cudnn9-runtime.sif"
 env() { app_exec.sh "$sif" "$@" ; }
 
 
-# Identify relevant files.
-staged=$(git diff --staged --name-only --diff-filter=ACMRT)
-python=$(git diff --staged --name-only --diff-filter=ACMRT -- '*.py')
-
-
-# Copy the staged tree to a temporary location. In case of a partial commit, we
-# want to run tests on the staged files, not the working tree.
+# Temporary storage.
 d=$(mktemp -dp /autofs/vast/scratch)
 trap "rm -rf -- '$d'" EXIT
+
+
+# Identify relevant files.
+staged="$d/staged"
+python="$d/python"
+git diff -z --staged --name-only --diff-filter=ACMRT           >"$staged"
+git diff -z --staged --name-only --diff-filter=ACMRT -- '*.py' >"$python"
+
+
+# Copy the staged tree. In case of a partial commit, we want to run tests on
+# the staged files, not the working tree.
 git checkout-index --prefix="$d/" -a
 cd "$d"
 
 
 # Spell-check staged files.
-echo "Running spell checker"
-env typos $staged
-
+if [ -s "$staged" ]; then
+    echo "Running spell checker"
+    env xargs -0 typos <"$staged"
+fi
 
 # Lint staged Python files.
-echo "Running linter"
-env ruff check -q $python
+if [ -s "$python" ]; then
+    echo "Running linter"
+    env xargs -0 ruff check -q <"$python"
+fi
 
 
 # Run all tests.
