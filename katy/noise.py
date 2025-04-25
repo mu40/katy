@@ -146,7 +146,4 @@ def octaves(size, points, pers, *, batch=None, device=None, generator=None):
 
     # Batch-wise normalization.
     dim = tuple(range(len(batch), out.ndim))
-    out -= out.amin(dim, keepdim=True)
-    out /= out.amax(dim, keepdim=True)
-
-    return out
+    return kt.utility.normalize_minmax(out, dim)
