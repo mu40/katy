@@ -117,3 +117,68 @@ def barycenter(x, grid=None, eps=1e-6):
     # Sum over space.
     dim = tuple(range(3, len(size) + 3))
     return (grid * x).sum(dim) / x.sum(dim).clamp(min=eps)
+
+
+def normalize_minmax(x, dim=None):
+    """Min-max normalize into [0, 1], avoiding divisions by zero.
+
+    Parameters
+    ----------
+    x : torch.Tensor
+        Input tensor.
+    dim : int or sequence of int, optional
+        Dimensions to reduce. None means all, treating the input as a single
+        image. To normalize batches or channels separately, exclude them.
+
+    Returns
+    -------
+    torch.Tensor
+        Normalized tensor.
+
+    """
+    x = torch.as_tensor(x)
+    x = x - x.amin(dim, keepdim=True)
+
+    # Avoid division by zero.
+    amax = x.amax(dim, keepdim=True)
+    return x / torch.where(amax > 0, amax, 1)
+
+
+def normalize_quantile(x, low=0.01, high=0.99, dim=None):
+    """Min-max normalize between quantiles.
+
+    Parameters
+    ----------
+    x : torch.Tensor
+        Input tensor.
+    low : float, optional
+        Lower quantile. We will clip values below this threshold.
+    high : float, optional
+        Upper quantile. We will clip values above this threshold.
+    dim : int or sequence of int, optional
+        Dimensions to reduce. None means all, treating the input as a single
+        image. To normalize batches or channels separately, exclude them.
+
+    Returns
+    -------
+    torch.Tensor
+        Normalized tensor.
+
+    """
+    # Arguments.
+    x = torch.as_tensor(x, dtype=torch.get_default_dtype())
+    if dim is None:
+        dim = range(x.ndim)
+    dim = torch.as_tensor(dim).ravel().tolist()
+
+    # Flatten normalization dimensions and move to left.
+    ind = tuple(range(len(dim)))
+    x = x.movedim(dim, ind)
+    y = x.reshape(-1, *x.shape[len(dim):])
+
+    # Clamp and restore shape.
+    low = y.quantile(low, dim=0, keepdim=True)
+    high = y.quantile(high, dim=0, keepdim=True)
+    x = y.clamp(low, high).view_as(x).movedim(ind, dim)
+
+    return normalize_minmax(x, dim=dim)
