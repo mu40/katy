@@ -1,6 +1,7 @@
 """Tests for utility module."""
 
 import katy as kt
+import pytest
 import torch
 
 
@@ -115,6 +116,42 @@ def test_barycenter_values():
     out = kt.utility.barycenter(x).squeeze()
     assert out[0] == 3.5
     assert out[1] == 7
+
+
+def test_quantile_scalar():
+    """Test if scalar quantiles are equivalent to `torch.quantile`."""
+    x = torch.arange(10, dtype=torch.float32)
+    x = torch.stack((x, x))
+
+    q = 0.31
+    for dim in (0, 1, None):
+        for keepdim in (True, False):
+            out = kt.utility.quantile(x, q, dim, keepdim)
+            ref = x.quantile(q, dim, keepdim)
+            assert out.shape == ref.shape
+            assert out.equal(ref)
+
+
+def test_quantile_shape():
+    """Test the output shape when computing quantiles."""
+    x = torch.ones(3, 4, 5)
+    q = torch.ones(2)
+
+    for dim in (0, 1, 2):
+        size = list(x.shape)
+        size[dim] = len(q)
+        assert kt.utility.quantile(x, q, dim=dim).shape == tuple(size)
+
+
+def test_quantile_illegal_inputs():
+    """Test if quantiles outside range [0, 1] raise errors."""
+    x = torch.ones(3)
+
+    with pytest.raises(ValueError):
+        kt.utility.quantile(x, q=-1)
+
+    with pytest.raises(ValueError):
+        kt.utility.quantile(x, 1.01)
 
 
 def test_normalize_minmax_trivial():

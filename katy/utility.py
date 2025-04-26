@@ -119,6 +119,64 @@ def barycenter(x, grid=None, eps=1e-6):
     return (grid * x).sum(dim) / x.sum(dim).clamp(min=eps)
 
 
+def quantile(x, q, dim=None, keepdim=False):
+    """Compute quantiles.
+
+    This function produces the same numerical results as `torch.quantile` but
+    differs in two ways. First, it does not limit the size of the input.
+    Second, it will not add a leading quantile dimensions to the output when
+    `q` is a 1D tensor. Instead, it will replace the reduction dimension.
+
+    Remove once https://github.com/pytorch/pytorch/issues/64947 is fixed.
+
+    Parameters
+    ----------
+    x : torch.Tensor
+        Input tensor.
+    q : torch.Tensor or float or sequence of float
+        Quantiles in the range [0, 1].
+    dim : int, optional
+        Dimension to reduce. None flattens the input before computation.
+    keepdim : bool, optional
+        Retain a singleton dimension when `q` has only one value.
+
+    Returns
+    -------
+    torch.Tensor
+        Quantiles.
+
+    """
+    # Inputs.
+    x = torch.as_tensor(x, dtype=torch.get_default_dtype())
+    q = torch.as_tensor(q, dtype=torch.get_default_dtype()).ravel()
+    if q.lt(0).any() or q.gt(1).any():
+        raise ValueError(f'quantile {q} is outside range [0, 1]')
+
+    # Dimensions. Ensure output shapes for scalar `q` follow `torch.quantile`.
+    if dim is None:
+        x = x.view(-1, *[1] * (x.ndim - 1)) if keepdim else x.flatten()
+        dim = 0
+
+    size = [1] * x.ndim
+    size[dim] = -1
+    q = q.view(size)
+    x, _ = x.sort(dim)
+
+    # Indices.
+    n = torch.tensor(x.size(dim))
+    ind = q * (n - 1)
+    ind = ind.to(x.device)
+    ind_0 = ind.to(torch.int64)
+    ind_1 = torch.minimum(ind_0 + 1, n - 1)
+
+    # Quantiles.
+    val_0 = x.index_select(dim, index=ind_0.flatten())
+    val_1 = x.index_select(dim, index=ind_1.flatten())
+    out = torch.lerp(val_0, val_1, weight=ind - ind_0)
+
+    return out if keepdim else out.squeeze(dim)
+
+
 def normalize_minmax(x, dim=None):
     """Min-max normalize into [0, 1], avoiding divisions by zero.
 
@@ -177,8 +235,7 @@ def normalize_quantile(x, low=0.01, high=0.99, dim=None):
     y = x.reshape(-1, *x.shape[len(dim):])
 
     # Clamp and restore shape.
-    low = y.quantile(low, dim=0, keepdim=True)
-    high = y.quantile(high, dim=0, keepdim=True)
-    x = y.clamp(low, high).view_as(x).movedim(ind, dim)
+    lim = quantile(y, q=torch.as_tensor((low, high)), dim=0)
+    x = y.clamp(*lim).view_as(x).movedim(ind, dim)
 
     return normalize_minmax(x, dim=dim)
