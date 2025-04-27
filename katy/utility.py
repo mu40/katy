@@ -124,8 +124,8 @@ def quantile(x, q, dim=None, keepdim=False):
 
     This function produces the same numerical results as `torch.quantile` but
     differs in two ways. First, it does not limit the size of the input.
-    Second, it will not add a leading quantile dimensions to the output when
-    `q` is a 1D tensor. Instead, it will replace the reduction dimension.
+    Second, it will not add a leading quantile dimension to the output when `q`
+    is a 1D tensor. Instead, it will replace the reduction dimension.
 
     Remove once https://github.com/pytorch/pytorch/issues/64947 is fixed.
 
