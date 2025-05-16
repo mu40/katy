@@ -1,11 +1,7 @@
-#!/bin/sh
+#!/bin/sh -e
 
 # Run the spell checker, linter, and test suite on every commit. The working
 # directory of this script will be the top level of the Git repository.
-
-
-# Exit on error, stopping the commit.
-set -e
 
 
 # Wrap calls to run checks in container.
@@ -14,7 +10,7 @@ env() { app_exec.sh "$sif" "$@" ; }
 
 
 # Temporary storage.
-d=$(mktemp -dp /autofs/vast/scratch)
+d=$(mktemp -d "/tmp/$(basename "$0").XXXXXX")
 trap "rm -rf -- '$d'" EXIT
 
 

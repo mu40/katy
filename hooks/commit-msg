@@ -1,10 +1,6 @@
-#!/bin/sh
+#!/bin/sh -e
 
 # Spell-check the commit message.
-
-
-# Exit on error, stopping the commit.
-set -e
 
 
 # Wrap calls to run checks in container.
