@@ -118,6 +118,23 @@ def test_barycenter_values():
     assert out[1] == 7
 
 
+def test_barycenter_batch():
+    """Test barycenter computation without batch dimension."""
+    # Single voxel.
+    x = torch.zeros(1, 8, 8)
+    x[..., 2, 3] = 3
+    out = kt.utility.barycenter(x, batch=False)
+    assert out[0, 0] == 2
+    assert out[0, 1] == 3
+
+    # Last line.
+    x = torch.zeros(1, 8, 8)
+    x[..., -1] = 1
+    out = kt.utility.barycenter(x, batch=False)
+    assert out[0, 0] == 3.5
+    assert out[0, 1] == 7
+
+
 def test_quantile_scalar():
     """Test if scalar quantiles are equivalent to `torch.quantile`."""
     x = torch.arange(10, dtype=torch.float32)

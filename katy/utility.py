@@ -84,38 +84,43 @@ def resize(x, size, fill=0):
     return out
 
 
-def barycenter(x, grid=None, eps=1e-6):
+def barycenter(x, grid=None, *, batch=True, eps=1e-6):
     """Compute the center of mass in N dimensions.
 
     Clamps negative values to zero for differentiability.
 
     Parameters
     ----------
-    x : (B, C, *size) torch.Tensor
-        Input tensor of spatial `N`-element size.
+    x : (..., C, *size) torch.Tensor
+        Input tensor of spatial `N`-element size. Batch depending on `batch`.
     grid : (N, *size) torch.Tensor, optional
        Coordinate grid.
+    batch : bool, optional
+        Expect batched inputs.
     eps : float, optional
         Epsilon, to avoid dividing by zero.
 
     Returns
     -------
-    (B, C, N) torch.Tensor
+    (..., C, N) torch.Tensor
         Barycenter.
 
     """
     x = torch.as_tensor(x, dtype=torch.get_default_dtype())
-    size = x.shape[2:]
+    ind = 2 if batch else 1
+    size = x.shape[ind:]
+    ndim = len(size)
 
     # Grid.
     if grid is None:
         grid = kt.transform.grid(size, device=x.device)
 
     # Added dimension indexing space.
-    x = x.clamp(min=0).unsqueeze(2)
+    x = x.clamp(min=0).unsqueeze(ind)
 
     # Sum over space.
-    dim = tuple(range(3, len(size) + 3))
+    ind = ind + 1
+    dim = tuple(range(ind, ind + ndim))
     return (grid * x).sum(dim) / x.sum(dim).clamp(min=eps)
 
 
