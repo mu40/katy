@@ -27,8 +27,10 @@ def chance(prob=0.5, size=1, *, device=None, generator=None):
     if prob < 0 or prob > 1:
         raise ValueError(f'probability {prob} is not in range [0, 1]')
 
-    size = torch.as_tensor(size).ravel()
-    return torch.rand(*size, device=device, generator=generator) < prob
+    if isinstance(size, torch.Tensor):
+        size = size.tolist()
+
+    return torch.rand(size, device=device, generator=generator) < prob
 
 
 def affine(x, shift=30, angle=30, scale=0.1, shear=0.1, *, generator=None):

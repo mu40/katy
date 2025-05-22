@@ -26,6 +26,9 @@ def test_chance_tensor_size():
     """Test passing chance sizes of various types."""
     prob = torch.tensor(0.5)
 
+    out = kt.random.chance(prob, size=[])
+    assert out.ndim == 0
+
     size = torch.Size((2, 3))
     out = kt.random.chance(prob, size)
     assert all(o == s for o, s in zip(out.shape, size))
