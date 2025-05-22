@@ -9,7 +9,7 @@ def test_chance_properties():
     """Test uniform boolean sampling properties."""
     size = (2, 3)
 
-    out = kt.random.chance(prob=0.3)
+    out = kt.random.chance()
     assert out.dtype == torch.bool
     assert out.numel() == 1
 

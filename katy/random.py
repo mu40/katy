@@ -4,12 +4,12 @@ import katy as kt
 import torch
 
 
-def chance(prob, size=1, *, device=None, generator=None):
+def chance(prob=0.5, size=1, *, device=None, generator=None):
     """Return True with given probability.
 
     Parameters
     ----------
-    prob : float
+    prob : float, optional
         Probability of returning True, in the range [0, 1].
     size : torch.Size
         Output shape.
