@@ -91,15 +91,15 @@ def to_rgb(x, colors, labels=None, dim=1):
     return lut[x.to(torch.int64)].squeeze(1).movedim(-1, dim) / 255
 
 
-def remap(x, mapping=None, unknown=None):
+def remap(x, mapping, unknown=None):
     """Remap the values of a discrete label map.
 
     Parameters
     ----------
     x : torch.Tensor
         Label map of non-negative values.
-    mapping : dict or os.PathLike, optional
-        Labels missing from keys will become `unknown`. None returns the input.
+    mapping : dict or os.PathLike
+        Labels missing from keys will become `unknown`.
     unknown : int, optional
         Value for labels missing from `mapping` keys. None means identity.
 
@@ -109,9 +109,9 @@ def remap(x, mapping=None, unknown=None):
         Relabeled label map.
 
     """
-    x = torch.as_tensor(x, dtype=torch.int64)
-    if mapping is None:
-        return x
+    x = torch.as_tensor(x)
+    dtype = x.dtype
+    x = x.to(torch.int64)
 
     # Mapping from old to new labels. Make all keys Python integers, because
     # JSON stores keys as strings, PyTorch tensors are not hashable, and
@@ -128,7 +128,7 @@ def remap(x, mapping=None, unknown=None):
         lut = torch.full([size], fill_value=unknown)
 
     lut[list(mapping)] = torch.tensor(list(mapping.values()))
-    return lut.to(x.device)[x]
+    return lut.to(x.device)[x].to(dtype)
 
 
 def one_hot(x, labels):

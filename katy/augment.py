@@ -629,8 +629,7 @@ def flip(x, dim=0, labels=None, *, generator=None):
             else:
                 labels[k] = k
 
-        # Restore type.
-        x = kt.labels.remap(x, mapping=labels).to(x.dtype)
+        x = kt.labels.remap(x, mapping=labels)
 
     # Account for channel dimension.
     return x.flip(dim if dim < 0 else dim + 1)

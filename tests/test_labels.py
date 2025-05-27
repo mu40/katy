@@ -149,12 +149,17 @@ def test_to_rgb_one_hot():
 def test_remap_types():
     """Test remapping without arguments."""
     x = (5, 6, 6, 7)
+    mapping = {5: 5}
 
+    # Expect no error.
     for dtype in (tuple, list, torch.tensor):
         inp = dtype(x)
-        out = kt.labels.remap(inp)
-        assert out.dtype == torch.int64
-        assert out.tolist() == list(x)
+        kt.labels.remap(inp, mapping)
+
+    # Expect output to have input type.
+    for dtype in (torch.float32, torch.int32, torch.int64):
+        inp = torch.tensor(x, dtype=dtype)
+        assert kt.labels.remap(inp, mapping).dtype == dtype
 
 
 def test_remap_memory():
