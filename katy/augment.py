@@ -575,42 +575,46 @@ def roll(x, shift=0.1, *, prob=1, generator=None):
     return x.roll(shifts=int(shift * x.shape[dim]), dims=int(dim))
 
 
-@utility.batch(batch=True)
-def flip(x, dim=0, labels=None, *, generator=None):
-    """Flip an N-dimensional tensor along a random axis.
+@utility.unbatch(batch=True)
+def flip(x, dim=0, labels=None, generator=None, return_ind=False):
+    """Flip N-dimensional tensors along a random axis.
 
-    x : torch.Tensor
-        Input tensor with or without batch dimension, depending on `batch`.
+    Applies the same operation across all channels. Providing label names for
+    label-map inputs results in left-right remapping on flips.
+
+    x : (..., C, *space) torch.Tensor
+        Tensors with or without batch dimension, depending on `batch`.
     dim : int or sequence of int
         Spatial dimensions to draw from, in [-N, N). None means all.
     labels : os.PathLike or dict, optional
-        Label-name mapping for left-right remapping.
+        Label-name mapping for left-right remapping. Applies to first tensor.
     batch : bool, optional
         Expect batched inputs.
     generator : torch.Generator, optional
         Pseudo-random number generator.
+    return_ind : bool, optional
+        Return indices to propagate flips with `torch.take`.
 
     Returns
     -------
-    torch.Tensor
-        Potentially flipped tensor.
+    (..., C, *space) torch.Tensor
+        Flipped tensor or tensors, depending on `inputs`.
+    (..., C, *space) torch.Tensor
+        Indices, if `return_ind` is True.
 
     """
-    # Input of shape `(C, *size)`. Batches handled by decorator.
+    # Input of shape `(B, C, *size)`. Unbatching handled by decorator.
     x = torch.as_tensor(x)
-    ndim = x.ndim - 1
+    batch, channels, *space = x.shape
+    ndim = len(space)
 
+    # Dimensions. Account for channel dimension if non-negative.
     if dim is None:
         dim = range(ndim)
     dim = torch.as_tensor(dim).ravel()
     if dim.lt(-ndim).any() or dim.ge(ndim).any():
         raise ValueError(f'dimensions {dim} not in [-{ndim}, {ndim - 1}]')
-
-    # No flip as probable as any flip.
-    ind = torch.randint(low=-1, high=len(dim), size=(), generator=generator)
-    if ind < 0:
-        return x
-    dim = dim[ind]
+    dim += (dim > -1)
 
     # Mapping from labels to names. Make all keys Python integers, because
     # JSON stores keys as strings, PyTorch tensors are not hashable, and
@@ -629,7 +633,19 @@ def flip(x, dim=0, labels=None, *, generator=None):
             else:
                 labels[k] = k
 
-        x = kt.labels.remap(x, mapping=labels)
+    # Randomization. No flip as likely as any flip.
+    ind = torch.randint(-1, len(dim), size=[batch], generator=generator)
+    flip = ind > -1
+    dim = dim[ind]
 
-    # Account for channel dimension.
-    return x.flip(dim if dim < 0 else dim + 1)
+    # Flipping and remapping.
+    out = [b.flip(d) if f else b for f, d, b in zip(flip, dim, x)]
+    out = [kt.labels.remap(o, labels) if f else o for f, o in zip(flip, out)]
+    out = torch.stack(out)
+    if not return_ind:
+        return out
+
+    # Indices.
+    ind = torch.arange(x.numel(), device=x.device).view_as(x)
+    ind = [b.flip(dim[i]) if flip[i] else b for i, b in enumerate(ind)]
+    return out, torch.stack(ind)

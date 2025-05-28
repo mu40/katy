@@ -452,6 +452,16 @@ def test_flip_dim():
             assert not out.equal(flipped[1 - dim])
 
 
+def test_flip_return_indices():
+    """Test propagating flips via indexing, without batch dimension."""
+    # Input of shape: channel, space.
+    inp = torch.arange(18).reshape(2, 3, 3)
+
+    # Expect same result via indexing.
+    out, ind = kt.augment.flip(inp, dim=(0, 1), batch=False, return_ind=True)
+    assert inp.take(ind).equal(out)
+
+
 def test_flip_remap():
     """Test tensor flipping with left-right remapping, negative dimension."""
     # Input of shape: batch, channel, space.

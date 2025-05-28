@@ -91,15 +91,15 @@ def to_rgb(x, colors, labels=None, dim=1):
     return lut[x.to(torch.int64)].squeeze(1).movedim(-1, dim) / 255
 
 
-def remap(x, mapping, unknown=None):
+def remap(x, mapping=None, unknown=None):
     """Remap the values of a discrete label map.
 
     Parameters
     ----------
     x : torch.Tensor
         Label map of non-negative values.
-    mapping : dict or os.PathLike
-        Labels missing from keys will become `unknown`.
+    mapping : dict or os.PathLike, optional
+        Labels missing from keys will become `unknown`. None returns the input.
     unknown : int, optional
         Value for labels missing from `mapping` keys. None means identity.
 
@@ -110,6 +110,10 @@ def remap(x, mapping, unknown=None):
 
     """
     x = torch.as_tensor(x)
+    if mapping is None:
+        return x
+
+    # Type.
     dtype = x.dtype
     x = x.to(torch.int64)
 

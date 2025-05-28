@@ -14,14 +14,14 @@ def batch(*, batch):
         Callable taking a `torch.Tensor` of shape `(C, *size)` as its first
         argument and returning separately stackable outputs.
     batch : bool
-        Default value of the `batch` argument of the output function.
+        Default value of the `batch` argument added to `f`.
 
     Returns
     -------
     function
-        Function wrapping `f` with an added keyword argument `batch`. If False,
-        the function behaves like `f`. If True, the function expects a leading
-        batch dimension, mapping `f` and stacking outputs along it.
+        Function wrapping `f` with the added keyword argument `batch`. If
+        `batch` is False, the function behaves like `f`. If True, the function
+        will map `f` across dimension zero and stack the outputs.
 
     """
     def wrapper(f):
@@ -41,6 +41,47 @@ def batch(*, batch):
             return tuple(torch.stack(o) for o in zip(*out))
 
         return batch_func
+
+    return wrapper
+
+
+def unbatch(*, batch):
+    """Add support for batch-less tensors to batch-aware functions.
+
+    Parameters
+    ----------
+    f : callable
+        Callable taking a `torch.Tensor` with a leading batch dimension as
+        its first argument and returning one or several batched tensors.
+    batch : bool
+        Default value of the `batch` argument added to `f`.
+
+    Returns
+    -------
+    function
+        Function wrapping `f` with the added keyword argument `batch`.
+        If `batch` is True, the function behaves like `f`. If False, the
+        function will internally add a batch dimension to any input.
+
+    """
+    def wrapper(f):
+
+        @functools.wraps(f)
+        def unbatch_func(x, *args, batch=batch, **kwargs):
+            # Unchanged behavior.
+            if batch:
+                return f(x, *args, **kwargs)
+
+            # Batch-less processing.
+            x = x.unsqueeze(0)
+            out = f(x, *args, **kwargs)
+            if isinstance(out, torch.Tensor):
+                return out.squeeze(0)
+
+            # Multiple outputs.
+            return tuple(o.squeeze(0) for o in out)
+
+        return unbatch_func
 
     return wrapper
 
