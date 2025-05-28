@@ -212,7 +212,7 @@ def test_normalize_quantile_all():
     """Test quantile normalization along all dimensions."""
     x = torch.arange(100)
 
-    out = kt.utility.normalize_quantile(x, low=0.1, high=0.9, dim=None)
+    out = kt.utility.normalize_quantile(x, min=0.1, max=0.9, dim=None)
     assert out[:10].eq(0).all()
     assert out[-10:].eq(1).all()
     assert out[10:-10].gt(0).all()

@@ -248,16 +248,16 @@ def normalize_minmax(x, dim=None):
     return x / torch.where(amax > 0, amax, 1)
 
 
-def normalize_quantile(x, low=0.01, high=0.99, dim=None):
+def normalize_quantile(x, min=0.01, max=0.99, dim=None):
     """Min-max normalize between quantiles.
 
     Parameters
     ----------
     x : torch.Tensor
         Input tensor.
-    low : float, optional
+    min : float, optional
         Lower quantile. We will clip values below this threshold.
-    high : float, optional
+    max : float, optional
         Upper quantile. We will clip values above this threshold.
     dim : int or sequence of int, optional
         Dimensions to reduce. None means all, treating the input as a single
@@ -281,7 +281,7 @@ def normalize_quantile(x, low=0.01, high=0.99, dim=None):
     y = x.reshape(-1, *x.shape[len(dim):])
 
     # Clamp and restore shape.
-    lim = quantile(y, q=torch.as_tensor((low, high)), dim=0)
+    lim = quantile(y, q=torch.as_tensor((min, max)), dim=0)
     x = y.clamp(*lim).view_as(x).movedim(ind, dim)
 
     return normalize_minmax(x, dim=dim)
