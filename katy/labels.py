@@ -94,6 +94,8 @@ def to_rgb(x, colors, labels=None, dim=1):
 def remap(x, mapping=None, unknown=None):
     """Remap the values of a discrete label map.
 
+    The mapping is optional for ease of use in downstream functions.
+
     Parameters
     ----------
     x : torch.Tensor

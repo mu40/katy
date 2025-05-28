@@ -580,7 +580,8 @@ def flip(x, dim=0, labels=None, generator=None, return_ind=False):
     """Flip N-dimensional tensors along a random axis.
 
     Applies the same operation across all channels. Providing label names for
-    label-map inputs results in left-right remapping on flips.
+    label-map inputs results in left-right remapping on any flip. We implement
+    batch support directly to avoid always indexing into the first batch.
 
     x : (..., C, *space) torch.Tensor
         Tensors with or without batch dimension, depending on `batch`.
