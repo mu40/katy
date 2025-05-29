@@ -175,3 +175,63 @@ def test_warp_illegal_values():
     # Integration steps should not be negative.
     with pytest.raises(ValueError):
         kt.random.warp(x, points=2, steps=-1)
+
+
+def test_replay_without_generator():
+    """Test replaying randomized operations without passing generator."""
+    x = torch.zeros(4, 4)
+
+    def add_noise(x, generator=None):
+        return x + torch.rand(x.shape, generator=generator)
+
+    # Expect different noise.
+    a = add_noise(x)
+    b = add_noise(x)
+    assert not x.equal(a)
+    assert not b.equal(a)
+
+    # Expect same noise.
+    replay = kt.random.replay(add_noise, device=None)
+    a = replay(x)
+    b = replay(x)
+    assert not x.equal(a)
+    assert b.equal(a)
+
+
+def test_replay_with_generator():
+    """Test replaying randomized operations, passing a generator."""
+    gen = torch.Generator()
+
+    def noise(generator):
+        return torch.rand(10, generator=generator)
+
+    # Expect different noise.
+    a = noise(gen)
+    b = noise(gen)
+    assert not a.equal(b)
+
+    # Expect same noise.
+    replay = kt.random.replay(noise, generator=gen)
+    a = replay()
+    b = replay()
+    assert a.equal(b)
+
+
+def test_replay_illegal_values():
+    """Test replaying randomizations with illegal arguments."""
+    def without_generator():
+        return
+
+    def with_generator(generator=None):
+        return
+
+    # Expect wrapped function to require keyword argument `generator`.
+    f = kt.random.replay(without_generator)
+    with pytest.raises(TypeError):
+        f()
+
+    # Expect not to be able to pass `generator` to wrapped function.
+    f = kt.random.replay(with_generator)
+    f()
+    with pytest.raises(TypeError):
+        f(generator=None)

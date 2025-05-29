@@ -575,13 +575,12 @@ def roll(x, shift=0.1, *, prob=1, generator=None):
     return x.roll(shifts=int(shift * x.shape[dim]), dims=int(dim))
 
 
-@utility.unbatch(batch=True)
-def flip(x, dim=0, labels=None, generator=None, return_ind=False):
+@utility.batch(batch=True)
+def flip(x, dim=0, labels=None, generator=None):
     """Flip N-dimensional tensors along a random axis.
 
     Applies the same operation across all channels. Providing label names for
-    label-map inputs results in left-right remapping on any flip. We implement
-    batch support directly to avoid always indexing into the first batch.
+    label-map inputs results in left-right remapping on any flip.
 
     x : (..., C, *space) torch.Tensor
         Tensors with or without batch dimension, depending on `batch`.
@@ -593,20 +592,16 @@ def flip(x, dim=0, labels=None, generator=None, return_ind=False):
         Expect batched inputs.
     generator : torch.Generator, optional
         Pseudo-random number generator.
-    return_ind : bool, optional
-        Return indices to propagate flips with `torch.take`.
 
     Returns
     -------
     (..., C, *space) torch.Tensor
-        Flipped tensor or tensors, depending on `inputs`.
-    (..., C, *space) torch.Tensor
-        Indices, if `return_ind` is True.
+        Flipped tensor.
 
     """
-    # Input of shape `(B, C, *size)`. Unbatching handled by decorator.
+    # Input of shape `(C, *size)`. Batches handled by decorator.
     x = torch.as_tensor(x)
-    batch, channels, *space = x.shape
+    channels, *space = x.shape
     ndim = len(space)
 
     # Dimensions. Account for channel dimension if non-negative.
@@ -635,18 +630,8 @@ def flip(x, dim=0, labels=None, generator=None, return_ind=False):
                 labels[k] = k
 
     # Randomization. No flip as likely as any flip.
-    ind = torch.randint(-1, len(dim), size=[batch], generator=generator)
-    flip = ind > -1
-    dim = dim[ind]
+    ind = torch.randint(-1, len(dim), size=(), generator=generator)
+    if ind < 0:
+        return x
 
-    # Flipping and remapping.
-    out = [b.flip(d) if f else b for f, d, b in zip(flip, dim, x)]
-    out = [kt.labels.remap(o, labels) if f else o for f, o in zip(flip, out)]
-    out = torch.stack(out)
-    if not return_ind:
-        return out
-
-    # Indices.
-    ind = torch.arange(x.numel(), device=x.device).view_as(x)
-    ind = [b.flip(dim[i]) if flip[i] else b for i, b in enumerate(ind)]
-    return out, torch.stack(ind)
+    return kt.labels.remap(x, mapping=labels).flip(dim[ind])

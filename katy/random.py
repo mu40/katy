@@ -1,5 +1,6 @@
 """Generation module."""
 
+import functools
 import katy as kt
 import torch
 
@@ -190,3 +191,40 @@ def warp(x, disp=25, points=16, damp=0.33, steps=0, *, generator=None):
     field *= disp * damp / field.abs().amax(dim, keepdim=True)
 
     return kt.transform.integrate(field, steps)
+
+
+def replay(f, /, *, generator=None, device=None):
+    """Initialize each call to a function with the same random state.
+
+    Calls to a wrapped augmentation function should generally apply the same
+    augmentation each time. However, changing the function arguments between
+    calls may lead to different results depending on the wrapped function.
+
+    Parameters
+    ----------
+    f : callable
+        Callable taking a `torch.Generator` as keyword argument `generator`.
+    generator : torch.Generator, optional
+        Pseudo-random number generator.
+    device : torch.device, optional
+        Device used if `generator` is None.
+
+    Returns
+    -------
+    function
+        Wrapper function.
+
+    """
+    if generator is None:
+        generator = torch.Generator(device)
+
+    state = generator.get_state()
+
+    # Reset before call so the state has advanced after. Otherwise, the next
+    # call to `f` would depart from the same state even without the wrapper.
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+        generator.set_state(state)
+        return f(*args, **kwargs, generator=generator)
+
+    return wrapper
