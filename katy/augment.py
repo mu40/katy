@@ -372,8 +372,8 @@ def remap(x, /, points=8, bins=256, *, prob=1, shared=False, generator=None):
     points = points.to(torch.int64)
 
     # Discretization.
-    dim = range(0 if shared else 1, x.ndim)
-    x = kt.utility.normalize(x, dim) * (bins - 1e-3)
+    x = kt.utility.normalize(x, dim=range(0 if shared else 1, x.ndim))
+    x = x * (bins - 1e-3)
     x = x.to(torch.int64)
 
     # Lookup tables. Oversample, as edges are zero.
