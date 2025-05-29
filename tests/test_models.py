@@ -32,7 +32,7 @@ def test_make_activation_create():
         act = getattr(torch.nn, name)
 
         # Passing the name should yield an instance.
-        out = kt.models.make_activation(act=name)
+        out = kt.models.make_activation(name)
         assert isinstance(out, act)
 
         # Passing the type should yield an instance.

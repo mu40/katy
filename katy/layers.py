@@ -56,7 +56,7 @@ class HyperConv(nn.Module):
         if bias:
             self.hyperbias = nn.LazyLinear(out_channels)
 
-    def forward(self, x, h, reuse=False):
+    def forward(self, x, h, /, reuse=False):
         """Map and apply convolutional weights from a hypernetwork output.
 
         Parameters
@@ -124,7 +124,7 @@ class HyperLinear(nn.Module):
         if bias:
             self.hyperbias = nn.LazyLinear(out_features)
 
-    def forward(self, x, h, reuse=False):
+    def forward(self, x, h, /, reuse=False):
         """Map and apply linear transform weights from a hypernetwork output.
 
         Parameters

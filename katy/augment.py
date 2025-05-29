@@ -7,7 +7,7 @@ import torch
 from . import utility
 
 
-def gamma(x, gamma=0.5, *, prob=1, shared=False, generator=None):
+def gamma(x, /, gamma=0.5, *, prob=1, shared=False, generator=None):
     """Apply a random gamma transform to the intensities of a tensor.
 
     See https://en.wikipedia.org/wiki/Gamma_correction.
@@ -59,7 +59,7 @@ def gamma(x, gamma=0.5, *, prob=1, shared=False, generator=None):
     return x.pow(exp)
 
 
-def noise(x, sd=(0.01, 0.1), *, prob=1, shared=False, generator=None):
+def noise(x, /, sd=(0.01, 0.1), *, prob=1, shared=False, generator=None):
     """Add Gaussian noise to a tensor.
 
     Uniformly samples the standard deviation (SD) of the noise.
@@ -100,7 +100,7 @@ def noise(x, sd=(0.01, 0.1), *, prob=1, shared=False, generator=None):
 
 
 @utility.batch(batch=True)
-def blur(x, fwhm=1, *, prob=1, generator=None):
+def blur(x, /, fwhm=1, *, prob=1, generator=None):
     """Blur a tensor by convolving its N spatial axes with Gaussian kernels.
 
     Uniformly samples anisotropic blurring full widths at half maximum (FWHM)
@@ -155,6 +155,7 @@ def blur(x, fwhm=1, *, prob=1, generator=None):
 @utility.batch(batch=True)
 def bias(
     x,
+    /,
     floor=(0, 0.5),
     points=4,
     *,
@@ -249,7 +250,7 @@ def bias(
 
 
 @utility.batch(batch=True)
-def downsample(x, factor=4, *, method='linear', prob=1, generator=None):
+def downsample(x, /, factor=4, *, method='linear', prob=1, generator=None):
     """Reduce the resolution of a tensor.
 
     Downsamples a tensor and upsamples it again, to simulate upsampled lower
@@ -321,7 +322,7 @@ def downsample(x, factor=4, *, method='linear', prob=1, generator=None):
 
 
 @utility.batch(batch=True)
-def remap(x, points=8, bins=256, *, prob=1, shared=False, generator=None):
+def remap(x, /, points=8, bins=256, *, prob=1, shared=False, generator=None):
     """Remap image intensities using smooth lookup tables.
 
     Parameters
@@ -396,6 +397,7 @@ def remap(x, points=8, bins=256, *, prob=1, shared=False, generator=None):
 @utility.batch(batch=True)
 def crop(
     x,
+    /,
     crop=0.33,
     *,
     prob=1,
@@ -470,7 +472,7 @@ def crop(
 
 
 @utility.batch(batch=True)
-def lines(x, lines=3, *, prob=1, generator=None):
+def lines(x, /, lines=3, *, prob=1, generator=None):
     """Fill lines along a spatial axis with a random value between 0 and 1.
 
     Parameters
@@ -526,7 +528,7 @@ def lines(x, lines=3, *, prob=1, generator=None):
 
 
 @utility.batch(batch=True)
-def roll(x, shift=0.1, *, prob=1, generator=None):
+def roll(x, /, shift=0.1, *, prob=1, generator=None):
     """Roll a tensor along a random spatial axis.
 
     Parameters
@@ -576,7 +578,7 @@ def roll(x, shift=0.1, *, prob=1, generator=None):
 
 
 @utility.batch(batch=True)
-def flip(x, dim=0, labels=None, generator=None):
+def flip(x, /, dim=0, labels=None, generator=None):
     """Flip N-dimensional tensors along a random axis.
 
     Applies the same operation across all channels. Providing label names for

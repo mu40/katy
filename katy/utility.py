@@ -86,7 +86,7 @@ def unbatch(*, batch):
     return wrapper
 
 
-def resize(x, size, fill=0):
+def resize(x, /, size, *, fill=0):
     """Symmetrically crop or pad an N-dimensional tensor to a new size.
 
     Parameters
@@ -125,7 +125,7 @@ def resize(x, size, fill=0):
     return out
 
 
-def barycenter(x, grid=None, *, batch=True, eps=1e-6):
+def barycenter(x, /, grid=None, *, batch=True, eps=1e-6):
     """Compute the center of mass in N dimensions.
 
     Clamps negative values to zero for differentiability.
@@ -165,7 +165,7 @@ def barycenter(x, grid=None, *, batch=True, eps=1e-6):
     return (grid * x).sum(dim) / x.sum(dim).clamp(min=eps)
 
 
-def quantile(x, q, dim=None, keepdim=False):
+def quantile(x, /, q, dim=None, keepdim=False):
     """Compute quantiles.
 
     This function produces the same numerical results as `torch.quantile` but
@@ -223,7 +223,7 @@ def quantile(x, q, dim=None, keepdim=False):
     return out if keepdim else out.squeeze(dim)
 
 
-def normalize_minmax(x, dim=None):
+def normalize_minmax(x, /, dim=None):
     """Min-max normalize into [0, 1], avoiding divisions by zero.
 
     Parameters
@@ -248,7 +248,7 @@ def normalize_minmax(x, dim=None):
     return x / torch.where(amax > 0, amax, 1)
 
 
-def normalize_quantile(x, min=0.01, max=0.99, dim=None):
+def normalize_quantile(x, /, min=0.01, max=0.99, dim=None):
     """Min-max normalize between quantiles.
 
     Parameters

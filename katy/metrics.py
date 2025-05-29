@@ -5,7 +5,7 @@ import os
 import torch
 
 
-def dice(true, pred, labels):
+def dice(true, pred, /, labels):
     """Compute hard Dice scores (https://www.jstor.org/stable/1932409).
 
     Parameters
@@ -61,7 +61,7 @@ def dice(true, pred, labels):
     return top / bot.clamp(min=1e-6)
 
 
-def ncc(x, y, width=3, eps=1e-6):
+def ncc(x, y, /, width=3, eps=1e-6):
     """Compute (local) normalized cross correlation.
 
     Actually computes squared NCC, for differentiability.

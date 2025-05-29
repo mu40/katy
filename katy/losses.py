@@ -3,7 +3,7 @@
 import katy as kt
 
 
-def dice(true, pred):
+def dice(true, pred, /):
     """Compute a soft-dice loss (https://arxiv.org/abs/1606.04797).
 
     Parameters

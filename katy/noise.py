@@ -5,7 +5,8 @@ import katy as kt
 import torch
 
 
-def perlin(size,
+def perlin(
+    size,
     points=2,
     *,
     batch=None,

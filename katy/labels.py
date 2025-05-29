@@ -5,7 +5,7 @@ import os
 import torch
 
 
-def to_image(x, channels=1, *, generator=None):
+def to_image(x, /, channels=1, *, generator=None):
     """Synthesize gray-scale images from a discrete-valued label map.
 
     Parameters
@@ -49,7 +49,7 @@ def to_image(x, channels=1, *, generator=None):
     return lut.view(-1)[ind]
 
 
-def to_rgb(x, colors, labels=None, dim=1):
+def to_rgb(x, /, colors, labels=None, dim=1):
     """Convert label maps to RGB color tensors.
 
     Parameters
@@ -91,7 +91,7 @@ def to_rgb(x, colors, labels=None, dim=1):
     return lut[x.to(torch.int64)].squeeze(1).movedim(-1, dim) / 255
 
 
-def remap(x, mapping=None, unknown=None):
+def remap(x, /, mapping=None, unknown=None):
     """Remap the values of a discrete label map.
 
     The mapping is optional for ease of use in downstream functions.
@@ -137,7 +137,7 @@ def remap(x, mapping=None, unknown=None):
     return lut.to(x.device)[x].to(dtype)
 
 
-def one_hot(x, labels):
+def one_hot(x, /, labels):
     """One-hot encode a discrete label map.
 
     Parameters
@@ -178,7 +178,7 @@ def one_hot(x, labels):
     return x.squeeze(1).movedim(-1, 1).to(torch.get_default_dtype())
 
 
-def collapse(x, labels):
+def collapse(x, /, labels):
     """Convert a one-hot map to discrete labels.
 
     Parameters

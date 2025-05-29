@@ -34,7 +34,7 @@ def chance(prob=0.5, size=1, *, device=None, generator=None):
     return torch.rand(size, device=device, generator=generator) < prob
 
 
-def affine(x, shift=30, angle=30, scale=0.1, shear=0.1, *, generator=None):
+def affine(x, /, shift=30, angle=30, scale=0.1, shear=0.1, *, generator=None):
     """Draw N-dimensional matrix transforms.
 
     Uniformly samples parameters from [a, b]. For each parameter, pass one
@@ -106,7 +106,7 @@ def affine(x, shift=30, angle=30, scale=0.1, shear=0.1, *, generator=None):
     return kt.transform.center_matrix(x.shape[2:], mat)
 
 
-def warp(x, disp=25, points=16, damp=0.33, steps=0, *, generator=None):
+def warp(x, /, disp=25, points=16, damp=0.33, steps=0, *, generator=None):
     """Draw N-dimensional displacement fields.
 
     Uniformly samples control points and the maximum displacement strength.

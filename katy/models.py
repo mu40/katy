@@ -27,7 +27,7 @@ def count(model, grad_only=False):
     return sum(p.numel() for p in par)
 
 
-def make_activation(act, **kwargs):
+def make_activation(act, /, **kwargs):
     """Instantiate activation function with overridable default.
 
     Parameters
@@ -148,7 +148,7 @@ class Unet(nn.Module):
 
         self.add = nn.Sequential(*level)
 
-    def forward(self, x):
+    def forward(self, x, /):
         """Define the computation performed by the model call.
 
         Parameters

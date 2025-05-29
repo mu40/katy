@@ -35,7 +35,7 @@ def gaussian_kernel(fwhm, width=None, *, device=None):
     return kern.div(kern.sum())
 
 
-def blur(x, fwhm, dim=None):
+def blur(x, /, fwhm, dim=None):
     """Blur an N-dimensional tensor by convolving it with a Gaussian.
 
     Uses explicit convolutions in the spatial domain.
@@ -76,7 +76,7 @@ def blur(x, fwhm, dim=None):
     return x
 
 
-def dilate(x, n=1, *, dim=None):
+def dilate(x, /, n=1, *, dim=None):
     """Perform binary morphological dilation in 1D, 2D, or 3D.
 
     Parameters
@@ -123,7 +123,7 @@ def dilate(x, n=1, *, dim=None):
     return y.view_as(x).movedim(end, dim).gt(0).to(dtype)
 
 
-def erode(x, n=1, *, dim=None):
+def erode(x, /, n=1, *, dim=None):
     """Perform binary morphological erosion in 1D, 2D, or 3D.
 
     Parameters
@@ -150,7 +150,7 @@ def erode(x, n=1, *, dim=None):
     return x[(slice(1, -1),) * x.ndim]
 
 
-def close(x, n=1, *, dim=None):
+def close(x, /, n=1, *, dim=None):
     """Perform binary morphological closing in 1D, 2D, or 3D.
 
     Parameters
@@ -171,7 +171,7 @@ def close(x, n=1, *, dim=None):
     return erode(dilate(x, n, dim=dim), n, dim=dim)
 
 
-def open(x, n=1, *, dim=None):
+def open(x, /, n=1, *, dim=None):
     """Perform binary morphological opening in 1D, 2D, or 3D.
 
     Parameters
@@ -192,7 +192,7 @@ def open(x, n=1, *, dim=None):
     return dilate(erode(x, n, dim=dim), n, dim=dim)
 
 
-def fill_holes(x, *, dim=None):
+def fill_holes(x, /, *, dim=None):
     """Perform binary morphological hole filling in 1D, 2D, or 3D.
 
     The algorithm floods the background from the image border. We consider
@@ -238,7 +238,7 @@ def fill_holes(x, *, dim=None):
     return mask.logical_not().to(dtype)
 
 
-def label(x):
+def label(x, /):
     """Label N-dimensional binary connected foreground components.
 
     The algorithm uses (minimum) label propagation. We initialize foreground
