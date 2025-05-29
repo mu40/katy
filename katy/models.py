@@ -101,7 +101,7 @@ class Unet(nn.Module):
         fin : str or nn.Module or type or None, optional
             Final activaton function.
         clip : tuple of float, optional
-            Clip intensities at these quantiles [0, 1] before normalizing.
+            Clip min-max quantiles in [0, 1] before normalizing.
 
         """
         super().__init__()
