@@ -486,7 +486,7 @@ def test_flip_dtype():
 
 
 def test_flip_illegal_values():
-    """Test tensors flipping with illegal arguments."""
+    """Test tensor flipping with illegal arguments."""
     x = torch.zeros(1, 1, 4)
 
     # Should pass spatial dimension in [0, N).
@@ -495,3 +495,13 @@ def test_flip_illegal_values():
 
     with pytest.raises(ValueError):
         kt.augment.flip(x, dim=-2)
+
+
+def test_permute():
+    """Test channel permutation."""
+    x = torch.arange(100).unsqueeze(0)
+    y = kt.augment.permute(x)
+
+    # Expect new tensor with same elements, most likely in different order.
+    assert x is not y
+    assert x.sum() == y.sum()

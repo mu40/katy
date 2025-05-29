@@ -635,3 +635,29 @@ def flip(x, dim=0, labels=None, generator=None):
         return x
 
     return kt.labels.remap(x, mapping=labels).flip(dim[ind])
+
+
+@utility.batch(batch=True)
+def permute(x, /, *, generator=None):
+    """Randomly permute the channels of a tensor.
+
+    Parameters
+    ----------
+    x : (..., C, *space) torch.Tensor
+        Input with or without batch dimension, depending on `batch`.
+    batch : bool, optional
+        Expect batched inputs.
+    generator : torch.Generator, optional
+        Pseudo-random number generator.
+
+    Returns
+    -------
+    (..., C, *space) torch.Tensor
+        Permuted channels.
+
+    """
+    # Input of shape (C, *space). Batches permuted separately by decorator.
+    x = torch.as_tensor(x)
+    channels = x.size(0)
+    ind = torch.randperm(channels, generator=generator, device=x.device)
+    return x[ind]
