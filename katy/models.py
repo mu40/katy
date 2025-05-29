@@ -1,5 +1,6 @@
 """Neural networks."""
 
+import katy as kt
 import torch
 import torch.nn as nn
 
@@ -75,6 +76,7 @@ class Unet(nn.Module):
         rep=1,
         act=nn.ELU,
         fin=nn.Softmax,
+        clip=(None, None),
     ):
         """Initialize the model.
 
@@ -98,9 +100,12 @@ class Unet(nn.Module):
             Activation function after each convolution.
         fin : str or nn.Module or type or None, optional
             Final activaton function.
+        clip : tuple of float, optional
+            Clip intensities at these quantiles [0, 1] before normalizing.
 
         """
         super().__init__()
+        self.clip = clip
 
         # Layers.
         pool = getattr(nn, f'MaxPool{dim}d')
@@ -162,6 +167,10 @@ class Unet(nn.Module):
             Model output.
 
         """
+        with torch.no_grad():
+            dim = range(2, x.ndim)
+            x = kt.utility.normalize(x, dim, *self.clip)
+
         # Encoding convolutions.
         enc = []
         for conv, down in zip(self.enc, self.down):
