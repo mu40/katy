@@ -171,12 +171,12 @@ def test_quantile_illegal_inputs():
         kt.utility.quantile(x, 1.01)
 
 
-def test_normalize_minmax_trivial():
+def test_normalize_trivial():
     """Test min-max normalization along all dimensions."""
     x = torch.arange(9).reshape(3, 3)
     orig = x.clone()
 
-    out = kt.utility.normalize_minmax(x)
+    out = kt.utility.normalize(x)
     assert out.shape == x.shape
     assert out.dtype == torch.get_default_dtype()
     assert out.min() == 0
@@ -184,60 +184,37 @@ def test_normalize_minmax_trivial():
     assert x.equal(orig)
 
 
-def test_normalize_minmax_flat():
+def test_normalize_zero():
     """Test if min-max normalization avoids dividing by zero."""
     x = torch.ones(3)
-    assert kt.utility.normalize_minmax(x, dim=None).eq(0).all()
+    assert kt.utility.normalize(x, dim=None).eq(0).all()
 
 
-def test_normalize_minmax_dim():
+def test_normalize_dim():
     """Test min-max normalization along specific dimensions."""
     x = torch.arange(10)
     x = torch.stack((x, x))
 
     # Flat values along dimension 0.
-    out = kt.utility.normalize_minmax(x, dim=-2)
+    out = kt.utility.normalize(x, dim=-2)
     assert out.shape == x.shape
     assert out.eq(0).all()
 
     # Changing values along dimension 1.
-    out = kt.utility.normalize_minmax(x, dim=-1)
+    out = kt.utility.normalize(x, dim=-1)
     assert out[:, 0].eq(0).all()
     assert out[:, -1].eq(1).all()
     assert out[:, 1:-1].gt(0).all()
     assert out[:, 1:-1].lt(1).all()
 
 
-def test_normalize_quantile_all():
-    """Test quantile normalization along all dimensions."""
+def test_normalize_quantile():
+    """Test quantile normalization."""
     x = torch.arange(100)
 
-    out = kt.utility.normalize_quantile(x, min=0.1, max=0.9, dim=None)
+    dim = None
+    out = kt.utility.normalize(x, dim, min=0.1, max=0.9)
     assert out[:10].eq(0).all()
     assert out[-10:].eq(1).all()
     assert out[10:-10].gt(0).all()
     assert out[10:-10].lt(1).all()
-
-
-def test_normalize_quantile_flat():
-    """Test quantile normalization avoids dividing by zero."""
-    x = torch.ones(3)
-    assert kt.utility.normalize_quantile(x, dim=[0]).eq(0).all()
-
-
-def test_normalize_quantile_dim():
-    """Test quantile normalization along specific dimensions."""
-    x = torch.arange(100)
-    x = torch.stack((x, x))
-
-    # Flat values along dimension 0.
-    out = kt.utility.normalize_quantile(x, dim=0)
-    assert out.shape == x.shape
-    assert out.eq(0).all()
-
-    # Changing values along dimension 1.
-    out = kt.utility.normalize_quantile(x, 0.1, 0.9, dim=[1])
-    assert out[:, :10].eq(0).all()
-    assert out[:, -10:].eq(1).all()
-    assert out[:, 10:-10].gt(0).all()
-    assert out[:, 10:-10].lt(1).all()

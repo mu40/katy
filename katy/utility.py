@@ -223,8 +223,8 @@ def quantile(x, /, q, dim=None, keepdim=False):
     return out if keepdim else out.squeeze(dim)
 
 
-def normalize_minmax(x, /, dim=None):
-    """Min-max normalize into [0, 1], avoiding divisions by zero.
+def normalize(x, /, dim=None, min=None, max=None):
+    """Normalize intensities into [0, 1], avoiding divisions by zero.
 
     Parameters
     ----------
@@ -233,35 +233,10 @@ def normalize_minmax(x, /, dim=None):
     dim : int or sequence of int, optional
         Dimensions to reduce. None means all, treating the input as a single
         image. To normalize batches or channels separately, exclude them.
-
-    Returns
-    -------
-    torch.Tensor
-        Normalized tensor.
-
-    """
-    x = torch.as_tensor(x)
-    x = x - x.amin(dim, keepdim=True)
-
-    # Avoid division by zero.
-    amax = x.amax(dim, keepdim=True)
-    return x / torch.where(amax > 0, amax, 1)
-
-
-def normalize_quantile(x, /, min=0.01, max=0.99, dim=None):
-    """Min-max normalize between quantiles.
-
-    Parameters
-    ----------
-    x : torch.Tensor
-        Input tensor.
     min : float, optional
-        Lower quantile. We will clip values below this threshold.
+        Clip values below this quantile in [0, 1] unless None.
     max : float, optional
-        Upper quantile. We will clip values above this threshold.
-    dim : int or sequence of int, optional
-        Dimensions to reduce. None means all, treating the input as a single
-        image. To normalize batches or channels separately, exclude them.
+        Clip values above this quantile in [0, 1] unless None.
 
     Returns
     -------
@@ -275,13 +250,21 @@ def normalize_quantile(x, /, min=0.01, max=0.99, dim=None):
         dim = range(x.ndim)
     dim = torch.as_tensor(dim).ravel().tolist()
 
-    # Flatten normalization dimensions and move to left.
-    ind = tuple(range(len(dim)))
-    x = x.movedim(dim, ind)
-    y = x.reshape(-1, *x.shape[len(dim):])
+    if not (min is None and max is None):
+        min = 0 if min is None else min
+        max = 1 if max is None else max
 
-    # Clamp and restore shape.
-    lim = quantile(y, q=torch.as_tensor((min, max)), dim=0)
-    x = y.clamp(*lim).view_as(x).movedim(ind, dim)
+        # Normalization dimensions to left and flatten.
+        ind = tuple(range(len(dim)))
+        x = x.movedim(dim, ind)
+        y = x.reshape(-1, *x.shape[len(dim):])
 
-    return normalize_minmax(x, dim=dim)
+        # Quantiles, clamping, shape.
+        q = torch.as_tensor((min, max))
+        clamp = quantile(y, q, dim=0)
+        x = y.clamp(*clamp).view_as(x).movedim(ind, dim)
+
+    # Normalize, avoiding division by zero.
+    x = x - x.amin(dim, keepdim=True)
+    amax = x.amax(dim, keepdim=True)
+    return x / torch.where(amax > 0, amax, 1)

@@ -146,5 +146,4 @@ def octaves(size, points, pers, *, batch=None, device=None, generator=None):
         out += amp * perlin(size, p, batch=batch, **dev, generator=generator)
 
     # Batch-wise normalization.
-    dim = tuple(range(len(batch), out.ndim))
-    return kt.utility.normalize_minmax(out, dim)
+    return kt.utility.normalize(out, dim=range(len(batch), out.ndim))

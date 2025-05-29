@@ -42,8 +42,7 @@ def gamma(x, /, gamma=0.5, *, prob=1, shared=False, generator=None):
         raise ValueError(f'gamma range {gamma} must be greater 0')
 
     # Need intensities in [0, 1] range.
-    dim = tuple(range(1 if shared else 2, x.ndim))
-    x = kt.utility.normalize_minmax(x, dim)
+    x = kt.utility.normalize(x, dim=range(1 if shared else 2, x.ndim))
 
     # Exponents. Randomize across batches, or batches and channels.
     prop = dict(device=x.device, generator=generator)
@@ -242,7 +241,7 @@ def bias(
     field = kt.noise.perlin(size, points, batch=channels[0], **prop)
 
     # Channel-wise normalization.
-    field = kt.utility.normalize_minmax(field, dim=tuple(range(1, x.ndim)))
+    field = kt.utility.normalize(field, dim=range(1, x.ndim))
     field = field * (1 - floor) + floor
     x = x.mul(field)
 
@@ -373,8 +372,8 @@ def remap(x, /, points=8, bins=256, *, prob=1, shared=False, generator=None):
     points = points.to(torch.int64)
 
     # Discretization.
-    dim = tuple(range(0 if shared else 1, x.ndim))
-    x = kt.utility.normalize_minmax(x, dim) * (bins - 1e-3)
+    dim = range(0 if shared else 1, x.ndim)
+    x = kt.utility.normalize(x, dim) * (bins - 1e-3)
     x = x.to(torch.int64)
 
     # Lookup tables. Oversample, as edges are zero.
@@ -382,7 +381,7 @@ def remap(x, /, points=8, bins=256, *, prob=1, shared=False, generator=None):
     lut = lut[:, bins // 2:-bins // 2]
 
     # Normalize to full range. If shared, there will be only one channel.
-    lut = kt.utility.normalize_minmax(lut, dim=-1)
+    lut = kt.utility.normalize(lut, dim=-1)
 
     # Randomization.
     bit = kt.random.chance(prob, size=channels, **prop).view(-1)
