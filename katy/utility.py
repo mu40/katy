@@ -165,8 +165,8 @@ def barycenter(x, /, grid=None, *, batch=True, eps=1e-6):
     return (grid * x).sum(dim) / x.sum(dim).clamp(min=eps)
 
 
-def quantile(x, /, q, dim=None, keepdim=False):
-    """Compute quantiles.
+def quantile(x, /, q, dim=None, *, keepdim=False):
+    """Compute `q`-th quantiles.
 
     This function produces the same numerical results as `torch.quantile` but
     differs in two ways. First, it does not limit the size of the input.
@@ -180,7 +180,7 @@ def quantile(x, /, q, dim=None, keepdim=False):
     x : torch.Tensor
         Input tensor.
     q : torch.Tensor or float or sequence of float
-        Quantiles in the range [0, 1].
+        Values in the range [0, 1].
     dim : int, optional
         Dimension to reduce. None flattens the input before computation.
     keepdim : bool, optional

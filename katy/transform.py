@@ -137,7 +137,7 @@ def torch_to_index(*args, **kwargs):
     return torch.inverse(index_to_torch(*args, **kwargs))
 
 
-def interpolate(x, /, points, method='linear', padding='zeros'):
+def interpolate(x, /, points, method='linear', *, padding='zeros'):
     """Interpolate an N-dimensional tensor at new locations.
 
     The function currently supports 2D and 3D inputs. For interpolation,
@@ -183,7 +183,7 @@ def interpolate(x, /, points, method='linear', padding='zeros'):
     return torch.nn.functional.grid_sample(x, points, mode, padding, align)
 
 
-def apply(x, /, trans, grid=None, method='linear', padding='zeros'):
+def apply(x, /, trans, grid=None, method='linear', *, padding='zeros'):
     """Apply an N-dimensional spatial transform to a tensor.
 
     The function currently supports 2D and 3D inputs. For interpolation,
@@ -220,7 +220,7 @@ def apply(x, /, trans, grid=None, method='linear', padding='zeros'):
         grid = kt.transform.grid(size, device=x.device)
 
     points = grid_matmul(grid, trans) if is_matrix(trans) else grid + trans
-    return interpolate(x, points, method, padding)
+    return interpolate(x, points, method, padding=padding)
 
 
 def integrate(x, /, steps, grid=None):
@@ -599,7 +599,7 @@ def compose(*trans, grid=None, absolute=False):
     grid : (N, *size) torch.Tensor, optional
         Index coordinate grid, where `size` has `N` elements.
     absolute : bool, optional
-        Return coordinates instead of displacements, if the output is a field.
+        Return coordinates instead of displacements if the output is a field.
 
     Returns
     -------
@@ -714,7 +714,7 @@ def center_matrix(size, mat):
     return (unc @ mat.to(cen.dtype) @ cen).to(mat.dtype)
 
 
-def jacobian(f, /, det=True, is_disp=True):
+def jacobian(f, /, *, det=True, is_disp=True):
     """Compute Jacobian matrix or determinant of an N-dimensional field.
 
     Parameters
@@ -749,7 +749,7 @@ def jacobian(f, /, det=True, is_disp=True):
     return torch.linalg.det(df) if det else df
 
 
-def fit_matrix(x, y, /, weights=None, ridge=1e-6):
+def fit_matrix(x, y, /, weights=None, *, ridge=1e-6):
     """Fit an N-dimensional affine transform between two point sets.
 
     Computes a `matrix` transform between two sets of `M` corresponding points

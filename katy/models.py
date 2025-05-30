@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 
 
-def count(model, grad_only=False):
+def count(model, /, grad_only=False):
     """Count the number of module parameters.
 
     Parameters

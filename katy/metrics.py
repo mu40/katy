@@ -5,14 +5,14 @@ import os
 import torch
 
 
-def dice(true, pred, /, labels):
+def dice(x, y, /, labels):
     """Compute hard Dice scores (https://www.jstor.org/stable/1932409).
 
     Parameters
     ----------
-    true : (B, 1, *size) torch.Tensor
+    x : (B, 1, *size) torch.Tensor
         Discrete label map.
-    pred : (B, 1, *size) torch.Tensor
+    y : (B, 1, *size) torch.Tensor
         Discrete label map.
     labels : os.PathLike or sequence of int
         Label values to include.
@@ -23,11 +23,11 @@ def dice(true, pred, /, labels):
         Dice scores, where `C` is the number of labels.
 
     """
-    prop = dict(dtype=torch.int64, device=true.device)
-    true = torch.as_tensor(true)
-    pred = torch.as_tensor(pred)
-    if true.shape != pred.shape:
-        raise ValueError(f'sizes {true.shape} and {pred.shape} differ')
+    prop = dict(dtype=torch.int64, device=x.device)
+    x = torch.as_tensor(x)
+    y = torch.as_tensor(y)
+    if x.shape != y.shape:
+        raise ValueError(f'sizes {x.shape} and {y.shape} differ')
 
     if isinstance(labels, (str, os.PathLike)):
         labels = kt.io.load(labels)
@@ -36,26 +36,26 @@ def dice(true, pred, /, labels):
     labels = torch.as_tensor(labels, **prop).ravel()
 
     # Increment to make unwanted labels 0.
-    true = 1 + true.to(torch.int64)
-    pred = 1 + pred.to(torch.int64)
+    x = 1 + x.to(torch.int64)
+    y = 1 + y.to(torch.int64)
     zero = torch.tensor([0], **prop)
     labels = torch.cat((zero, 1 + labels))
 
     # Translation to indices. Unspecified labels become 0.
-    size = max(true.max(), pred.max(), labels.max()) + 1
+    size = max(x.max(), y.max(), labels.max()) + 1
     lut = torch.zeros(size, **prop)
     ind = torch.arange(len(labels), **prop)
     lut[labels] = ind
 
     # One-hot. Drop channel 0.
-    true = kt.labels.one_hot(lut[true], labels=ind)
-    pred = kt.labels.one_hot(lut[pred], labels=ind)
-    true = true[:, 1:].flatten(start_dim=2)
-    pred = pred[:, 1:].flatten(start_dim=2)
+    x = kt.labels.one_hot(lut[x], labels=ind)
+    y = kt.labels.one_hot(lut[y], labels=ind)
+    x = x[:, 1:].flatten(start_dim=2)
+    y = y[:, 1:].flatten(start_dim=2)
 
     # Nominator, denominator.
-    top = 2 * (true * pred).sum(-1)
-    bot = true.sum(-1) + pred.sum(-1)
+    top = 2 * (x * y).sum(-1)
+    bot = x.sum(-1) + y.sum(-1)
 
     # Avoid dividion by zero for all-zero inputs.
     return top / bot.clamp(min=1e-6)

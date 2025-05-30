@@ -49,7 +49,7 @@ def to_image(x, /, channels=1, *, generator=None):
     return lut.view(-1)[ind]
 
 
-def to_rgb(x, /, colors, labels=None, dim=1):
+def to_rgb(x, /, colors, labels=None, *, dim=1):
     """Convert label maps to RGB color tensors.
 
     Parameters

@@ -143,8 +143,8 @@ def test_quantile_scalar():
     q = 0.31
     for dim in (0, 1, None):
         for keepdim in (True, False):
-            out = kt.utility.quantile(x, q, dim, keepdim)
-            ref = x.quantile(q, dim, keepdim)
+            out = kt.utility.quantile(x, q, dim, keepdim=keepdim)
+            ref = x.quantile(q, dim, keepdim=keepdim)
             assert out.shape == ref.shape
             assert out.equal(ref)
 

@@ -580,7 +580,7 @@ def roll(x, /, shift=0.1, *, prob=1, generator=None):
 
 
 @utility.batch(batch=True)
-def flip(x, /, dim=0, labels=None, generator=None):
+def flip(x, /, dim=0, labels=None, *, generator=None):
     """Flip N-dimensional tensors along a random axis.
 
     Applies the same operation across all channels. Providing label names for
