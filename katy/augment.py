@@ -472,7 +472,9 @@ def crop(
 
 @utility.batch(batch=True)
 def lines(x, /, lines=3, *, prob=1, generator=None):
-    """Fill lines along a spatial axis with a random value between 0 and 1.
+    """Fill lines along an axis with a random value between 0 and 1.
+
+    Affects all channels the same way.
 
     Parameters
     ----------
@@ -518,17 +520,18 @@ def lines(x, /, lines=3, *, prob=1, generator=None):
     lines = lines * kt.random.chance(prob, **prop)
 
     # Line selection.
-    ind = torch.rand(lines, **prop)
-    ind = ind.mul(size[dim] - 1).add(0.5).to(torch.int64)
+    ind = torch.randint(size[dim], size=[lines], **prop)
 
     # Fill value.
-    val = torch.rand((), **prop)
+    val = torch.rand(size=(), **prop)
     return x.clone().index_fill(dim + 1, ind, val)
 
 
 @utility.batch(batch=True)
 def roll(x, /, shift=0.1, *, prob=1, generator=None):
     """Roll a tensor along a random spatial axis.
+
+    Affects all channels the same way.
 
     Parameters
     ----------
@@ -583,6 +586,8 @@ def flip(x, /, dim=0, labels=None, generator=None):
     Applies the same operation across all channels. Providing label names for
     label-map inputs results in left-right remapping on any flip.
 
+    Parameters
+    ----------
     x : (..., C, *space) torch.Tensor
         Tensors with or without batch dimension, depending on `batch`.
     dim : int or sequence of int
