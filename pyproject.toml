@@ -22,3 +22,6 @@ inline-quotes = 'single'
 
 [tool.ruff.lint.pydocstyle]
 convention = 'numpy'
+
+[tool.setuptools]
+packages = ['katy']
