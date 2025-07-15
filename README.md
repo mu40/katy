@@ -1,8 +1,8 @@
 # Katy
 
-Katy is a PyTorch-first, PyTorch-only toolbox for deep learning in medical
-imaging. The library is in early developmental stage. Breaking changes may
-occur without warning.
+Katy is a PyTorch-first, PyTorch-only toolbox for deep learning in medical imaging.
+The library is in an early developmental stage.
+Breaking changes may occur without warning.
 
 
 ## Todo
