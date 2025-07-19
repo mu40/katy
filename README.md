@@ -47,3 +47,18 @@ typos
 ```sh
 cp hooks/pre-commit .git/hooks/pre-commit
 ```
+
+## Attribution
+
+If you find this work useful, please cite the [paper it was developed for](https://doi.org/10.1162/imag_a_00197):
+
+```bibtex
+@article{hoffmann2024anatomy,
+  title={{Anatomy-aware and acquisition-agnostic joint registration with SynthMorph}},
+  author={Hoffmann, Malte and Hoopes, Andrew and Greve, Douglas N and Fischl, Bruce and Dalca, Adrian V},
+  journal={Imaging Neuroscience},
+  volume={2},
+  pages={1--33},
+  year={2024}
+}
+```
