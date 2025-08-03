@@ -13,7 +13,7 @@ Breaking changes may occur without warning.
 
 ## Setup
 
-Install an isolated virtual environment for development and deployment, with pre-commit hooks for automated linting.
+Install a local virtual environment for development and testing, with pre-commit hooks for linting.
 
 ```sh
 ./setup.sh
