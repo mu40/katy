@@ -21,6 +21,9 @@ fi
 
 # Hooks.
 cp -v hooks/* .git/hooks
+if f=$(command -v commit-msg.py 2>/dev/null); then
+    ln -vsfn "$f" .git/hooks/commit-msg
+fi
 
 
 # Environment manager.
