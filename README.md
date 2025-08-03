@@ -11,6 +11,15 @@ Breaking changes may occur without warning.
 - Global, thread-safe batch dimension control
 
 
+## Setup
+
+Install an isolated virtual environment for development and deployment, with pre-commit hooks for automated linting.
+
+```sh
+./setup.sh
+```
+
+
 ## Development principles
 
 - Write unit tests for any new code
@@ -26,27 +35,14 @@ Breaking changes may occur without warning.
 - Explore in notebooks, process with scripts
 
 
-## Install tools
-
-```sh
-pip install -U pytest ruff typos
-```
-
-
 ## Run checks
 
 ```sh
-pytest tests/
+pytest
 ruff check --watch
 typos
 ```
 
-
-## Install pre-commit hook
-
-```sh
-cp hooks/pre-commit .git/hooks/pre-commit
-```
 
 ## Attribution
 

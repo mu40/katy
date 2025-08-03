@@ -4,14 +4,10 @@
 # directory of this script will be the top level of the Git repository.
 
 
-# Wrap calls to run checks in container.
-sif="$HOME/l/sif/pytorch_2.6.0-cuda12.6-cudnn9-runtime.sif"
-env() { app_exec.sh "$sif" "$@" ; }
-
-
 # Temporary storage.
 d=$(mktemp -d "/tmp/$(basename "$0").XXXXXX")
 trap "rm -rf -- '$d'" EXIT
+trap exit INT TERM
 
 
 # Identify relevant files.
@@ -30,16 +26,16 @@ cd "$d"
 # Spell-check staged files.
 if [ -s "$staged" ]; then
     echo "Running spell checker"
-    env xargs -0 typos <"$staged"
+    xargs -0 typos <"$staged"
 fi
 
 # Lint staged Python files.
 if [ -s "$python" ]; then
     echo "Running linter"
-    env xargs -0 ruff check -q <"$python"
+    xargs -0 ruff check -q <"$python"
 fi
 
 
 # Run all tests.
 echo "Running test suite"
-env pytest -q
+pytest -q
