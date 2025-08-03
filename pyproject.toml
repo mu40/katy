@@ -6,6 +6,9 @@ version = '0.1'
 addopts = '--no-header'
 minversion = '6.0'
 testpaths = ['tests']
+filterwarnings = [
+    "ignore:Failed to initialize NumPy:UserWarning",
+]
 
 [tool.ruff]
 line-length = 79
