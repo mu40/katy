@@ -1,2 +1,3 @@
-.ipynb_checkpoints
+.envrc
+.venv
 __pycache__
