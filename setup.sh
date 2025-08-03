@@ -14,7 +14,7 @@ if [ ! -d "$ENV" ]; then
 
     # Packages.
     pip install -U pip setuptools wheel
-    pip install pytest ruff shellcheck-py typos
+    pip install pyspellchecker pytest ruff shellcheck-py typos
     pip install -i https://download.pytorch.org/whl/cpu torch
 fi
 
