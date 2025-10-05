@@ -84,3 +84,39 @@ def test_ncc_noise():
     # Expect square of mid-range score for uncorrelated noise.
     out = kt.losses.ncc(x, y)
     assert -0.5 < out < -0.1
+
+
+def test_axial_shape():
+    """Test if axial diffusion loss returns scalar."""
+    for dim in (1, 2, 3):
+        inp = torch.ones(2, dim, *[4] * dim)
+        out = kt.losses.axial(inp, norm=2)
+        assert out.ndim == 0
+
+
+def test_axial_shift():
+    """Test if regularization loss on translation is zero."""
+    x = torch.ones(1, 2, 5, 5)
+    assert kt.losses.axial(x).eq(0)
+
+
+def test_axial_positive():
+    """Test if regularization positive."""
+    x = torch.ones(1, 2, 4, 4)
+    x[:, 0, 2, :] = 0
+    assert kt.losses.axial(x).gt(0)
+
+
+def test_axial_illegal_values():
+    """Test passing illegal shapes and norm orders."""
+    # Expect failure if not a vector field.
+    x = torch.ones(1, 1, 3, 3)
+    with pytest.raises(ValueError):
+        kt.losses.axial(x)
+
+    # Expect failure for norm order outside `(1, 2)`.
+    x = torch.ones(1, 2, 3, 3)
+    with pytest.raises(ValueError):
+        kt.losses.axial(x, norm=0)
+    with pytest.raises(ValueError):
+        kt.losses.axial(x, norm=3)
