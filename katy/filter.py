@@ -64,7 +64,7 @@ def blur(x, /, fwhm, dim=None):
 
     # One FWHM per dimension.
     fwhm = torch.as_tensor(fwhm).ravel().expand(dim.shape)
-    for i, f in zip(dim, fwhm):
+    for i, f in zip(dim, fwhm, strict=True):
         kern = gaussian_kernel(f, device=x.device).view(1, 1, -1)
 
         # Move axis to end, make everything else batch, convolve, and restore.

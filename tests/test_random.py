@@ -31,11 +31,11 @@ def test_chance_tensor_size():
 
     size = torch.Size((2, 3))
     out = kt.random.chance(prob, size)
-    assert all(o == s for o, s in zip(out.shape, size))
+    assert all(o == s for o, s in zip(out.shape, size, strict=True))
 
     size = torch.tensor((2, 3))
     out = kt.random.chance(prob, size)
-    assert all(o == s for o, s in zip(out.shape, size))
+    assert all(o == s for o, s in zip(out.shape, size, strict=True))
 
 
 def test_chance_illegal_values():

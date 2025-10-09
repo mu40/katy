@@ -9,6 +9,7 @@ dependencies = ['torch>=2.7']
 dynamic = ['version']
 license = 'MIT'
 name = 'katy'
+requires-python = '>=3.11'
 urls.homepage = 'https://github.com/mu40/katy'
 
 [tool.pytest.ini_options]

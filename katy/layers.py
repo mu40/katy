@@ -89,7 +89,7 @@ class HyperConv(nn.Module):
 
         # Dummy batch for convolution function.
         x = x.unsqueeze(1)
-        return torch.cat([self.conv(*f) for f in zip(x, *par)])
+        return torch.cat([self.conv(*f) for f in zip(x, *par, strict=True)])
 
 
 class HyperLinear(nn.Module):
@@ -156,4 +156,5 @@ class HyperLinear(nn.Module):
                 par.append(self.hyperbias(h))
             self.cache = par
 
-        return torch.stack([nn.functional.linear(*f) for f in zip(x, *par)])
+        out = [nn.functional.linear(*f) for f in zip(x, *par, strict=True)]
+        return torch.stack(out)

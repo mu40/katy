@@ -38,7 +38,7 @@ def batch(*, batch):
                 return torch.stack(out)
 
             # Individual stacking of multiple outputs.
-            return tuple(torch.stack(o) for o in zip(*out))
+            return tuple(torch.stack(o) for o in zip(*out, strict=True))
 
         return batch_func
 

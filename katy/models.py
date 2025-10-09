@@ -173,13 +173,13 @@ class Unet(nn.Module):
 
         # Encoding convolutions.
         enc = []
-        for conv, down in zip(self.enc, self.down):
+        for conv, down in zip(self.enc, self.down, strict=True):
             x = conv(x)
             enc.append(x)
             x = down(x)
 
         # Decoding convolutions.
-        for conv, up in zip(self.dec, self.up):
+        for conv, up in zip(self.dec, self.up, strict=True):
             x = conv(x)
             x = torch.cat([enc.pop(), up(x)], dim=1)
 

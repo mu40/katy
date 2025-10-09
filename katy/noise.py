@@ -58,7 +58,8 @@ def perlin(
     grad = grad.mul(2).sub(1).view(ndim, *batch, -1)
 
     # Output grid, subsampling between gradient coordinates.
-    grid = (torch.linspace(0, c - 1, s, **dev) for c, s in zip(points, size))
+    grid = zip(points, size, strict=True)
+    grid = (torch.linspace(0, c - 1, s, **dev) for c, s in grid)
     grid = torch.meshgrid(*grid, indexing='ij')
     grid = torch.stack(grid)
 

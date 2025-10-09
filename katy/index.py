@@ -21,7 +21,7 @@ def sub2ind(size, *sub):
     """
     ind = 0
     mul = 1
-    for i, s in zip(reversed(sub), reversed(size)):
+    for i, s in zip(reversed(sub), reversed(size), strict=True):
         ind += i * mul
         mul *= s
 
