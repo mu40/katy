@@ -72,7 +72,7 @@ def axial(f, /, norm=1):
 
     """
     f = torch.as_tensor(f, dtype=torch.get_default_dtype())
-    ndim, *size = f.shape[1:]
+    ndim = f.size(1)
     if f.ndim != ndim + 2:
         raise ValueError(f'field does not have {ndim} spatial axes')
     if norm not in (1, 2):

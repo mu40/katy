@@ -607,8 +607,7 @@ def flip(x, /, dim=0, labels=None, *, generator=None):
     """
     # Input of shape `(C, *size)`. Batches handled by decorator.
     x = torch.as_tensor(x)
-    channels, *space = x.shape
-    ndim = len(space)
+    ndim = len(x.shape[1:])
 
     # Dimensions. Account for channel dimension if non-negative.
     if dim is None:
