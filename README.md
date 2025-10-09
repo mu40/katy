@@ -24,7 +24,7 @@ Install a local virtual environment for development and testing, with pre-commit
 
 - Write unit tests for new code
 - Depend on Python's standard library and PyTorch
-- Focus support on the latest stable PyTorch
+- Focus support on the latest stable PyTorch version
 - Lint, spell-check, and test on commit
 
 
