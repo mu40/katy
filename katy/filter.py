@@ -227,7 +227,7 @@ def fill_holes(x, /, *, dim=None):
         for end in (0, -1):
             ind = [slice(None)] * x.ndim
             ind[i] = end
-            mask[ind] = inv[ind]
+            mask[*ind] = inv[*ind]
 
     # Flood background from seeds until no more change.
     prev = torch.zeros_like(mask)
