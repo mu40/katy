@@ -26,7 +26,7 @@ lint.pydocstyle.convention = 'numpy'
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ['F401']  # unused-import
-"readme.md" = ['E501']  # line-too-long
+"README.md" = ['E501']  # line-too-long
 
 [tool.setuptools]
 dynamic.version = {attr = 'katy.__version__'}

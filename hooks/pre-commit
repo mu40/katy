@@ -36,6 +36,6 @@ if [ -s "$python" ]; then
 fi
 
 
-# Run all tests.
-echo "Running test suite"
-pytest -q
+# Run unit tests.
+echo "Running unit tests"
+pytest -q tests/unit

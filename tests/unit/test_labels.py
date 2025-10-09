@@ -1,4 +1,4 @@
-"""Tests for label-manipulation and image-synthesis module."""
+"""Unit tests for label-manipulation and image-synthesis module."""
 
 import katy as kt
 import pytest

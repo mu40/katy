@@ -1,4 +1,4 @@
-"""Tests for models module."""
+"""Unit tests for models module."""
 
 import katy as kt
 import torch

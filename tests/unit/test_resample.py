@@ -1,4 +1,4 @@
-"""Tests for resampling module."""
+"""Unit tests for resampling module."""
 
 import katy as kt
 import pytest

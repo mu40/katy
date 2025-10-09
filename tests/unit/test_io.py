@@ -1,4 +1,4 @@
-"""Tests for index module."""
+"""Unit tests for index module."""
 
 import katy as kt
 import pathlib
