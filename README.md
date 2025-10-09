@@ -1,11 +1,11 @@
 # Katy
 
-Katy is a PyTorch-first, PyTorch-only toolbox for deep learning in medical imaging.
+Katy is a PyTorch-first toolbox for deep learning in medical image analysis.
 The library is in an early developmental stage.
 Breaking changes may occur without warning.
 
 
-## Todo
+## Ideas
 
 - Specialized image and transform types
 - Global, thread-safe batch dimension control
@@ -20,25 +20,18 @@ Install a local virtual environment for development and testing, with pre-commit
 ```
 
 
-## Development principles
+## Development
 
-- Write unit tests for any new code
-- Depend only on Python's standard library and PyTorch
-- Support the latest stable PyTorch only
-- Lint, spell-check, and test every commit
-
-
-## Experimental practices
-
-- Keep configuration separate from code
-- Use intermediate data representations
-- Explore in notebooks, process with scripts
+- Write unit tests for new code
+- Depend on Python's standard library and PyTorch
+- Focus support on the latest stable PyTorch
+- Lint, spell-check, and test on commit
 
 
 ## Run checks
 
 ```sh
-pytest
+pytest -xsv
 ruff check --watch
 typos
 ```
@@ -46,15 +39,13 @@ typos
 
 ## Attribution
 
-If you find this work useful, please cite the [paper it was developed for](https://doi.org/10.1162/imag_a_00197):
+If you find this work useful, please cite the [paper it was developed for](https://arxiv.org/abs/2507.13458):
 
 ```bibtex
-@article{hoffmann2024anatomy,
-  title={{Anatomy-aware and acquisition-agnostic joint registration with SynthMorph}},
-  author={Hoffmann, Malte and Hoopes, Andrew and Greve, Douglas N and Fischl, Bruce and Dalca, Adrian V},
-  journal={Imaging Neuroscience},
-  volume={2},
-  pages={1--33},
-  year={2024}
+@article{hoffmann2025domain,
+  title={Domain-randomized deep learning for neuroimage analysis},
+  author={Hoffmann, Malte},
+  journal={arXiv preprint arXiv:2507.13458},
+  year={2025}
 }
 ```
