@@ -121,7 +121,7 @@ def index_to_torch(size, align_corners=False, *, device=None):
     norm = torch.diag(norm)
     norm[:-1, -1] = -1
 
-    # Reverse the dimensions that serves to index into spactial axes.
+    # Reverse the dimensions that serve to index into spactial axes.
     swap = torch.eye(ndim).flipud()
     swap = torch.block_diag(swap, one)
 

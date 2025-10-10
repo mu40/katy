@@ -4,8 +4,8 @@ requires = ['setuptools']
 
 [project]
 authors = [{name = 'Malte Hoffmann'}]
-description = 'PyTorch-first deep learning in medical image analysis'
 dependencies = ['torch>=2.7']
+description = 'PyTorch-first deep learning in medical image analysis'
 dynamic = ['version']
 license = 'MIT'
 name = 'katy'
@@ -13,16 +13,16 @@ requires-python = '>=3.11'
 urls.homepage = 'https://github.com/mu40/katy'
 
 [tool.pytest.ini_options]
-addopts = '--no-header'
+addopts = ['--import-mode=importlib', '--no-header']
+filterwarnings = ['ignore:Failed to initialize NumPy:UserWarning']
 minversion = '6.0'
 testpaths = ['tests']
-filterwarnings = ['ignore:Failed to initialize NumPy:UserWarning']
 
 [tool.ruff]
 line-length = 79
-lint.select = ['B', 'D', 'E', 'F', 'N', 'RUF', 'Q', 'W', 'UP']
 lint.flake8-quotes.inline-quotes = 'single'
 lint.pydocstyle.convention = 'numpy'
+lint.select = ['B', 'D', 'E', 'F', 'N', 'RUF', 'Q', 'W', 'UP']
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ['F401']  # unused-import
