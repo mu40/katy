@@ -1,8 +1,15 @@
 #!/bin/sh
 
-# Setup up virtual Python environment for linting and testing.
+# Set up a virtual Python environment for development.
 
+set -e
 ENV='.venv'
+
+
+if [ ! -f .gitignore ]; then
+    echo "ERROR: not in the top-level repository directory"
+    exit 1
+fi
 
 
 # Virtual environment.
@@ -13,8 +20,8 @@ if [ ! -d "$ENV" ]; then
     . "$ENV/bin/activate"
 
     # Packages.
-    pip install -U pip setuptools wheel
-    pip install pyspellchecker pytest ruff shellcheck-py typos
+    pip install -U pip setuptools
+    pip install pytest ruff shellcheck-py typos
     pip install -i https://download.pytorch.org/whl/cpu torch
 fi
 
