@@ -1,6 +1,6 @@
 #!/bin/sh -e
 
-# Run the spell checker, linter, and test suite on every commit. The working
+# Run the spell checker, linter, and unit tests on every commit. The working
 # directory of this script will be the top level of the Git repository.
 
 
