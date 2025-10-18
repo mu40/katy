@@ -26,13 +26,9 @@ def test_install_and_import(tmp_path):
         p = subprocess.run(
             f,
             cwd=venv,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
             env={'PIP_CACHE_DIR': str(venv / 'cache')},
         )
         assert not p.returncode
-        print(p.stdout)
 
     # Virtual environment.
     run(sys.executable, '-m', 'venv', venv)
