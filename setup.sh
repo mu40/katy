@@ -14,9 +14,13 @@ fi
 
 # Virtual environment.
 if [ ! -d "$ENV" ]; then
-    py=$(find /usr/bin/ /usr/local/bin/ -regex '.*/python[0-9.]*' |
-        sort -V | tail -n1)
-    "$py" -m venv "$ENV"
+    python=$(
+        find /usr/bin/ /usr/local/bin/ -name 'python*' |
+        grep 'python[0-9.]*$' |
+        sort -V |
+        tail -n1
+    )
+    "$python" -m venv "$ENV"
     . "$ENV/bin/activate"
 
     # Packages.
