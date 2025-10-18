@@ -26,15 +26,17 @@ if [ ! -d "$ENV" ]; then
 fi
 
 
-# Hooks.
-cp -v hooks/* .git/hooks
-if f=$(command -v commit-msg.py 2>/dev/null); then
-    ln -vsfn "$f" .git/hooks/commit-msg
+# Git hooks.
+if [ -d .git/hooks ]; then
+    cp -v hooks/* .git/hooks
+    if f=$(command -v commit-msg.py 2>/dev/null); then
+        ln -vsfn "$f" .git/hooks/commit-msg
+    fi
 fi
 
 
 # Environment manager.
 cat >.envrc <<EOF
 [ -d "$ENV" ] && . "$ENV/bin/activate"
-export PYTHONPATH="$(dirname "$(realpath "$0")")"
+export PYTHONPATH="$PWD"
 EOF

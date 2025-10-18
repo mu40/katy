@@ -4,17 +4,22 @@
 # directory of this script will be the top level of the Git repository.
 
 
-# Temporary storage.
+# Temporary storage. Single quotes on `$d` to expand now, not when signalled.
 d=$(mktemp -d "/tmp/$(basename "$0").XXXXXX")
+# shellcheck disable=SC2064
 trap "rm -rf -- '$d'" EXIT
 trap exit INT TERM
 
 
-# Identify relevant files.
+# Identify relevant files. BusyBox's `awk` cannot print null characters.
 staged="$d/staged"
 python="$d/python"
+shell="$d/shell"
 git diff -z --staged --name-only --diff-filter=ACMRT           >"$staged"
 git diff -z --staged --name-only --diff-filter=ACMRT -- '*.py' >"$python"
+xargs -0r file -i <"$staged" |
+    awk -F: '/x-shellscript/ { print $1 }' |
+        tr '\n' '\0' >"$shell"
 
 
 # Copy the staged tree. In case of a partial commit, we want to run tests on
@@ -29,10 +34,18 @@ if [ -s "$staged" ]; then
     xargs -0 typos <"$staged"
 fi
 
+
 # Lint staged Python files.
 if [ -s "$python" ]; then
-    echo "Running linter"
+    echo "Running Python linter"
     xargs -0 ruff check -q <"$python"
+fi
+
+
+# Lint staged shell scripts.
+if [ -s "$shell" ]; then
+    echo "Linting shell scripts"
+    xargs -0 shellcheck <"$shell"
 fi
 
 
