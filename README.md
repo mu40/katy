@@ -1,8 +1,7 @@
 # Katy
 
 Katy is a PyTorch-first toolbox for deep learning in medical image analysis.
-The library is in an early developmental stage.
-Breaking changes may occur without warning.
+It is in early development, and breaking changes may occur without warning.
 
 
 ## Ideas
@@ -13,7 +12,7 @@ Breaking changes may occur without warning.
 
 ## Setup
 
-Install a local virtual environment for development and testing, with pre-commit hooks for linting.
+Install a local virtual environment for development, with pre-commit hooks.
 
 ```sh
 ./setup.sh
@@ -33,13 +32,14 @@ Install a local virtual environment for development and testing, with pre-commit
 ```sh
 pytest -xsv
 ruff check --watch
+shellcheck hooks/* setup.sh
 typos
 ```
 
 
 ## Attribution
 
-If you find this work useful, please cite the [paper it was developed for](https://arxiv.org/abs/2507.13458):
+If you find this work useful, please cite the [paper it was developed with](https://arxiv.org/abs/2507.13458):
 
 ```bibtex
 @article{hoffmann2025domain,
