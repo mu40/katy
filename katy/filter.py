@@ -239,7 +239,7 @@ def fill_holes(x, /, *, dim=None):
 
 
 def label(x, /):
-    """Label N-dimensional binary connected foreground components.
+    """Label K N-dimensional binary connected foreground components.
 
     The algorithm uses (minimum) label propagation. We initialize foreground
     pixels to unique index labels and iteratively replace each pixel with the
@@ -248,14 +248,16 @@ def label(x, /):
     Parameters
     ----------
     x : torch.Tensor
-        Input tensor. We consider non-zero voxels foreground.
+        N-dimensional input tensor. We consider non-zero voxels foreground.
 
     Returns
     -------
     torch.Tensor
-        Labeled components.
-    torch.Tensor
-        Unique labels.
+        Labeled components, valued 1 through K. Same shape as `x`.
+    (K,) torch.Tensor
+        Unique labels 1 through K for lartest to smallest.
+    (K,) torch.Tensor
+        Corresponding label sizes.
 
     """
     # Padding prevents components from wrapping around the border.
@@ -287,7 +289,10 @@ def label(x, /):
     uniq, size = labels.unique(return_counts=True)
     if uniq.numel() and uniq[-1] == torch.inf:
         uniq, size = uniq[:-1], size[:-1]
-    uniq = uniq[size.argsort(descending=True)]
+
+    ind = size.argsort(descending=True)
+    uniq = uniq[ind]
+    size = size[ind]
 
     # Map to indices. Initialize last label to 0 in case of background only.
     new = 0
@@ -295,4 +300,4 @@ def label(x, /):
     for new, old in enumerate(uniq, start=1):
         out[labels == old] = new
 
-    return out, torch.arange(1, 1 + new)
+    return out, torch.arange(1, 1 + new), size

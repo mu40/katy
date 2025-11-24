@@ -257,26 +257,29 @@ def test_fill_holes_illegal():
 def test_label_flat():
     """Test labeling flat tensors, including types."""
     x = torch.tensor((0, 0, 0, 0))
-    labels, values = kt.filter.label(x)
+    labels, values, sizes = kt.filter.label(x)
     assert labels.dtype == torch.long
     assert labels.eq(0).all()
     assert values.numel() == 0
+    assert sizes.numel() == 0
 
     x = torch.tensor((2.2, 2.2, 2.2))
-    labels, values = kt.filter.label(x)
+    labels, values, sizes = kt.filter.label(x)
     assert labels.dtype == torch.long
     assert labels.eq(1).all()
     assert values.equal(torch.tensor([1]))
+    assert sizes.equal(torch.tensor([3]))
 
 
 def test_label_1d():
     """Test labeling a 1D tensor."""
     x = torch.tensor((0, 1, 1, 0, 1, 2, 3, 0, 9))
-    labels, values = kt.filter.label(x)
+    labels, values, sizes = kt.filter.label(x)
 
     # Expect islands labeled by decreasing size.
     assert labels.equal(torch.tensor((0, 2, 2, 0, 1, 1, 1, 0, 3)))
     assert values.equal(torch.tensor((1, 2, 3)))
+    assert sizes.equal(torch.tensor((3, 2, 1)))
 
 
 def test_label_2d():
@@ -298,6 +301,7 @@ def test_label_2d():
     ))
 
     # Expect islands labeled by decreasing size.
-    labels, values = kt.filter.label(a)
+    labels, values, sizes = kt.filter.label(a)
     assert labels.equal(b)
     assert values.equal(torch.tensor((1, 2, 3, 4)))
+    assert sizes.equal(torch.tensor((5, 4, 2, 1)))
