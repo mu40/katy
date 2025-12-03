@@ -288,6 +288,15 @@ def test_crop_return_mask():
     assert out.allclose(inp * mask)
 
 
+def test_lines_unchanged():
+    """Test if rolling leaves input unchanged, in 3D."""
+    inp = torch.full(size=(1, 1, 2, 2, 2), fill_value=-1)
+    orig = inp.clone()
+    out = kt.augment.lines(inp)
+    assert not out.equal(inp)
+    assert inp.equal(orig)
+
+
 def test_lines_count():
     """Test corrupting lines of tensor without batch dimension."""
     inp = torch.full(size=(1, 20), fill_value=-1)
@@ -295,7 +304,7 @@ def test_lines_count():
 
     # Expect unchanged size, some positive lines. Duplicates possible.
     assert out.shape == inp.shape
-    assert 1 <= out.squeeze().ge(0).sum() <= 4
+    assert out.ge(0).count_nonzero() == 4
 
 
 def test_lines_probability():
@@ -347,6 +356,16 @@ def test_roll_half():
     a = x.roll(+4)
     b = x.roll(-4)
     assert y.equal(a) or y.equal(b)
+
+
+def test_flip_unchanged():
+    """Test if flipping leaves input unchanged, in 3D."""
+    # Input of shape: batch, channel, space.
+    inp = arange(1, 1, 3, 3, 3)
+    orig = inp.clone()
+    for _ in range(10):
+        kt.augment.flip(inp)
+        assert inp.equal(orig)
 
 
 def test_flip_default():
@@ -410,6 +429,16 @@ def test_flip_illegal_dim(dim):
     x = torch.zeros(1, 1, 4)
     with pytest.raises(ValueError):
         kt.augment.flip(x, dim=dim)
+
+
+def test_permute_unchanged():
+    """Test if channel permutation leaves input unchanged, in 3D."""
+    # Input of shape: batch, channel, space.
+    inp = arange(1, 2, 3, 3, 3)
+    orig = inp.clone()
+    for _ in range(10):
+        kt.augment.permute(inp)
+        assert inp.equal(orig)
 
 
 @pytest.mark.parametrize('dtype', [torch.int16, torch.long, torch.float64])

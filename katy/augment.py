@@ -519,11 +519,10 @@ def lines(x, /, lines=3, *, prob=1, generator=None):
     lines = lines * kt.random.chance(prob, **prop)
 
     # Line selection.
-    ind = torch.randint(size[dim], size=[lines], **prop)
+    ind = torch.randperm(size[dim], **prop)[:lines]
 
     # Fill value.
-    val = torch.rand(size=(), **prop)
-    return x.clone().index_fill(dim + 1, ind, val)
+    return x.index_fill(dim + 1, ind, value=torch.rand(size=(), **prop))
 
 
 @utility.batch(batch=True)
