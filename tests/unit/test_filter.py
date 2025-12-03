@@ -81,12 +81,9 @@ def test_dilate_dimensions():
     inp[:, 0] = a
     out = kt.filter.dilate(inp, dim=(3, 2))
 
-    # Expect only zeros at end of dimension 1.
+    # Expect zeros in second channel, identical results for each batch.
     assert out[:, 1].eq(0).all()
-
-    # Expect identical results in dimension 0.
-    for batch in out[:, 0]:
-        assert batch.equal(b)
+    assert torch.all(out[:, 0] == b)
 
 
 @pytest.mark.parametrize('dtype', [torch.long, torch.float32])
@@ -224,12 +221,9 @@ def test_fill_holes_dimensions():
     inp[:, 0] = a
     out = kt.filter.fill_holes(inp, dim=(-2, -1))
 
-    # Expect only zeros at end of dimension 1.
+    # Expect zeros in second channel, identical results for each batch.
     assert out[:, 1].eq(0).all()
-
-    # Expect identical results in dimension 0.
-    for batch in out[:, 0]:
-        assert batch.equal(b)
+    assert torch.all(out[:, 0] == b)
 
 
 def test_fill_holes_unchanged():

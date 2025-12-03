@@ -97,8 +97,7 @@ def test_blur_shared_channels():
     """Test if the function blurs all channels identically, in 2D."""
     inp = arange(3, 1, 4, 4).expand(-1, 2, -1, -1)
     out = kt.augment.blur(inp, fwhm=5)
-    for batch in out:
-        assert batch[0].equal(batch[1])
+    assert out[:, 0].equal(out[:, 1])
 
 
 @pytest.mark.parametrize('dim', [1, 2, 3])
@@ -136,10 +135,8 @@ def test_bias_normalization():
     out = kt.augment.bias(inp, floor=(0, 0), points=torch.tensor((2, 3)))
 
     # Expect separate normalization of each channel of each batch.
-    for batch in out:
-        for channel in batch:
-            assert channel.min() == 0
-            assert channel.max() == 1
+    assert out.amin(dim=(-2, -1)).eq(0).all()
+    assert out.amax(dim=(-2, -1)).eq(1).all()
 
 
 def test_bias_shared_channels():

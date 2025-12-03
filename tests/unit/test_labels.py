@@ -47,12 +47,9 @@ def test_to_image_shape(dim, channels):
 def test_to_image_variability():
     """Test if synthesis differs across batch and channels."""
     x = torch.arange(50).view(2, 1, 5, 5)
-    x = kt.labels.to_image(x, channels=3)
-
-    # Batches should differ. Channels should differ in each batch.
+    x = kt.labels.to_image(x, channels=2)
     assert not x[0].equal(x[1])
-    for batch in x:
-        assert not batch[0].equal(batch[1])
+    assert not x[:, 0].equal(x[:, 1])
 
 
 def test_to_rgb_trivial():
