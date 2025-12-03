@@ -215,20 +215,20 @@ def test_remap_unchanged():
     assert inp.equal(orig)
 
 
-def test_remap_probability():
+def test_remap_normalization():
     """Test if remapping with zero probability is normalization, in 1D."""
     inp = arange(1, 1, 8, dtype=torch.float32)
     out = kt.augment.remap(inp, prob=0)
     inp -= inp.min()
     inp /= inp.max()
-    assert out.allclose(inp, rtol=1e-2, atol=1e-2)
+    assert out.equal(inp)
 
 
 def test_remap_shared_channels():
     """Test if channel sharing yields identical channels, in 3D."""
     x = arange(1, 4, 4, 4, dtype=torch.float32).expand(3, -1, -1, -1)
     y = kt.augment.remap(x, bins=torch.tensor(99), shared=True, batch=False)
-    assert y[:1].allclose(y[1:])
+    assert torch.all(y[0] == y[1:])
 
 
 def test_crop_unchanged():

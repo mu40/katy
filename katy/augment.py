@@ -345,7 +345,7 @@ def remap(x, /, points=8, bins=256, *, prob=1, shared=False, generator=None):
     Returns
     -------
     (..., C, ...) torch.Tensor
-        Remapped intensities.
+        Remapped intensities, min-max normalized to [0, 1].
 
     """
     # Input of shape `(C, *size)`. Batches handled by decorator.
@@ -373,24 +373,23 @@ def remap(x, /, points=8, bins=256, *, prob=1, shared=False, generator=None):
 
     # Discretization.
     x = kt.utility.normalize(x, dim=range(0 if shared else 1, x.ndim))
+    copy = x
     x = x * (bins - 1e-3)
     x = x.to(torch.int64)
 
-    # Lookup tables. Oversample, as edges are zero.
+    # Lookup tables. Oversample, as edges are zero. Normalize to full range.
     lut = kt.noise.perlin(bins * 2, points, batch=channels, **prop)
     lut = lut[:, bins // 2:-bins // 2]
-
-    # Normalize to full range. If shared, there will be only one channel.
     lut = kt.utility.normalize(lut, dim=-1)
 
-    # Randomization.
-    bit = kt.random.chance(prob, size=channels, **prop).view(-1)
-    lut[~bit] = torch.linspace(0, 1, bins, device=x.device)
-
-    # Indices into LUT.
+    # Indexing into LUT.
     offset = torch.arange(channels, device=x.device) * bins
     ind = x + offset.view(-1, *[1] * ndim)
-    return lut.reshape(-1)[ind]
+    out = lut.reshape(-1)[ind]
+
+    # Randomization.
+    bit = kt.random.chance(prob, size=(channels, *[1] * ndim), **prop)
+    return out.where(bit, copy)
 
 
 @utility.batch(batch=True)
