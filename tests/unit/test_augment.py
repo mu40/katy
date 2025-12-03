@@ -20,11 +20,10 @@ def test_gamma_unchanged():
     assert inp.equal(orig)
 
 
-def test_gamma_probability():
+def test_gamma_normalization():
     """Test if gamma with zero probability is normalization, in 1D."""
-    inp = arange(1, 1, 4, 4, dtype=torch.float32)
+    inp = arange(1, 1, 4, dtype=torch.float32)
     out = kt.augment.gamma(inp, prob=0)
-
     inp -= inp.min()
     inp /= inp.max()
     assert out.equal(inp)
@@ -242,24 +241,24 @@ def test_crop_unchanged():
 
 @pytest.mark.parametrize('dtype', [torch.int32, torch.float32, torch.float64])
 def test_crop_properties(dtype):
-    """Test datat type and shape after cropping, in 3D."""
-    inp = torch.ones(1, 3, 2, 2, 2, dtype=dtype)
+    """Test datat type and shape after cropping."""
+    inp = torch.ones(1, 3, 2, 2, dtype=dtype)
     out = kt.augment.crop(inp, crop=torch.tensor(1))
     assert out.dtype == inp.dtype
     assert inp.shape == out.shape
 
 
 def test_crop_single_axis():
-    """Test if cropping operates only along a single axis, in 2D."""
-    size = torch.tensor((4, 4))
+    """Test if cropping operates only along a single axis."""
+    size = torch.tensor((4, 4, 4))
     inp = torch.ones(1, 1, *size)
 
     # For N-dimensional input tensors `nonzero` returns Z indices of Z non-zero
     # elements. The output is of shape `(Z, N)`.
-    out = kt.augment.crop(inp, crop=0.5)
+    out = kt.augment.crop(inp, crop=(0.5, 0.5))
     low, upp = out.squeeze().nonzero().aminmax(dim=0)
     width = upp - low + 1
-    assert width.lt(size).to(torch.int32).sum() <= 1
+    assert width.lt(size).count_nonzero() == 1
 
 
 @pytest.mark.parametrize('crop', [-0.1, 1.1])
