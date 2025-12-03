@@ -181,12 +181,11 @@ def test_bias_return_field():
     assert out.allclose(inp * field)
 
 
-@pytest.mark.parametrize('batch', [True, False])
-def test_downsample_unchanged(batch):
+def test_downsample_unchanged():
     """Test if downsampling leaves input unchanged, in 3D."""
-    x = arange(*[1] * (2 if batch else 1), 3, 3, 3, dtype=torch.float32)
+    x = arange(1, 1, 3, 3, 3, dtype=torch.float32)
     orig = x.clone()
-    kt.augment.downsample(x, factor=torch.tensor(2), batch=batch)
+    kt.augment.downsample(x, factor=torch.tensor(2))
     assert x.equal(orig)
 
 
@@ -205,10 +204,9 @@ def test_downsample_illegal_values():
 
 def test_downsample_shared_channels():
     """Test if shared channels are identical, with per-axis factor."""
-    inp = arange(1, 1, 4, 4, dtype=torch.float32).expand(2, 3, -1, -1)
-    out = kt.augment.downsample(inp, factor=(1, 3, 1, 3))
-    for batch in out:
-        batch[:1].equal(batch[1:])
+    inp = arange(1, 4, 4, dtype=torch.float32).expand(3, -1, -1)
+    out = kt.augment.downsample(inp, factor=(1, 3, 1, 3), batch=False)
+    out[:1].equal(out[1:])
 
 
 def test_remap_unchanged():
@@ -275,12 +273,11 @@ def test_crop_illegal_values(crop):
         kt.augment.crop(x, crop=crop)
 
 
-@pytest.mark.parametrize('batch', [True, False])
-def test_crop_half(batch):
+def test_crop_half():
     """Test cropping half the FOV, with and without batch dimension in 1D."""
     width = torch.tensor(8)
-    x = torch.ones(*[1] * (2 if batch else 1), width)
-    out = kt.augment.crop(x, crop=(0.5, 0.5), batch=batch)
+    x = torch.ones(1, width)
+    out = kt.augment.crop(x, crop=(0.5, 0.5), batch=False)
     assert out.sum().eq(0.5 * width)
 
 

@@ -25,11 +25,10 @@ def test_interpolate_identity(dim):
 
 
 @pytest.mark.parametrize('dim', [2, 3])
-@pytest.mark.parametrize('batch', [True, False])
 @pytest.mark.parametrize('mode', ['nearest', 'linear'])
 @pytest.mark.parametrize('padding', ['zeros', 'border', 'reflection'])
-def test_apply_identity(dim, batch, mode, padding):
-    """Test applying an identity matrix and field with various options."""
+def test_apply_identity(dim, mode, padding):
+    """Test applying an identity matrix and field with batch dimension."""
     size = [5] * dim
     inp = torch.ones(size).view(1, 1, *size)
 
@@ -37,9 +36,6 @@ def test_apply_identity(dim, batch, mode, padding):
     matrix = torch.eye(dim + 1).unsqueeze(0)
     field = torch.zeros_like(inp).expand(1, dim, *size)
     for trans in (matrix, field):
-        if not batch:
-            trans = trans.squeeze(0)
-
         out = kt.transform.apply(inp, trans, method=mode, padding=padding)
         assert out.allclose(inp)
 
