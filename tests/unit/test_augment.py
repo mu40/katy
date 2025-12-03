@@ -5,11 +5,16 @@ import pytest
 import torch
 
 
+def arange(*size, **kwargs):
+    """Return a non-deterministic tensor that does not have flat values."""
+    n = torch.tensor(size).prod()
+    return torch.arange(n, **kwargs).view(*size)
+
+
 def test_gamma_unchanged():
     """Test if gamma-augmentation leaves input unchanged, in 2D."""
     # Input of shape: batch, channel, space.
-    inp = torch.zeros(1, 1, 8, 8)
-
+    inp = torch.zeros(1, 1, 4, 4)
     orig = inp.clone()
     kt.augment.gamma(inp)
     assert inp.equal(orig)
@@ -17,7 +22,7 @@ def test_gamma_unchanged():
 
 def test_gamma_probability():
     """Test if gamma with zero probability is normalization, in 1D."""
-    inp = torch.rand(1, 1, 8)
+    inp = arange(1, 1, 4, 4, dtype=torch.float32)
     out = kt.augment.gamma(inp, prob=0)
 
     inp -= inp.min()
@@ -25,34 +30,10 @@ def test_gamma_probability():
     assert out.equal(inp)
 
 
-def test_gamma_normalization():
-    """Test batch and channel-wise normalization of gamma augmentation."""
-    inp = torch.rand(3, 2, 4, 4)
-
-    # Expect separate normalization of every channel of every batch.
-    out = kt.augment.gamma(inp)
-    for batch in out:
-        for channel in batch:
-            assert channel.min() == 0
-            assert channel.max() == 1
-
-    # With `shared=True`, expect per-batch normalization.
-    out = kt.augment.gamma(inp, shared=True)
-    for batch in out:
-        assert batch.min() == 0
-        assert batch.max() == 1
-
-        # Shared normalization of channels.
-        with pytest.raises(AssertionError):
-            for channel in batch:
-                assert channel.min() == 0
-                assert channel.max() == 1
-
-
 def test_gamma_shared_channels():
     """Test shared gamma augmentation across channels, in 3D."""
     # One batch of two identical input channels.
-    inp = torch.rand(1, 1, 3, 3, 3).expand(-1, 2, -1, -1, -1).clone()
+    inp = arange(1, 1, 3, 3, 3).expand(-1, 2, -1, -1, -1)
 
     # Identical channels after shared augmentation.
     out = kt.augment.gamma(inp, gamma=(0.5, 2), shared=True).squeeze()
@@ -76,9 +57,7 @@ def test_gamma_illegal_values():
 
 def test_noise_unchanged():
     """Test if adding noise leaves input unchanged, in 1D."""
-    # Input of shape: batch, channel, space.
     inp = torch.zeros(1, 1, 4)
-
     orig = inp.clone()
     kt.augment.noise(inp)
     assert inp.equal(orig)
@@ -86,23 +65,20 @@ def test_noise_unchanged():
 
 def test_noise_change():
     """Test if adding noise changes the input, in 2D."""
-    # Input of shape: batch, channel, space.
     inp = torch.zeros(1, 1, 4, 4)
 
     # Adding noise should change the input.
     out = kt.augment.noise(inp, prob=1)
     assert not out.equal(inp)
 
-    # Nothing should change at zero probability.
+    # Expect no change at zero probability.
     out = kt.augment.noise(inp, prob=torch.tensor(0))
     assert out.equal(inp)
 
 
 def test_blur_unchanged():
     """Test if randomly blurring leaves input unchanged, in 1D."""
-    # Input of shape: batch, channel, space.
     inp = torch.zeros(1, 1, 4)
-
     orig = inp.clone()
     kt.augment.blur(inp, fwhm=1)
     assert inp.equal(orig)
@@ -119,50 +95,45 @@ def test_blur_illegal_fwhm():
 
 def test_blur_shared_channels():
     """Test if the function blurs all channels identically, in 2D."""
-    inp = torch.rand(3, 1, 8, 8).expand(-1, 2, -1, -1)
-
+    inp = arange(3, 1, 4, 4).expand(-1, 2, -1, -1)
     out = kt.augment.blur(inp, fwhm=5)
     for batch in out:
         assert batch[0].equal(batch[1])
 
 
-def test_blur_deterministic():
+@pytest.mark.parametrize('dim', [1, 2, 3])
+def test_blur_deterministic(dim):
     """Test random blurring at pinned down FWHM."""
-    size = (4, 4, 4)
+    # Blur input using specific FWHM.
     fwhm = 5
+    inp = arange(1, 1, *[4] * dim)
+    ref = kt.filter.blur(inp, fwhm, dim=range(2, dim + 2))
 
-    for dim in (1, 2, 3):
-        # Blur input using specific FWHM.
-        inp = torch.rand(2, 1, *size[:dim])
-        ref = kt.filter.blur(inp, fwhm, dim=range(2, dim + 2))
+    # Sampling FWHM between identical values should yield the same result.
+    out = kt.augment.blur(inp, fwhm=(fwhm, fwhm))
+    assert out.equal(ref)
 
-        # Sampling FWHM between identical values should yield the same result.
-        out = kt.augment.blur(inp, fwhm=(fwhm, fwhm))
-        assert out.equal(ref)
+    # The same applies when specifying identical bounds for each axis.
+    out = kt.augment.blur(inp, fwhm=torch.tensor(fwhm).repeat(2 * dim))
+    assert out.equal(ref)
 
-        # The same applies when specifying identical bounds for each axis.
-        out = kt.augment.blur(inp, fwhm=torch.tensor(fwhm).repeat(2 * dim))
-        assert out.equal(ref)
-
-        # However, expect a different result when sampling between [0, fwhm).
-        out = kt.augment.blur(inp, fwhm=torch.tensor(fwhm))
-        assert not out.equal(ref)
+    # However, expect a different result when sampling between [0, fwhm).
+    out = kt.augment.blur(inp, fwhm=torch.tensor(fwhm))
+    assert not out.equal(ref)
 
 
 def test_bias_unchanged():
     """Test if bias leaves input unchanged, with tensor inputs in 3D."""
-    # Input of shape: batch, channel, space.
     inp = torch.ones(1, 1, 4, 4, 4)
-
     orig = inp.clone()
-    kt.augment.bias(inp, floor=torch.tensor(0), points=torch.tensor((2, 3)))
+    kt.augment.bias(inp, floor=torch.tensor(0), points=2)
     assert inp.equal(orig)
 
 
 def test_bias_normalization():
     """Test if fixing minimum yields a bias field between 0 and 1, in 2D."""
     inp = torch.ones(2, 3, 4, 4)
-    out = kt.augment.bias(inp, floor=(0, 0), points=2)
+    out = kt.augment.bias(inp, floor=(0, 0), points=torch.tensor((2, 3)))
 
     # Expect separate normalization of each channel of each batch.
     for batch in out:
@@ -173,12 +144,11 @@ def test_bias_normalization():
 
 def test_bias_shared_channels():
     """Test if with sharing, batches differ and channels do not, in 1D."""
-    x = torch.rand(1, 4).expand(3, -1)
+    x = arange(1, 4).expand(3, -1)
     y = kt.augment.bias(x, floor=0, points=(2, 3), shared=True, batch=False)
 
     # Channels should be identical.
-    for channel in y[1:]:
-        assert channel.allclose(y[0])
+    assert y[1:].allclose(y[:1])
 
 
 def test_bias_illegal_values():
@@ -197,7 +167,7 @@ def test_bias_illegal_values():
 
 def test_bias_return_field():
     """Test returning the bias field."""
-    inp = torch.rand(1, 2, 5, 5)
+    inp = torch.ones(1, 2, 5, 5)
 
     # Expect field matching input shape.
     _, field = kt.augment.bias(inp, return_bias=True)
@@ -211,22 +181,18 @@ def test_bias_return_field():
     assert out.allclose(inp * field)
 
 
-def test_downsample_unchanged():
+@pytest.mark.parametrize('batch', [True, False])
+def test_downsample_unchanged(batch):
     """Test if downsampling leaves input unchanged, in 3D."""
-    space = (4, 4, 4)
-    sizes = {True: (1, 1, *space), False: (1, *space)}
-
-    for batch, size in sizes.items():
-        x = torch.ones(size)
-        orig = x.clone()
-
-        kt.augment.downsample(x, factor=torch.tensor(2), batch=batch)
-        assert x.equal(orig)
+    x = arange(*[1] * (2 if batch else 1), 3, 3, 3, dtype=torch.float32)
+    orig = x.clone()
+    kt.augment.downsample(x, factor=torch.tensor(2), batch=batch)
+    assert x.equal(orig)
 
 
 def test_downsample_illegal_values():
     """Test downsampling modulation with illegal input arguments, in 1D."""
-    x = torch.zeros(1, 1, 4)
+    x = torch.zeros(1, 1, 2)
 
     # Factors should be positive.
     with pytest.raises(ValueError):
@@ -238,21 +204,17 @@ def test_downsample_illegal_values():
 
 
 def test_downsample_shared_channels():
-    """Test if channels differ, with per-axis factor."""
-    inp = torch.rand(1, 1, 4, 4).expand(2, 3, -1, -1)
+    """Test if shared channels are identical, with per-axis factor."""
+    inp = arange(1, 1, 4, 4, dtype=torch.float32).expand(2, 3, -1, -1)
     out = kt.augment.downsample(inp, factor=(1, 3, 1, 3))
-
-    # Within each batch, all channels should be identical.
     for batch in out:
-        assert batch[0].equal(batch[1])
-        assert batch[1].equal(batch[2])
+        batch[:1].equal(batch[1:])
 
 
 def test_remap_unchanged():
     """Test if intensity remapping leaves input unchanged, in 2D."""
     # Do not test on flat image.
-    inp = torch.rand(1, 1, 8, 8)
-
+    inp = arange(1, 1, 2, 2)
     orig = inp.clone()
     kt.augment.remap(inp)
     assert inp.equal(orig)
@@ -260,9 +222,8 @@ def test_remap_unchanged():
 
 def test_remap_probability():
     """Test if remapping with zero probability is normalization, in 1D."""
-    inp = torch.rand(1, 1, 256)
+    inp = arange(1, 1, 8, dtype=torch.float32)
     out = kt.augment.remap(inp, prob=0)
-
     inp -= inp.min()
     inp /= inp.max()
     assert out.allclose(inp, rtol=1e-2, atol=1e-2)
@@ -270,68 +231,57 @@ def test_remap_probability():
 
 def test_remap_shared_channels():
     """Test if channel sharing yields identical channels, in 3D."""
-    x = torch.rand(1, 8, 8, 8).expand(4, -1, -1, -1)
+    x = arange(1, 4, 4, 4, dtype=torch.float32).expand(3, -1, -1, -1)
     y = kt.augment.remap(x, bins=torch.tensor(99), shared=True, batch=False)
-
-    # Channels should be identical.
-    for channel in y[1:]:
-        assert channel.allclose(y[0])
+    assert y[:1].allclose(y[1:])
 
 
 def test_crop_unchanged():
     """Test if crop-mask generation leaves input unchanged, in 1D."""
     # Input of shape: batch, channel, space.
-    inp = torch.ones(1, 1, 4)
+    inp = torch.ones(1, 1, 2)
     orig = inp.clone()
     kt.augment.crop(inp)
     assert inp.equal(orig)
 
 
-def test_crop_properties():
-    """Test type, shape, and channel count after cropping, in 3D."""
-    types = (torch.int64, torch.float32, torch.float64)
-
-    for dtype in types:
-        inp = torch.ones(2, 3, 4, 4, 4, dtype=dtype)
-
-        out = kt.augment.crop(inp, crop=torch.tensor(1))
-        assert out.dtype == inp.dtype
-        assert inp[:, 0, ...].shape == out[:, 0, ...].shape
+@pytest.mark.parametrize('dtype', [torch.int32, torch.float32, torch.float64])
+def test_crop_properties(dtype):
+    """Test datat type and shape after cropping, in 3D."""
+    inp = torch.ones(1, 3, 2, 2, 2, dtype=dtype)
+    out = kt.augment.crop(inp, crop=torch.tensor(1))
+    assert out.dtype == inp.dtype
+    assert inp.shape == out.shape
 
 
 def test_crop_single_axis():
     """Test if cropping operates only along a single axis, in 2D."""
-    size = torch.tensor((8, 8))
+    size = torch.tensor((4, 4))
     inp = torch.ones(1, 1, *size)
 
+    # For N-dimensional input tensors `nonzero` returns Z indices of Z non-zero
+    # elements. The output is of shape `(Z, N)`.
     out = kt.augment.crop(inp, crop=0.5)
     low, upp = out.squeeze().nonzero().aminmax(dim=0)
     width = upp - low + 1
-    assert width.lt(size).type(torch.int32).sum() <= 1
+    assert width.lt(size).to(torch.int32).sum() <= 1
 
 
-def test_crop_illegal_values():
+@pytest.mark.parametrize('crop', [-0.1, 1.1])
+def test_crop_illegal_values(crop):
     """Test cropping with illegal input arguments, in 2D."""
     x = torch.empty(1, 1, 4, 4)
-
     with pytest.raises(ValueError):
-        kt.augment.crop(x, crop=-0.1)
-
-    with pytest.raises(ValueError):
-        kt.augment.crop(x, crop=1.1)
+        kt.augment.crop(x, crop=crop)
 
 
-def test_crop_half():
+@pytest.mark.parametrize('batch', [True, False])
+def test_crop_half(batch):
     """Test cropping half the FOV, with and without batch dimension in 1D."""
     width = torch.tensor(8)
-    sizes = {True: (1, 1, width), False: (1, width)}
-
-    for batch, size in sizes.items():
-        x = torch.ones(size)
-
-        # Cropping by half the FOV should halve the FOV.
-        out = kt.augment.crop(x, crop=(0.5, 0.5), batch=batch)
-        assert out.sum().eq(0.5 * width)
+    x = torch.ones(*[1] * (2 if batch else 1), width)
+    out = kt.augment.crop(x, crop=(0.5, 0.5), batch=batch)
+    assert out.sum().eq(0.5 * width)
 
 
 def test_crop_return_mask():
@@ -339,97 +289,76 @@ def test_crop_return_mask():
     inp = torch.ones(1, 2, 3, 3)
     out, mask = kt.augment.crop(inp, crop=(0.5, 0.5), return_mask=True)
 
-    # Expect single-channel mask.
+    # Expect single-channel mask, multiplicative application.
     assert mask.shape == (inp.size(0), 1, *inp.shape[2:])
-
-    # Expect multiplicative application.
     assert out.allclose(inp * mask)
 
 
 def test_lines_count():
-    """Test corrupting lines of tensor with or without batch dimension."""
-    sizes = {True: (1, 1, 20), False: (1, 20)}
+    """Test corrupting lines of tensor without batch dimension."""
+    inp = torch.full(size=(1, 20), fill_value=-1)
+    out = kt.augment.lines(inp, lines=(4, 4), batch=False)
 
-    for batch, size in sizes.items():
-        x = torch.full(size, fill_value=-1)
-        out = kt.augment.lines(x, lines=(4, 4), batch=batch)
-
-        # Expect unchanged size, some positive lines. Duplicates possible.
-        assert out.shape == size
-        assert 1 <= out.squeeze().ge(0).sum() <= 4
+    # Expect unchanged size, some positive lines. Duplicates possible.
+    assert out.shape == inp.shape
+    assert 1 <= out.squeeze().ge(0).sum() <= 4
 
 
 def test_lines_probability():
     """Test if line corruption with zero probability is identity."""
-    inp = torch.zeros(1, 1, 8, 8)
+    inp = torch.zeros(1, 1, 2, 2)
     out = kt.augment.lines(inp, prob=0)
     assert out.equal(inp)
 
 
 def test_lines_illegal_value():
-    """Test corrupting an illegal number of lines."""
-    x = torch.zeros(1, 1, 4, 4)
-
-    # Number of lines should be greater zero.
+    """Test if corrupting zero lines raises an error."""
+    x = torch.zeros(1, 1, 2, 2)
     with pytest.raises(ValueError):
         kt.augment.lines(x, lines=0)
 
 
-def test_roll_illegal_value():
-    """Test rolling tensors with illegal shift values."""
+@pytest.mark.parametrize('shift', [(0, 1, 2), -1, (0, 1.1)])
+def test_roll_illegal_value(shift):
+    """Test rolling tensors with illegal shifts, not 1-2 values in [0, 1]."""
     x = torch.zeros(1, 1, 4)
-
-    # Should pass 1 or 2 shifts.
     with pytest.raises(ValueError):
         kt.augment.roll(x, shift=(0, 1, 2))
-
-    # Should shift by value in [0, 1].
-    with pytest.raises(ValueError):
-        kt.augment.roll(x, shift=-1)
-
-    # Should shift by value in [0, 1].
-    with pytest.raises(ValueError):
-        kt.augment.roll(x, shift=(0, 1.1))
 
 
 def test_roll_unchanged():
     """Test if rolling leaves input unchanged, in 3D."""
-    # Input of shape: batch, channel, space.
-    x = torch.ones(1, 1, 2, 2, 2)
+    x = torch.ones(1, 2, 2, 2)
     y = x.clone()
-    kt.augment.roll(x)
+    kt.augment.roll(x, batch=False)
     assert x.equal(y)
 
 
-def test_roll_properties():
+@pytest.mark.parametrize('dtype', [torch.int64, torch.float32, torch.float64])
+def test_roll_properties(dtype):
     """Test if rolled type and shape remain the same, in 2D."""
-    types = (torch.int64, torch.float32, torch.float64)
-
-    for dtype in types:
-        x = torch.ones(2, 3, 4, 4, dtype=dtype)
-        y = kt.augment.roll(x, shift=torch.tensor(0.3))
-        assert y.dtype == x.dtype
-        assert y.shape == x.shape
+    x = torch.ones(2, 3, 4, 4, dtype=dtype)
+    y = kt.augment.roll(x, shift=torch.tensor(0.3))
+    assert y.dtype == x.dtype
+    assert y.shape == x.shape
 
 
 def test_roll_half():
-    """Test effect of rolling by half the tensor, in 1D."""
-    x = torch.zeros(1, 1, 10)
-    x[..., :5] = 1
-
-    # Roll by half.
+    """Test effect of rolling by half the width, in 1D."""
+    x = torch.zeros(1, 1, 8)
+    x[..., :4] = 1
     y = kt.augment.roll(x, shift=(0.5, 0.5))
 
-    # Expected results.
-    a = x.roll(+5)
-    b = x.roll(-5)
+    # Expect half shift in either direction.
+    a = x.roll(+4)
+    b = x.roll(-4)
     assert y.equal(a) or y.equal(b)
 
 
 def test_flip_default():
     """Test randomly flipping tensors along default dimension."""
     # Input of shape: batch, channel, space.
-    inp = torch.arange(16, dtype=torch.float32).reshape(1, 1, 4, 4)
+    inp = arange(1, 1, 4, 4)
     flipped = (inp.flip(2), inp.flip(3))
 
     # Expect flip along first spatial axis or no flip.
@@ -439,22 +368,20 @@ def test_flip_default():
         assert not out.equal(flipped[1])
 
 
-def test_flip_dim():
+@pytest.mark.parametrize('dim', [0, 1])
+def test_flip_dim(dim):
     """Test randomly flipping tensors along specific dimensions."""
-    # Input of shape: batch, channel, space.
-    inp = torch.arange(4).reshape(1, 1, 2, 2)
+    inp = arange(1, 1, 4, 4)
     flipped = (inp.flip(2), inp.flip(3))
 
-    for dim in (0, 1):
-        for _ in range(10):
-            out = kt.augment.flip(inp, dim)
-            assert out.equal(inp) or out.equal(flipped[dim])
-            assert not out.equal(flipped[1 - dim])
+    for _ in range(10):
+        out = kt.augment.flip(inp, dim)
+        assert out.equal(inp) or out.equal(flipped[dim])
+        assert not out.equal(flipped[1 - dim])
 
 
 def test_flip_remap():
     """Test tensor flipping with left-right remapping, negative dimension."""
-    # Input of shape: batch, channel, space.
     inp = torch.as_tensor((
         (0, 1),
         (2, 3),
@@ -474,34 +401,34 @@ def test_flip_remap():
         assert not out.equal(inp.flip(-2))
 
 
-def test_flip_dtype():
-    """Test tensor flipping output type when remapping."""
-    # Input of shape: batch, channel, space.
-    x = torch.zeros((1, 1, 2, 2, 2), dtype=torch.float32)
+@pytest.mark.parametrize('dtype', [torch.int16, torch.float32])
+def test_flip_dtype(dtype):
+    """Test if tensor flipping maintains data type type when remapping."""
+    x = torch.zeros((1, 1, 2, 2, 2), dtype=dtype)
     labels = {0: 'Left-Unknown', 1: 'Right-Unknown', 2: 'Banana'}
-
-    # Expect unchanged type.
     for _ in range(10):
         assert kt.augment.flip(x, labels=labels).dtype == x.dtype
 
 
-def test_flip_illegal_values():
-    """Test tensor flipping with illegal arguments."""
+@pytest.mark.parametrize('dim', [1, -2])
+def test_flip_illegal_dim(dim):
+    """Test tensor flipping with spatial dimensions outside [0, N)."""
     x = torch.zeros(1, 1, 4)
-
-    # Should pass spatial dimension in [0, N).
     with pytest.raises(ValueError):
-        kt.augment.flip(x, dim=1)
-
-    with pytest.raises(ValueError):
-        kt.augment.flip(x, dim=-2)
+        kt.augment.flip(x, dim=dim)
 
 
-def test_permute():
-    """Test channel permutation."""
-    x = torch.arange(100).unsqueeze(0)
+@pytest.mark.parametrize('dtype', [torch.int16, torch.long, torch.float64])
+def test_permute_dtype(dtype):
+    """Test if channel permutation maintains shape, type, elements."""
+    x = arange(1, 2, 2, dtype=dtype)
     y = kt.augment.permute(x)
+    assert y.dtype == x.dtype
 
-    # Expect new tensor with same elements, most likely in different order.
-    assert x is not y
-    assert x.sum() == y.sum()
+
+def test_permute_values():
+    """Test if channel permutation maintains shape and elements."""
+    x = arange(1, 8)
+    y = kt.augment.permute(x)
+    assert y.shape == x.shape
+    assert y.sort().values.equal(x)

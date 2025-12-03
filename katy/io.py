@@ -23,7 +23,7 @@ def save(data, path):
     """
     path = pathlib.Path(path)
 
-    # Indent and add training newline for readability on command line.
+    # Indent and add trailing newline for readability on command line.
     if path.suffix == '.json':
         with open(path, mode='w', encoding='utf-8') as f:
             json.dump(data, f, indent=4)

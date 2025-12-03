@@ -5,85 +5,77 @@ import pytest
 import torch
 
 
-def test_interpolate_identity():
+@pytest.mark.parametrize('dim', [2, 3])
+def test_interpolate_identity(dim):
     """Test interpolation at the grid locations."""
-    size = (8, 8, 8)
+    size = (6, 6, 6)
 
-    for dim in (2, 3):
-        # Data of shape: batch, channels, space.
-        inp = torch.rand(5, 4, *size[:dim])
-        grid = kt.transform.grid(size[:dim])
+    # Data of shape: batch, channels, space.
+    inp = torch.ones(1, 4, *size[:dim])
+    grid = kt.transform.grid(size[:dim])
 
-        # Coordinates without batch dimension.
-        out = kt.transform.interpolate(inp, grid)
-        assert out.allclose(inp, atol=1e-5)
+    # Coordinates without batch dimension.
+    out = kt.transform.interpolate(inp, grid)
+    assert out.allclose(inp)
 
-        # Coordinates with batch dimension.
-        grid = grid.unsqueeze(0)
-        out = kt.transform.interpolate(inp, grid)
-        assert out.allclose(inp, atol=1e-5)
+    # Coordinates with batch dimension.
+    grid = grid.unsqueeze(0)
+    out = kt.transform.interpolate(inp, grid)
+    assert out.allclose(inp)
 
 
-def test_apply_identity():
+@pytest.mark.parametrize('dim', [2, 3])
+@pytest.mark.parametrize('batch', [True, False])
+@pytest.mark.parametrize('mode', ['nearest', 'linear'])
+@pytest.mark.parametrize('padding', ['zeros', 'border', 'reflection'])
+def test_apply_identity(dim, batch, mode, padding):
     """Test applying an identity matrix and field with various options."""
-    size = (8, 8, 8)
+    size = [5] * dim
+    inp = torch.ones(size).view(1, 1, *size)
 
-    for dim in (2, 3):
-        inp = torch.rand(size[:dim]).unsqueeze(0).unsqueeze(0)
+    # Test matrix and displacement field.
+    matrix = torch.eye(dim + 1).unsqueeze(0)
+    field = torch.zeros_like(inp).expand(1, dim, *size)
+    for trans in (matrix, field):
+        if not batch:
+            trans = trans.squeeze(0)
 
-        # Test matrix and displacement field.
-        matrix = torch.eye(dim + 1)
-        field = torch.zeros_like(inp).expand(1, dim, *size[:dim])
-        for trans in (matrix, field):
-
-            # Transform with and without batch dimension.
-            for batch in (True, False):
-                if not batch:
-                    trans = trans.squeeze(0)
-
-                for method in ('nearest', 'linear'):
-                    for padding in ('zeros', 'border', 'reflection'):
-                        prop = dict(method=method, padding=padding)
-                        out = kt.transform.apply(inp, trans, **prop)
-                        assert out.allclose(inp, atol=1e-5)
+        out = kt.transform.apply(inp, trans, method=mode, padding=padding)
+        assert out.allclose(inp)
 
 
-def test_apply_shift():
+@pytest.mark.parametrize('dim', [2, 3])
+def test_apply_shift(dim):
     """Test if shifting is equivalent to rolling, except at the border."""
-    size = (10, 10, 10)
     shift = 2
+    width = 5
+    inp = torch.arange(width ** dim).view(1, 1, *[width] * dim)
 
-    for dim in (2, 3):
-        inp = torch.rand(size[:dim]).unsqueeze(0).unsqueeze(0)
+    # Transform shifting along the trailing axis.
+    trans = torch.eye(dim + 1)
+    trans[-2, -1] = shift
+    out = kt.transform.apply(inp, trans, method='nearest')
 
-        # Transform shifting along the training axis.
-        trans = torch.eye(dim + 1)
-        trans[-2, -1] = shift
-        out = kt.transform.apply(inp, trans, method='nearest')
-
-        # Roll volume by the same amount. Remove border from comparison.
-        ref = inp.roll(-shift, dims=-1)
-        assert out[..., :-shift].allclose(ref[..., :-shift])
+    # Roll volume by the same amount. Remove border from comparison.
+    inp = inp.roll(-shift, dims=-1).to(out.dtype)
+    assert out[..., :-shift].allclose(inp[..., :-shift])
 
 
 def test_integrate_properties():
     """Test vector integration properties."""
-    inp = torch.randn(2, 3, 5, 5, 5)
+    inp = torch.arange(50.).reshape(1, 2, 5, 5)
     orig = inp.clone()
 
-    # Input should not change.
+    # Input should not change, but output differ from input.
+    out = kt.transform.integrate(inp, steps=3)
     assert inp.equal(orig)
-
-    # Output should differ from input.
-    out = kt.transform.integrate(inp, steps=5)
     assert not out.equal(inp)
 
 
 def test_integrate_zero_steps():
     """Test if integrating with zero steps returns the same field."""
-    inp = torch.zeros(1, 2, 4, 4)
-    out = kt.transform.integrate(inp, steps=0)
-    assert out is inp
+    x = torch.zeros(1, 3, 4, 4, 4)
+    assert kt.transform.integrate(x, steps=0) is x
 
 
 def test_integrate_illegal_arguments():
@@ -101,27 +93,16 @@ def test_integrate_illegal_arguments():
 
 def test_integrate_inverse():
     """Test if integrating a negated SVF yields the inverse warp."""
-    fov = 128
-    fwhm = fov / 4
-    steps = 7
-    dim = 2
-    size = [fov] * dim
-
-    # Smooth SVF of maximum amplitude 1.
-    svf = torch.randn(4, dim, *size)
-    svf = kt.filter.blur(svf, fwhm, dim=(-3, -2, -1))
+    # SVF of maximum amplitude 1.
+    svf = torch.arange(800.).view(1, 2, 20, 20)
     svf /= svf.norm(dim=1).max()
 
-    # Integrate, compose, compute norm.
-    fw = kt.transform.integrate(+svf, steps)
-    bw = kt.transform.integrate(-svf, steps)
+    # Integrate, compose, compute norm. Remove border values.
+    fw = kt.transform.integrate(+svf, steps=5)
+    bw = kt.transform.integrate(-svf, steps=5)
     out = kt.transform.compose(fw, bw)
     out = torch.linalg.vector_norm(out, dim=1)
+    out = out[..., 1:-1, 1:-1]
 
-    # Ignore border values.
-    ind = torch.arange(1, fov - 1)
-    for i in range(dim):
-        out = out.index_select(dim=i + 1, index=ind)
-
-    # Composition should yield identity. Expect less than 1% of maximum shift.
-    assert out.max() < 0.01
+    # Expect identity with error below 0.1% of maximum shift away from border.
+    assert out.max() < 1e-3

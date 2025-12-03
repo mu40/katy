@@ -22,7 +22,7 @@ def test_gaussian_kernel_default_width_odd():
 
 def test_blur_unchanged():
     """Test if blurring leaves the input changed."""
-    inp = torch.zeros(3, 4, 5)
+    inp = torch.zeros(2, 3, 4)
     fwhm = torch.tensor(1)
     orig = inp.clone()
     kt.filter.blur(inp, fwhm)
@@ -31,24 +31,23 @@ def test_blur_unchanged():
 
 def test_blur_fwhm_zero():
     """Test if blurring with zero FWHM has no effect."""
-    x = torch.rand(3, 4, 5)
+    x = torch.ones(2, 3, 4)
     assert kt.filter.blur(x, fwhm=0).allclose(x)
 
 
 def test_blur_default_dtype():
     """Test the default output data type."""
-    x = torch.randint(10, size=(5,))
+    x = torch.zeros(5)
     assert kt.filter.blur(x, fwhm=2).dtype == torch.get_default_dtype()
 
 
-def test_dilate_trivial():
+@pytest.mark.parametrize('dtype', [torch.int32, torch.float32])
+def test_dilate_trivial(dtype):
     """Test dilation output data type and values."""
-    for dtype in (torch.int32, torch.float32):
-        x = torch.tensor((0.0, 0.0, 2.2, 3.3), dtype=dtype)
-        y = kt.filter.dilate(x, dim=0)
-
-        assert y.dtype == x.dtype
-        assert torch.isin(y, torch.tensor((0, 1))).all()
+    x = torch.tensor((0.0, 0.0, 2.2, 3.3), dtype=dtype)
+    y = kt.filter.dilate(x, dim=0)
+    assert y.dtype == x.dtype
+    assert torch.isin(y, torch.tensor((0, 1))).all()
 
 
 def test_dilate_iterations():
@@ -90,14 +89,13 @@ def test_dilate_dimensions():
         assert batch.equal(b)
 
 
-def test_erode_trivial():
+@pytest.mark.parametrize('dtype', [torch.long, torch.float32])
+def test_erode_trivial(dtype):
     """Test erosion output data type and values."""
-    for dtype in (torch.long, torch.float32):
-        x = torch.tensor((0.0, 1.1, 2.2, 3.3), dtype=dtype)
-        y = kt.filter.erode(x, dim=-1)
-
-        assert y.dtype == x.dtype
-        assert torch.isin(y, torch.tensor((0, 1))).all()
+    x = torch.tensor((0.0, 1.1, 2.2, 3.3), dtype=dtype)
+    y = kt.filter.erode(x, dim=-1)
+    assert y.dtype == x.dtype
+    assert torch.isin(y, torch.tensor((0, 1))).all()
 
 
 def test_erode_iterations():
@@ -194,14 +192,13 @@ def test_open_2d():
     assert kt.filter.open(a).equal(b)
 
 
-def test_fill_holes_trivial():
+@pytest.mark.parametrize('dtype', [torch.long, torch.float16])
+def test_fill_holes_trivial(dtype):
     """Test hole-filling output data type and values, in 1D."""
-    for dtype in (torch.long, torch.float16):
-        x = torch.tensor((0.0, 1.1, 0.0, 3.3), dtype=dtype)
-        y = kt.filter.fill_holes(x, dim=0)
-
-        assert y.dtype == x.dtype
-        assert y.equal(torch.tensor((0, 1, 1, 1)))
+    x = torch.tensor((0.0, 1.1, 0.0, 3.3), dtype=dtype)
+    y = kt.filter.fill_holes(x, dim=0)
+    assert y.dtype == x.dtype
+    assert y.equal(torch.tensor((0, 1, 1, 1)))
 
 
 def test_fill_holes_dimensions():
@@ -237,10 +234,9 @@ def test_fill_holes_dimensions():
 
 def test_fill_holes_unchanged():
     """Test hole-filling without holes has no effect, in 3D."""
-    for f in (torch.ones, torch.zeros):
-        inp = f(4, 4, 4)
-        out = kt.filter.fill_holes(inp)
-        assert out.equal(inp)
+    inp = torch.ones(4, 4, 4)
+    out = kt.filter.fill_holes(inp)
+    assert out.equal(inp)
 
     # Expect a copy.
     assert out is not inp

@@ -5,53 +5,36 @@ import pytest
 import torch
 
 
-def test_perlin_dimensions():
-    """Test Perlin noise shape with various dimensions."""
-    size = (10, 11, 12, 13)
-
-    for dim in (1, 2, 3):
-        for points in (2, 4, 8):
-            out = kt.noise.perlin(size=size[:dim], points=points)
-            assert out.shape == size[:dim]
+@pytest.mark.parametrize('dim', [1, 2, 3])
+def test_perlin_dim(dim):
+    """Test Perlin noise shape in various dimensions."""
+    size = (6, 7, 8)
+    out = kt.noise.perlin(size=size[:dim], points=4)
+    assert out.shape == size[:dim]
 
 
 def test_perlin_scalar_size():
     """Test Perlin noise generation passing a scalar size."""
     size = 32
-
-    out = kt.noise.perlin(size)
-    assert out.shape == (size,)
+    assert kt.noise.perlin(size).shape == (size,)
 
 
-def test_perlin_batches():
+@pytest.mark.parametrize('batch', [3, (3, 4), torch.tensor((4, 3))])
+def test_perlin_batches(batch):
     """Test generating batches of Perlin noise, with the size as a tensor."""
-    size = torch.as_tensor((8, 8))
-
-    batch = 4
+    size = torch.tensor((5, 5))
     out = kt.noise.perlin(size, batch=batch)
-    assert out.shape == (batch, *size)
+    if torch.as_tensor(batch).ndim == 0:
+        batch = [batch]
 
-    batch = (4, 5)
-    out = kt.noise.perlin(size, batch=batch)
-    assert out.shape == (*batch, *size)
-
-    batch = torch.tensor(batch)
-    out = kt.noise.perlin(size, batch=batch)
     assert out.shape == (*batch, *size)
 
 
-def test_perlin_points_2d():
-    """Test generating 2D Perlin noise with control points of various types."""
-    size = (8, 8)
-
-    out = kt.noise.perlin(size, points=(4,))
-    assert out.shape == size
-
-    out = kt.noise.perlin(size, points=(4, 3))
-    assert out.shape == size
-
-    out = kt.noise.perlin(size, points=torch.tensor((4, 3)))
-    assert out.shape == size
+@pytest.mark.parametrize('points', [2, (3,), (2, 3), torch.tensor((2, 3))])
+def test_perlin_points(points):
+    """Test generating 2D Perlin noise with various control point types."""
+    size = (5, 5)
+    assert kt.noise.perlin(size, points=points).shape == size
 
 
 def test_perlin_illegal_points():
@@ -66,28 +49,24 @@ def test_perlin_illegal_points():
         kt.noise.perlin(size, points=n)
 
 
-def test_octaves_illegal_persistence():
+@pytest.mark.parametrize('pers', [0, 1.1])
+def test_octaves_illegal_persistence(pers):
     """Test generating Perlin octaves with illegal persistence values."""
     size = (4, 4)
     points = (2, 3)
-
     with pytest.raises(ValueError):
-        kt.noise.octaves(size, points, pers=0)
-
-    with pytest.raises(ValueError):
-        kt.noise.octaves(size, points, pers=1.1)
+        kt.noise.octaves(size, points, pers=pers)
 
 
 def test_octaves_illegal_frequency():
     """Test generating Perlin octaves with too many points for size."""
     size = (4, 4)
     points = 4
-
     with pytest.raises(ValueError):
         kt.noise.octaves(size, points, pers=1)
 
 
-def test_octaves_normalization():
+def test_octaves_values():
     """Test normalization of Perlin octaves, with tensor inputs."""
     size = torch.Size((5, 5))
     points = torch.tensor((2, 3))
@@ -99,12 +78,10 @@ def test_octaves_normalization():
 
 def test_octaves_batches():
     """Test generating batches of octaves with different persistence."""
-    size = (5, 5)
+    size = (4, 4)
     points = (2, 3)
     batch = (3, 4)
-
-    # Persistence must be in (0, 1].
-    pers = torch.rand(*batch).mul(0.5).add(0.1)
+    pers = 0.3 * torch.ones(*batch)
 
     out = kt.noise.octaves(size, points, pers, batch=batch)
     assert out.shape == (*batch, *size)

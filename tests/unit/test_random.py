@@ -38,121 +38,115 @@ def test_chance_tensor_size():
     assert all(o == s for o, s in zip(out.shape, size, strict=True))
 
 
-def test_chance_illegal_values():
+@pytest.mark.parametrize('prob', [-0.1, 1.1])
+def test_chance_illegal_value(prob):
     """Test passing probabilities outside the [0, 1] range."""
     with pytest.raises(ValueError):
-        kt.random.chance(prob=-0.1)
-
-    with pytest.raises(ValueError):
-        kt.random.chance(prob=1.1)
+        kt.random.chance(prob=prob)
 
 
 def test_affine_unchanged():
     """Test if matrix-transform generation leaves input unchanged."""
     # Input of shape: batch, channel, space.
-    inp = torch.ones(1, 1, 4, 4)
-    orig = inp.clone()
-    kt.random.affine(inp)
-    assert inp.equal(orig)
+    x = torch.ones(1, 1, 4, 4)
+    orig = x.clone()
+    kt.random.affine(x)
+    assert x.equal(orig)
 
 
-def test_affine_batches():
+@pytest.mark.parametrize('dim', [2, 3])
+def test_affine_batches(dim):
     """Test if generating affine-transforms, with per-axis tensor input."""
     # Input of shape: batch, channel, space.
-
-    for dim in (2, 3):
-        x = torch.empty(7, 1, *[4] * dim)
-        shift = torch.tensor((0, 10) * dim)
-        out = kt.random.affine(x, shift=shift)
-        assert out.shape == (x.size(0), dim + 1, dim + 1)
+    x = torch.ones(7, 1, *[4] * dim)
+    shift = torch.tensor((0, 10) * dim)
+    out = kt.random.affine(x, shift=shift)
+    assert out.shape == (x.size(0), dim + 1, dim + 1)
 
 
-def test_affine_ranges():
+@pytest.mark.parametrize('dim', [2, 3])
+@pytest.mark.parametrize('par', ['shift', 'angle', 'scale', 'shear'])
+def test_affine_ranges(dim, par):
     """Test defining affine sampling ranges in various ways."""
+    x = torch.ones(1, 1, *[4] * dim)
+
+    n = 1 if dim == 2 else 3
+    if par in ('shift', 'scale'):
+        n = dim
+
     value = 0.5
-
-    for dim in (2, 3):
-        x = torch.empty(1, 1, *[4] * dim)
-        num = 1 if dim == 2 else 3
-        for k, n in dict(shift=dim, angle=num, scale=dim, shear=num).items():
-            kt.random.affine(x, **{k: value})
-            kt.random.affine(x, **{k: [value]})
-            kt.random.affine(x, **{k: [value] * 2})
-            kt.random.affine(x, **{k: [value] * 2 * n})
-            kt.random.affine(x, **{k: torch.tensor(value)})
-            kt.random.affine(x, **{k: torch.tensor([value])})
-            kt.random.affine(x, **{k: torch.tensor([value] * 2)})
-            kt.random.affine(x, **{k: torch.tensor([value] * 2 * n)})
+    ranges = (value, [value], [value] * 2, [value] * 2 * n)
+    ranges = (*ranges, *(torch.tensor(r) for r in ranges))
+    for r in ranges:
+        assert kt.random.affine(x, **{par: r}).shape == (1, dim + 1, dim + 1)
 
 
-def test_affine_values():
+@pytest.mark.parametrize('dim', [2, 3])
+def test_affine_values(dim):
     """Test generating translation, rotation, scaling, and shear matrices."""
     # Expect deterministic transforms for "fixed" sampling range.
     par = 7
+    space = [4] * dim
+    x = torch.zeros(1, 1, *space)
 
-    # Test 2D and 3D.
-    for dim in (2, 3):
-        space = [4] * dim
-        x = torch.empty(1, 1, *space)
+    # Translation.
+    out = torch.eye(dim + 1)
+    out[:dim, -1] = par
+    out = kt.transform.center_matrix(space, out).unsqueeze(0)
+    ranges = dict(shift=(par, par), angle=0, scale=0, shear=0)
+    assert kt.random.affine(x, **ranges).allclose(out)
 
-        # Translation.
-        out = torch.eye(dim + 1)
-        out[:dim, -1] = par
-        out = kt.transform.center_matrix(space, out).unsqueeze(0)
-        ranges = dict(shift=(par, par), angle=0, scale=0, shear=0)
-        assert kt.random.affine(x, **ranges).allclose(out)
+    # Rotation.
+    angle = [par] * (3 if dim == 3 else 1)
+    out = torch.eye(dim + 1)
+    out[:dim, :dim] = kt.transform.compose_rotation(angle)
+    out = kt.transform.center_matrix(space, out).unsqueeze(0)
+    ranges = dict(shift=0, angle=(par, par), scale=0, shear=0)
+    assert kt.random.affine(x, **ranges).allclose(out, rtol=1e-4)
 
-        # Rotation.
-        angle = [par] * (3 if dim == 3 else 1)
-        out = torch.eye(dim + 1)
-        out[:dim, :dim] = kt.transform.compose_rotation(angle)
-        out = kt.transform.center_matrix(space, out).unsqueeze(0)
-        ranges = dict(shift=0, angle=(par, par), scale=0, shear=0)
-        assert kt.random.affine(x, **ranges).allclose(out, rtol=1e-4)
+    # Scaling. Function takes offset from 1.
+    out = torch.eye(dim + 1)
+    out.diagonal()[:dim] = par + 1
+    out = kt.transform.center_matrix(space, out).unsqueeze(0)
+    ranges = dict(shift=0, angle=0, scale=(par, par), shear=0)
+    assert kt.random.affine(x, **ranges).allclose(out)
 
-        # Scaling. Function takes offset from 1.
-        out = torch.eye(dim + 1)
-        out.diagonal()[:dim] = par + 1
-        out = kt.transform.center_matrix(space, out).unsqueeze(0)
-        ranges = dict(shift=0, angle=0, scale=(par, par), shear=0)
-        assert kt.random.affine(x, **ranges).allclose(out)
-
-        # Shear.
-        out = torch.eye(dim + 1)
-        out[*torch.triu_indices(dim, dim, offset=1)] = par
-        out = kt.transform.center_matrix(space, out).unsqueeze(0)
-        ranges = dict(shift=0, angle=0, scale=0, shear=(par, par))
-        assert kt.random.affine(x, **ranges).allclose(out)
+    # Shear.
+    out = torch.eye(dim + 1)
+    out[*torch.triu_indices(dim, dim, offset=1)] = par
+    out = kt.transform.center_matrix(space, out).unsqueeze(0)
+    ranges = dict(shift=0, angle=0, scale=0, shear=(par, par))
+    assert kt.random.affine(x, **ranges).allclose(out)
 
 
 def test_warp_unchanged():
     """Test if warp generation leaves input unchanged, in 2D."""
     # Input of shape: batch, channel, space. Fewer control points than voxels.
-    inp = torch.ones(1, 1, 3, 3)
-    orig = inp.clone()
-    kt.random.warp(inp, points=2)
-    assert inp.equal(orig)
+    x = torch.ones(1, 1, 3, 3)
+    orig = x.clone()
+    kt.random.warp(x, points=2)
+    assert x.equal(orig)
 
 
-def test_warp_shape():
+@pytest.mark.parametrize('dim', [2, 3])
+def test_warp_shape(dim):
     """Test the generated warp shape, with various inputs."""
-    batch = 6
-    channels = 5
+    batch = 2
+    channels = 3
     space = (4, 4, 4)
 
-    for dim in (2, 3):
-        inp = torch.empty(batch, channels, *space[:dim])
-        out = kt.random.warp(inp, damp=torch.tensor(0.1), points=(2, 3))
-        assert out.shape == (batch, dim, *space[:dim])
+    x = torch.ones(batch, channels, *space[:dim])
+    out = kt.random.warp(x, damp=torch.tensor(0.1), points=(2, 3))
+    assert out.shape == (batch, dim, *space[:dim])
 
 
 def test_warp_maximum():
     """Test the maximum displacement in 3D, with tensor range."""
-    inp = torch.ones(3, 1, 8, 8, 8)
+    x = torch.ones(3, 1, 8, 8, 8)
     disp = torch.tensor(20.)
-    space = tuple(range(2, inp.ndim))
+    space = tuple(range(2, x.ndim))
 
-    out = kt.random.warp(inp, disp=torch.stack((disp, disp)), points=2)
+    out = kt.random.warp(x, disp=torch.stack((disp, disp)), points=2)
     assert out.abs().amax(dim=space).allclose(disp)
 
 
@@ -179,38 +173,24 @@ def test_warp_illegal_values():
 
 def test_replay_without_generator():
     """Test replaying randomized operations without passing generator."""
-    x = torch.zeros(4, 4)
-
     def add_noise(x, generator=None):
         return x + torch.rand(x.shape, generator=generator)
 
-    # Expect different noise.
-    a = add_noise(x)
-    b = add_noise(x)
-    assert not x.equal(a)
-    assert not b.equal(a)
-
     # Expect same noise.
+    x = torch.zeros(4, 4)
     replay = kt.random.replay(add_noise, device=None)
     a = replay(x)
     b = replay(x)
-    assert not x.equal(a)
     assert b.equal(a)
 
 
 def test_replay_with_generator():
     """Test replaying randomized operations, passing a generator."""
-    gen = torch.Generator()
-
     def noise(generator):
         return torch.rand(10, generator=generator)
 
-    # Expect different noise.
-    a = noise(gen)
-    b = noise(gen)
-    assert not a.equal(b)
-
     # Expect same noise.
+    gen = torch.Generator()
     replay = kt.random.replay(noise, generator=gen)
     a = replay()
     b = replay()

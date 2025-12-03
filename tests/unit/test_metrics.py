@@ -5,17 +5,13 @@ import pytest
 import torch
 
 
-def test_dice_shape():
-    """Test Dice metric output shape."""
-    # Number of labels define output channels.
+@pytest.mark.parametrize('labels', [7, (10, 11)])
+def test_dice_shape(labels):
+    """Test if number of labels define Dice metric output shape."""
     inp = torch.ones(1, 1, 4, 4, dtype=torch.int64)
-    out = kt.metrics.dice(inp, inp, labels=7)
-    assert out.shape == (inp.size(0), 1)
-
-    # Number of labels define output channels.
-    inp = torch.ones(1, 1, 4, 4, dtype=torch.int64)
-    out = kt.metrics.dice(inp, inp, labels=(10, 11))
-    assert out.shape == (inp.size(0), 2)
+    out = kt.metrics.dice(inp, inp, labels=labels)
+    channels = torch.tensor(labels).ravel().numel()
+    assert out.shape == (inp.size(0), channels)
 
 
 def test_dice_memory():
@@ -34,22 +30,20 @@ def test_dice_memory():
 
 
 def test_dice_disk(tmp_path):
-    """Test Dice metric for labels held in memory."""
+    """Test Dice metric for labels in file."""
     x = torch.tensor((0, 1, 2, 0, 176)).unsqueeze(0).unsqueeze(0)
-    y = torch.tensor((0, 1, 2, 0, 176)).unsqueeze(0).unsqueeze(0)
     z = (1, 2)
 
     f = tmp_path / 'labels.json'
     for labels in (tuple(z), list(z), {i: 'hi' for i in z}):
         kt.io.save(labels, f)
-        dice = kt.metrics.dice(x, y, labels=f).squeeze()
+        dice = kt.metrics.dice(x, x, labels=f).squeeze()
         assert dice[0] == 1
         assert dice[1] == 1
 
 
 def test_dice_illegal_inputs():
-    """Test computing Dice metric with illegal arguments."""
-    # Input tensors should have the same size.
+    """Test computing Dice raises an error for different input shapes."""
     x = torch.zeros(1, 3, 3, 3)
     y = torch.zeros(1, 2, 3, 3)
     with pytest.raises(ValueError):

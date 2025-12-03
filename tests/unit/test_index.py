@@ -1,28 +1,27 @@
 """Unit tests for index module."""
 
 import katy as kt
+import pytest
 import torch
 
 
-def test_ind2sub_sub2ind_python():
+@pytest.mark.parametrize('ind', [1, 6, 23, 24, 29])
+def test_ind2sub_sub2ind_python(ind):
     """Test circular conversion for Python integers."""
     size = (2, 3, 5)
-    ind = (0, 1, 2, 5, 6, 23, 24, 25, 28, 29)
-
-    for inp in ind:
-        sub = kt.index.ind2sub(size, inp)
-        out = kt.index.sub2ind(size, *sub)
-        assert out == inp
+    sub = kt.index.ind2sub(size, ind)
+    out = kt.index.sub2ind(size, *sub)
+    assert out == ind
 
 
 def test_ind2sub_sub2ind_torch():
     """Test circular conversion for PyTorch tensors."""
     size = torch.tensor((2, 3, 5))
-    inp = torch.tensor((0, 1, 2, 5, 6, 23, 24, 25, 28, 29))
+    ind = torch.tensor((0, 1, 6, 23, 24, 29))
 
-    sub = kt.index.ind2sub(size, inp)
+    sub = kt.index.ind2sub(size, ind)
     out = kt.index.sub2ind(size, *sub)
-    assert all(out == inp)
+    assert all(out == ind)
 
 
 def test_sub2ind_unchanged():

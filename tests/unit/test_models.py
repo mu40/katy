@@ -1,6 +1,7 @@
 """Unit tests for models module."""
 
 import katy as kt
+import pytest
 import torch
 
 
@@ -24,67 +25,66 @@ def test_count_frozen():
     assert kt.models.count(layer, grad_only=True) == 0
 
 
-def test_make_activation_create():
+@pytest.mark.parametrize('name', ['ReLU', 'LeakyReLU', 'Softmax', 'Sigmoid'])
+def test_make_activation_create(name):
     """Test making activation functions from strings and types."""
-    names = ('ReLU', 'ELU', 'LeakyReLU', 'Softmax', 'Sigmoid')
+    t = getattr(torch.nn, name)
 
-    for name in names:
-        act = getattr(torch.nn, name)
+    # Passing the name should yield an instance.
+    out = kt.models.make_activation(name)
+    assert isinstance(out, t)
 
-        # Passing the name should yield an instance.
-        out = kt.models.make_activation(name)
-        assert isinstance(out, act)
-
-        # Passing the type should yield an instance.
-        out = kt.models.make_activation(act)
-        assert isinstance(out, act)
+    # Passing the type should yield an instance.
+    out = kt.models.make_activation(t)
+    assert isinstance(out, t)
 
 
 def test_make_activation_instance():
     """Test if the function returns activation function instances as is."""
-    inp = torch.nn.Sigmoid()
-    assert kt.models.make_activation(inp) is inp
+    x = torch.nn.Sigmoid()
+    assert kt.models.make_activation(x) is x
 
 
-def test_unet_module_first_layer_1d():
+def test_unet_module_first_layer():
     """Test setting number of U-Net input channels."""
     dim = 1
     inp = 3
 
     # Get first layer.
-    layer = kt.models.Unet(dim=dim, inp=inp, enc=(1,), dec=(1,))
-    while len(list(layer.children())) > 0:
-        layer = next(layer.children())
+    first = kt.models.Unet(dim=dim, inp=inp, enc=(1,), dec=(1,))
+    while len(list(first.children())) > 0:
+        first = next(first.children())
 
     # Expect a convolution of specified filters.
-    assert isinstance(layer, getattr(torch.nn, f'Conv{dim}d'))
-    assert layer.in_channels == inp
+    assert isinstance(first, getattr(torch.nn, f'Conv{dim}d'))
+    assert first.in_channels == inp
 
 
-def test_unet_last_layer_2d():
+def test_unet_last_layer():
     """Test setting number of U-Net output channels, no final activation."""
     dim = 2
     out = 4
 
     # Get last layer.
-    layer = kt.models.Unet(dim=dim, out=out, enc=(1,), dec=(1,), fin=None)
-    while len(list(layer.children())) > 0:
-        layer = next(reversed(list(layer.children())))
+    last = kt.models.Unet(dim=dim, out=out, enc=(1,), dec=(1,), fin=None)
+    while len(list(last.children())) > 0:
+        last = next(reversed(list(last.children())))
 
     # Without final activation, expect a convolution of specified filters.
-    assert isinstance(layer, getattr(torch.nn, f'Conv{dim}d'))
-    assert layer.out_channels == out
+    assert isinstance(last, getattr(torch.nn, f'Conv{dim}d'))
+    assert last.out_channels == out
 
 
-def test_unet_inference_shape_3d():
+def test_unet_inference_shape():
     """Test U-Net inference and output shape."""
-    size = (4, 4, 4)
+    dim = 3
+    size = (4,) * dim
     x = torch.zeros(2, 1, *size)
 
     # Expect output of input shape for balanced down and upsampling.
-    model = kt.models.Unet(dim=3, enc=(1, 1), dec=(1, 1), act=torch.nn.ReLU)
-    assert model(x).shape == x.shape
+    model = kt.models.Unet(dim, enc=(1, 1), dec=(1, 1), act=torch.nn.ReLU)
+    assert model(x).shape[2:] == size
 
     # Expect half-size output when omitting last decoder level.
-    model = kt.models.Unet(dim=3, enc=(1, 1), dec=(1,), add=(1,))
+    model = kt.models.Unet(dim, enc=(1, 1), dec=(1,), add=(1,))
     assert model(x).shape[2:] == tuple(s // 2 for s in size)

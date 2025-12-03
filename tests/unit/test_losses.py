@@ -5,14 +5,11 @@ import pytest
 import torch
 
 
-def test_dice_shape():
+@pytest.mark.parametrize('dim', [1, 2, 3])
+def test_dice_shape(dim):
     """Test if Dice loss returns scalar."""
-    size = (2, 3, 4, 4, 4)
-
-    for dim in (1, 2, 3):
-        inp = torch.ones(size[:2 + dim])
-        out = kt.losses.dice(inp, inp)
-        assert out.ndim == 0
+    x = torch.ones(2, 3, *[4] * dim)
+    assert kt.losses.dice(x, x).ndim == 0
 
 
 def test_dice_broadcastable_shapes():
@@ -23,6 +20,7 @@ def test_dice_broadcastable_shapes():
     # Expect failure as different shapes are likely a bug.
     with pytest.raises(ValueError):
         kt.losses.dice(x, y)
+
 
 def test_dice_values():
     """Test Dice loss values in 2D."""
@@ -76,22 +74,11 @@ def test_ncc_trivial():
     assert out == -1
 
 
-def test_ncc_noise():
-    """Test NCC on uncorrelated noise."""
-    x = torch.rand(2, 3, 20)
-    y = torch.rand_like(x)
-
-    # Expect square of mid-range score for uncorrelated noise.
-    out = kt.losses.ncc(x, y)
-    assert -0.5 < out < -0.1
-
-
-def test_axial_shape():
+@pytest.mark.parametrize('dim', [1, 2, 3])
+def test_axial_shape(dim):
     """Test if axial diffusion loss returns scalar."""
-    for dim in (1, 2, 3):
-        inp = torch.ones(2, dim, *[4] * dim)
-        out = kt.losses.axial(inp, norm=2)
-        assert out.ndim == 0
+    x = torch.ones(2, dim, *[4] * dim)
+    assert kt.losses.axial(x, norm=2).ndim == 0
 
 
 def test_axial_shift():

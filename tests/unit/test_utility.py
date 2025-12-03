@@ -5,37 +5,35 @@ import pytest
 import torch
 
 
-def test_resize_dtype():
+@pytest.mark.parametrize('dtype', [torch.int64, torch.float32])
+def test_resize_dtype(dtype):
     """Test data type persistence when resizing tensors."""
-    for dtype in (torch.int64, torch.float32):
-        x = torch.ones(1, 1, 3, 3, dtype=dtype)
-        assert kt.utility.resize(x, size=2).dtype == dtype
+    x = torch.ones(1, 1, 3, 3, dtype=dtype)
+    assert kt.utility.resize(x, size=2).dtype == dtype
 
 
-def test_resize_size():
+@pytest.mark.parametrize('dim', [1, 2, 3])
+def test_resize_size(dim):
     """Test output shape when resizing tensors in 1D, 2D, and 3D."""
     batch = 1
     channel = 2
     size_old = (8, 4, 7)
     size_new = (5, 6, 8)
+    inp = torch.ones(batch, channel, *size_old[:dim])
 
-    for dim in (1, 2, 3):
-        inp = torch.ones(batch, channel, *size_old[:dim])
+    # Expect output of requested shape.
+    out = kt.utility.resize(inp, size_new[:dim])
+    assert out.shape == (batch, channel, *size_new[:dim])
 
-        # Expect output of requested shape.
-        out = kt.utility.resize(inp, size_new[:dim])
-        assert out.shape == (batch, channel, *size_new[:dim])
-
-        # Expect expansion of scalar sizes.
-        out = kt.utility.resize(inp, size_new[0])
-        assert out.shape == (batch, channel, *[size_new[0]] * dim)
+    # Expect expansion of scalar sizes.
+    out = kt.utility.resize(inp, size_new[0])
+    assert out.shape == (batch, channel, *[size_new[0]] * dim)
 
 
 def test_resize_identity():
     """Test if resizing to the same shape returns the same tensor."""
     size = (3, 3)
     x = torch.ones(1, 1, *size)
-
     assert kt.utility.resize(x, size) is x
 
 
@@ -135,29 +133,29 @@ def test_barycenter_batch():
     assert out[0, 1] == 7
 
 
-def test_quantile_scalar():
+@pytest.mark.parametrize('dim', [0, 1, None])
+@pytest.mark.parametrize('keepdim', [True, False])
+def test_quantile_scalar(dim, keepdim):
     """Test if scalar quantiles are equivalent to `torch.quantile`."""
-    x = torch.arange(10, dtype=torch.float32)
+    x = torch.arange(10.)
     x = torch.stack((x, x))
-
     q = 0.31
-    for dim in (0, 1, None):
-        for keepdim in (True, False):
-            out = kt.utility.quantile(x, q, dim, keepdim=keepdim)
-            ref = x.quantile(q, dim, keepdim=keepdim)
-            assert out.shape == ref.shape
-            assert out.equal(ref)
+
+    out = kt.utility.quantile(x, q, dim, keepdim=keepdim)
+    ref = x.quantile(q, dim, keepdim=keepdim)
+    assert out.shape == ref.shape
+    assert out.equal(ref)
 
 
-def test_quantile_shape():
+@pytest.mark.parametrize('dim', [0, 1, 2])
+def test_quantile_shape(dim):
     """Test the output shape when computing quantiles."""
     x = torch.ones(3, 4, 5)
     q = torch.ones(2)
 
-    for dim in (0, 1, 2):
-        size = list(x.shape)
-        size[dim] = len(q)
-        assert kt.utility.quantile(x, q, dim=dim).shape == tuple(size)
+    size = list(x.shape)
+    size[dim] = len(q)
+    assert kt.utility.quantile(x, q, dim=dim).shape == tuple(size)
 
 
 def test_quantile_illegal_inputs():
@@ -173,7 +171,7 @@ def test_quantile_illegal_inputs():
 
 def test_normalize_trivial():
     """Test min-max normalization along all dimensions."""
-    x = torch.arange(9).reshape(3, 3)
+    x = torch.arange(9).view(3, 3)
     orig = x.clone()
 
     out = kt.utility.normalize(x)

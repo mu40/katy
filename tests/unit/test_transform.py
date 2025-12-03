@@ -20,284 +20,256 @@ def test_grid():
             assert y[i, j] == j
 
 
-def test_index_to_torch():
+@pytest.mark.parametrize('dim', [2, 3])
+@pytest.mark.parametrize('align', [True, False])
+def test_index_to_torch(dim, align):
     """Test conversion from indices to PyTorch's normalized coordinates."""
-    shape = (17, 32, 63)
+    size = [5] * dim
 
-    # Test 2D and 3D.
-    for dim in (2, 3):
-        size = shape[:dim]
+    # Default normalized PyTorch grid.
+    eye = torch.eye(dim, dim + 1).unsqueeze(0)
+    f = torch.nn.functional.affine_grid
+    y = f(eye, size=(1, 1, *size), align_corners=align)
 
-        for align in (True, False):
-            # Default normalized PyTorch grid.
-            eye = torch.eye(dim, dim + 1).unsqueeze(0)
-            y = torch.nn.functional.affine_grid(
-                eye,
-                size=(1, 1, *size),
-                align_corners=align,
-            )
+    # Standard index coordinates.
+    x = (torch.arange(s, dtype=y.dtype) for s in size)
+    x = torch.meshgrid(*x, indexing='ij')
+    x = torch.stack(x).view(dim, -1)
 
-            # Standard index coordinates.
-            x = (torch.arange(s, dtype=y.dtype) for s in size)
-            x = torch.meshgrid(*x, indexing='ij')
-            x = torch.stack(x).view(dim, -1)
+    # Convert indices to Pytorch coordinates.
+    mat = kt.transform.index_to_torch(size, align_corners=align)
+    x = mat[:-1, :-1] @ x + mat[:-1, -1:]
+    x = x.movedim(0, -1).view(1, *size, dim)
 
-            # Convert indices to Pytorch coordinates.
-            mat = kt.transform.index_to_torch(size, align_corners=align)
-            x = mat[:-1, :-1] @ x + mat[:-1, -1:]
-            x = x.movedim(0, -1).view(1, *size, dim)
-
-            assert y.allclose(x, atol=1e-6)
+    assert y.allclose(x)
 
 
-def test_torch_to_index():
+@pytest.mark.parametrize('dim', [2, 3])
+@pytest.mark.parametrize('align', [True, False])
+def test_torch_to_index(dim, align):
     """Test conversion from PyTorch's normalized coordinates to indices."""
-    size = (17, 32, 63)
-
-    # Test 2D and 3D.
-    for dim in (2, 3):
-        for align in (True, False):
-            fw = kt.transform.index_to_torch(size[:dim], align_corners=align)
-            bw = kt.transform.torch_to_index(size[:dim], align_corners=align)
-            assert fw.inverse().allclose(bw)
+    size = (5, 6, 7)[:dim]
+    fw = kt.transform.index_to_torch(size, align_corners=align)
+    bw = kt.transform.torch_to_index(size, align_corners=align)
+    assert fw.inverse().allclose(bw)
 
 
-def test_compose_rotation_direction_2d():
-    """Test the direction of 2D rotations.
-
-    In 2D, a rotation by a small positive angle should move the unit vector
-    along x towards positive y. Conversely, a small negative angle should move
-    it towards negative y.
-
-    """
-    degrees = torch.tensor((1, -1))
+@pytest.mark.parametrize('deg', [1, -1])
+def test_compose_rotation_direction_2d(deg):
+    """Test the direction of 2D rotations."""
+    # In 2D, a rotation by a small positive angle should move the unit vector
+    # along x towards positive y and a small negative angle towards negative y.
     vec = torch.tensor((1., 0.))
+    deg = torch.tensor(deg)
 
-    for deg in degrees:
-        x, y = out = kt.transform.compose_rotation(deg) @ vec
-        assert torch.linalg.vector_norm(out) == 1
-        assert 0 < x < 1
-        assert 0 < y.abs() < 1
-        assert y.sign() == deg.sign()
+    x, y = out = kt.transform.compose_rotation(deg) @ vec
+    assert torch.linalg.vector_norm(out) == 1
+    assert 0 < x < 1
+    assert 0 < y.abs() < 1
+    assert y.sign() == deg.sign()
 
 
-def test_compose_rotation_direction_3d():
-    """Test the direction of 3D rotations.
+@pytest.mark.parametrize('dim', [0, 1, 2])
+@pytest.mark.parametrize('deg', [1, -1])
+def test_compose_rotation_direction_3d(dim, deg):
+    """Test the direction of 3D rotations."""
+    # Let i be one of the (x, y, or z) axes of a Cartesian coordinate system.
+    # We will call j the axis that comes after i, following the right-hand
+    # rule: x -> y, y -> z, z -> x. Similarly, let k be the axis after j.
+    deg = torch.tensor(deg)
+    ijk = torch.arange(3)
 
-    Let i be one of the (x, y, or z) axes of a Cartesian coordinate system. We
-    will call j the axis that comes "next" after i, following the right-hand
-    rule: x -> y, y -> z, z -> x. Similarly, let k be the axis "next" after j.
+    # A rotating by a small positive angle about i should move the unit vector
+    # along j towards positive k. A small negative angle should move it towards
+    # negative k. Both should leave the component along i unchanged.
+    i = dim
+    j = ijk.roll(-1)[i]
+    k = ijk.roll(-2)[i]
 
-    A rotating by a small positive angle about i should move the unit vector
-    along j towards positive k. Conversely, a small negative angle should move
-    it towards negative k. Both should leave the component along i unchanged.
+    # Unit vector along j.
+    vec = torch.zeros(3)
+    vec[j] = 1
 
-    """
-    degrees = torch.tensor((1, -1))
-    dim = torch.arange(3)
+    # Rotation about i.
+    ang = torch.zeros(3)
+    ang[i] = deg
+    out = kt.transform.compose_rotation(ang) @ vec
 
-    for i in dim:
-        j = dim.roll(-1)[i]
-        k = dim.roll(-2)[i]
-
-        for deg in degrees:
-            # Unit vector along j.
-            vec = torch.zeros(3)
-            vec[j] = 1
-
-            # Rotation about i.
-            ang = torch.zeros(3)
-            ang[i] = deg
-            out = kt.transform.compose_rotation(ang) @ vec
-
-            assert torch.linalg.vector_norm(out) == 1
-            assert out[i] == vec[i]
-            assert out[j].sign() > 0
-            assert out[k].sign() == deg.sign()
+    assert torch.linalg.vector_norm(out) == 1
+    assert out[i] == vec[i]
+    assert out[j].sign() > 0
+    assert out[k].sign() == deg.sign()
 
 
 def test_decompose_rotation_3d_degrees():
-    """Test if decomposing a 3D rotation matrix recovers angles."""
+    """Test if decomposing a 3D rotation matrix recovers degrees."""
     # Degree range [-30, 30] avoids differences from periodicity.
-    ang = torch.rand(130, 40, 3)
-    ang = 30 * (2 * ang - 1)
-
+    ang = torch.tensor((-30.1, -5.2, 0, 1, 7.9, 30)).view(2, 3)
     out = kt.transform.compose_rotation(ang)
     out = kt.transform.decompose_rotation(out)
     assert out.allclose(ang)
 
 
 def test_decompose_rotation_2d_radians():
-    """Test if decomposing a 2D rotation matrix recovers angles."""
-    ang = torch.rand(130, 40, 1)
-    ang = torch.pi * (2 * ang - 1)
+    """Test if decomposing a 2D rotation matrix recovers radians."""
+    ang = torch.pi * torch.tensor((-0.99, -0.8, 0, 0.001, 0.5, 0.6))
+    ang = ang.view(3, 2, 1)
 
     out = kt.transform.compose_rotation(ang, deg=False)
     out = kt.transform.decompose_rotation(out, deg=False)
     assert out.allclose(ang)
 
 
-def test_compose_affine_values():
+@pytest.mark.parametrize('dim', [2, 3])
+def test_compose_affine_values(dim):
     """Test creation of translation, rotation, scaling, and shear matrices."""
-    values = torch.arange(3, dtype=torch.get_default_dtype()) + 7
+    values = torch.arange(3.) + 7
 
-    # Test 2D and 3D.
-    for dim in (2, 3):
-        # Translation.
-        inp = values[:dim]
-        out = torch.eye(dim + 1)
-        out[:dim, -1] = inp
-        assert kt.transform.compose_affine(shift=inp).allclose(out)
+    # Translation.
+    inp = values[:dim]
+    out = torch.eye(dim + 1)
+    out[:dim, -1] = inp
+    assert kt.transform.compose_affine(shift=inp).allclose(out)
 
-        # Rotation.
-        inp = values[:1 if dim == 2 else 3]
-        out = torch.eye(dim + 1)
-        out[:dim, :dim] = kt.transform.compose_rotation(inp)
-        assert kt.transform.compose_affine(angle=inp).allclose(out)
+    # Rotation.
+    inp = values[:1 if dim == 2 else 3]
+    out = torch.eye(dim + 1)
+    out[:dim, :dim] = kt.transform.compose_rotation(inp)
+    assert kt.transform.compose_affine(angle=inp).allclose(out)
 
-        # Scaling.
-        inp = values[:dim]
-        out = torch.eye(dim + 1)
-        out.diagonal()[:dim] = inp
-        assert kt.transform.compose_affine(scale=inp).allclose(out)
+    # Scaling.
+    inp = values[:dim]
+    out = torch.eye(dim + 1)
+    out.diagonal()[:dim] = inp
+    assert kt.transform.compose_affine(scale=inp).allclose(out)
 
-        # Shear.
-        inp = values[:1 if dim == 2 else 3]
-        out = torch.eye(dim + 1)
-        out[*torch.triu_indices(dim, dim, offset=1)] = inp
-        assert kt.transform.compose_affine(shear=inp).allclose(out)
+    # Shear.
+    inp = values[:1 if dim == 2 else 3]
+    out = torch.eye(dim + 1)
+    out[*torch.triu_indices(dim, dim, offset=1)] = inp
+    assert kt.transform.compose_affine(shear=inp).allclose(out)
 
 
-def test_compose_affine_broadcasting():
+@pytest.mark.parametrize('dim', [2, 3])
+def test_compose_affine_broadcasting(dim):
     """Test batch-size broadcasting for affine-matrix composition."""
-    # Test 2D and 3D.
-    for dim in (2, 3):
-        num = 3 if dim == 3 else 1
-        shift = torch.ones(         dim)
-        angle = torch.ones(   4, 6, num)
-        scale = torch.ones(2, 1, 6, dim)
-        shear = torch.ones(1, 4, 1, num)
+    num = 3 if dim == 3 else 1
+    shift = torch.ones(         dim)
+    angle = torch.ones(   4, 6, num)
+    scale = torch.ones(2, 1, 6, dim)
+    shear = torch.ones(1, 4, 1, num)
 
-        input = (shift, angle, scale, shear)
-        shape = (f.shape[:-1] for f in input)
-        shape = torch.broadcast_shapes(*shape)
-        shape = (*shape, dim + 1, dim + 1)
-        assert kt.transform.compose_affine(*input).shape == shape
+    input = (shift, angle, scale, shear)
+    shape = (f.shape[:-1] for f in input)
+    shape = torch.broadcast_shapes(*shape)
+    shape = (*shape, dim + 1, dim + 1)
+    assert kt.transform.compose_affine(*input).shape == shape
 
 
-def test_decompose_affine():
+@pytest.mark.parametrize('dim', [2, 3])
+def test_decompose_affine(dim):
     """Test if decomposing an affine transform recovers parameters."""
-    batch = (8, 8)
     dtype = torch.float64
 
-    for dim in (2, 3):
-        # Low angles avoid differences from periodicity. Use positive scaling.
-        num = 3 if dim == 3 else 1
-        shift = torch.rand(*batch, dim, dtype=dtype).sub(0.5).mul(2) * 30
-        angle = torch.rand(*batch, num, dtype=dtype).sub(0.5).mul(2) * 30
-        scale = torch.rand(*batch, dim, dtype=dtype).add(0.5)
-        shear = torch.rand(*batch, num, dtype=dtype).sub(0.5)
+    # Low angles avoid differences from periodicity. Use positive scaling.
+    num = 3 if dim == 3 else 1
+    shift = torch.tensor((-29, -10, 20.7), dtype=dtype)[:dim]
+    angle = torch.tensor((-30, 3.5, 25.0), dtype=dtype)[:num]
+    scale = torch.tensor((0.3, 0.8, 1.55), dtype=dtype)[:dim]
+    shear = torch.tensor((-0.5, 0.001, 1), dtype=dtype)[:num]
 
-        inp = (shift, angle, scale, shear)
-        mat = kt.transform.compose_affine(*inp, dtype=dtype)
-        out = kt.transform.decompose_affine(mat, dtype=dtype)
-
-        assert out[0].allclose(inp[0])
-        assert out[1].allclose(inp[1])
-        assert out[2].allclose(inp[2])
-        assert out[3].allclose(inp[3])
+    inp = (shift, angle, scale, shear)
+    mat = kt.transform.compose_affine(*inp, dtype=dtype)
+    out = kt.transform.decompose_affine(mat, dtype=dtype)
+    assert out[0].allclose(inp[0])
+    assert out[1].allclose(inp[1])
+    assert out[2].allclose(inp[2])
+    assert out[3].allclose(inp[3])
 
 
-def test_compose_matrices():
+@pytest.mark.parametrize('dim', [2, 3])
+def test_compose_matrices(dim):
     """Test composition of matrix transforms."""
-    zoom = 2.
+    zoom = torch.tensor((*[2.] * dim, 1)).diag().unsqueeze(0)
 
-    for dim in (2, 3):
-        mat = torch.tensor((*[zoom] * dim, 1)).diag().unsqueeze(0)
+    # A single matrix input should be returned as is.
+    assert kt.transform.compose(zoom) is zoom
 
-        # A single matrix input should be returned as is.
-        out = kt.transform.compose(mat)
-        assert out is mat
-
-        # Composing matrices should be equivalent to their matrix product.
-        out = kt.transform.compose(mat, mat)
-        assert out.allclose(mat @ mat)
+    # Composing matrix should be equivalent to their matrix product.
+    out = kt.transform.compose(zoom, zoom)
+    assert out.allclose(zoom @ zoom)
 
 
-def test_compose_matrices_grid():
+@pytest.mark.parametrize('dim', [2, 3])
+@pytest.mark.parametrize('batch', [(), (4,)])
+def test_compose_matrices_grid(dim, batch):
     """Test conversion of matrix transforms to displacements or coordinates."""
+    # Matrix and grid.
     zoom = 3.
-    size = (8, 8, 8)
+    mat = torch.tensor((*[zoom] * dim, 1)).diag()
+    mat.expand(*batch, *mat.shape)
+    grid = kt.transform.grid(size=[5] * dim, dtype=mat.dtype)
 
-    for dim in (2, 3):
-        for batch in ([1], [4]):
-            # Data.
-            mat = torch.tensor((*[zoom] * dim, 1)).diag()
-            mat.expand(*batch, *mat.shape)
-            grid = kt.transform.grid(size[:dim], dtype=mat.dtype)
+    # With a grid, a matrix should become a displacement field.
+    out = kt.transform.compose(mat, grid=grid)
+    assert out.allclose(grid * zoom - grid)
 
-            # With a grid, a matrix should become a displacement field.
-            out = kt.transform.compose(mat, grid=grid)
-            assert out.allclose(grid * zoom - grid)
+    # The same for several matrix inputs.
+    out = kt.transform.compose(mat, mat, grid=grid)
+    assert out.allclose(grid * zoom * zoom - grid)
 
-            # The same for several matrix inputs.
-            out = kt.transform.compose(mat, mat, grid=grid)
-            assert out.allclose(grid * zoom * zoom - grid)
-
-            # If requested, a single matrix should become absolute coordinates.
-            out = kt.transform.compose(mat, grid=grid, absolute=True)
-            assert out.allclose(grid * zoom)
+    # If requested, a single matrix should become absolute coordinates.
+    out = kt.transform.compose(mat, grid=grid, absolute=True)
+    assert out.allclose(grid * zoom)
 
 
-def test_compose_fields():
+@pytest.mark.parametrize('dim', [2, 3])
+@pytest.mark.parametrize('batch', [1, 4])
+def test_compose_fields(dim, batch):
     """Test composition of displacement fields."""
-    size = (8, 8, 8)
+    # Data. Input of shape (batch, dimensionality, *space).
+    size = [5] * dim
+    disp = torch.ones(batch, dim, *size)
+    grid = kt.transform.grid(size, dtype=disp.dtype)
 
-    for dim in (2, 3):
-        for batch in (1, 4):
-            # Data. Input of shape (batch, dimensionality, *space).
-            disp = torch.ones(batch, dim, *size[:dim])
-            grid = kt.transform.grid(size[:dim], dtype=disp.dtype)
+    # A single field should be returned as is.
+    assert kt.transform.compose(disp) is disp
 
-            # A single field should be returned as is.
-            out = kt.transform.compose(disp)
-            assert out is disp
+    # N shifts of one should be a shift of N.
+    out = kt.transform.compose(disp, disp, disp)
+    assert out.allclose(disp * 3)
 
-            # N shifts of one should be N.
-            out = kt.transform.compose(disp, disp, disp)
-            assert out.allclose(disp * 3)
-
-            # The same with conversion to absolute locations.
-            out = kt.transform.compose(disp, disp, absolute=True)
-            assert out.allclose(disp * 2 + grid)
+    # The same with conversion to absolute locations.
+    out = kt.transform.compose(disp, disp, absolute=True)
+    assert out.allclose(disp * 2 + grid)
 
 
-def test_compose_field_matrix():
+@pytest.mark.parametrize('dim', [2, 3])
+@pytest.mark.parametrize('batch', [1, 4])
+def test_compose_field_matrix(dim, batch):
     """Test composition of displacement fields and matrix transforms."""
-    size = (8, 8, 8)
+    size = [6] * dim
     shift = 13
 
-    for dim in (2, 3):
-        for batch in (1, 4):
-            # Transforms. Displacement of shape: (batch, dim, *space).
-            disp = torch.ones(batch, dim, *size[:dim])
-            mat = torch.eye(dim + 1)
-            mat[:-1, -1] = shift
-            mat = mat.unsqueeze(0).expand(batch, -1, -1)
+    # Transforms. Displacement of shape: (batch, dim, *space).
+    disp = torch.ones(batch, dim, *size)
+    mat = torch.eye(dim + 1)
+    mat[:-1, -1] = shift
+    mat = mat.unsqueeze(0).expand(batch, -1, -1)
 
-            # Shifts should add up.
-            out = kt.transform.compose(disp, mat)
-            assert out.allclose(disp + shift)
+    # Shifts should add up.
+    out = kt.transform.compose(disp, mat)
+    assert out.allclose(disp + shift)
 
-            # The same for reversed inputs.
-            out = kt.transform.compose(mat, -disp)
-            assert out.allclose(shift - disp)
+    # The same for reversed inputs.
+    out = kt.transform.compose(mat, -disp)
+    assert out.allclose(shift - disp)
 
-            # With a matrix on the right, the grid sets the shape.
-            small = tuple(i - 1 for i in size[:dim])
-            grid = kt.transform.grid(small, dtype=disp.dtype)
-            out = kt.transform.compose(disp, mat, grid=grid)
-            assert out.shape[1:] == grid.shape
+    # With a matrix on the right, the grid sets the shape.
+    small = tuple(i - 1 for i in size)
+    grid = kt.transform.grid(small, dtype=disp.dtype)
+    out = kt.transform.compose(disp, mat, grid=grid)
+    assert out.shape[1:] == grid.shape
 
 
 def test_center_matrix_unchanged():
@@ -305,16 +277,14 @@ def test_center_matrix_unchanged():
     size = (128, 128)
     ndim = len(size)
     mat = torch.eye(ndim + 1)
-
     orig = mat.clone()
     kt.transform.center_matrix(size, mat)
     assert mat.equal(orig)
 
 
-def test_center_matrix_incompatible():
-    """Test centering matrices of incompatible size."""
+def test_center_matrix_illegal():
+    """Test centering matrices of illegal size."""
     size = (3, 3, 3)
-
     with pytest.raises(ValueError):
         mat = torch.eye(3, 3)
         kt.transform.center_matrix(size, mat)
@@ -324,22 +294,20 @@ def test_center_matrix_incompatible():
         kt.transform.center_matrix(size, mat)
 
 
-def test_center_matrix_values():
+@pytest.mark.parametrize('dim', [2, 3])
+@pytest.mark.parametrize('batch', [(), (2,), (2, 1)])
+def test_center_matrix_values(dim, batch):
     """Test centering matrices in 2D and 3D, with different batch sizes."""
-    width = 256
+    size = torch.tensor(256).expand(dim)
+    ang = 7 + torch.arange(3 if dim == 3 else 1).expand(*batch, -1)
+    inp = kt.transform.compose_affine(angle=ang)
 
-    for dim in (2, 3):
-        for batch in ([], [4], [5, 4]):
-            size = torch.tensor(width).expand(dim)
-            inp = torch.rand(*batch, dim + 1, dim + 1)
-
-            cen = torch.eye(dim + 1)
-            unc = torch.eye(dim + 1)
-            cen[:-1, -1] = -0.5 * (size - 1)
-            unc[:-1, -1] = -cen[:-1, -1]
-            expected = unc @ inp @ cen
-
-            assert kt.transform.center_matrix(size, inp).allclose(expected)
+    cen = torch.eye(dim + 1)
+    unc = torch.eye(dim + 1)
+    cen[:-1, -1] = -0.5 * (size - 1)
+    unc[:-1, -1] = -cen[:-1, -1]
+    expected = unc @ inp @ cen
+    assert kt.transform.center_matrix(size, inp).allclose(expected)
 
 
 def test_jacobian_unchanged():
@@ -364,92 +332,78 @@ def test_jacobian_illegal_shape():
         kt.transform.jacobian(field)
 
 
-def test_jacobian_values():
+@pytest.mark.parametrize('dim', [2, 3])
+@pytest.mark.parametrize('is_disp', [True, False])
+def test_jacobian_values(dim, is_disp):
     """Test computing Jacobian determinants."""
-    width = 8
-    batch = 7
+    batch = 5
+    size = torch.tensor(6).expand(dim)
 
-    for dim in (2, 3):
-        size = torch.tensor(width).expand(dim)
-        x = torch.empty(batch, 1, *size)
+    # Determinant of affine transform, broadcastable to field (batch, *size).
+    zoom = 1.5
+    mat = torch.tensor((*[zoom] * dim, 1)).diag().expand(batch, -1, -1)
+    det = torch.tensor(zoom).pow(dim).expand(batch, *[1] * dim)
 
-        # Determinants of batch of random affine transforms. Make shape
-        # broadcastable to field shape (batch, *size).
-        mat = kt.random.affine(x)
-        det = mat.det().view(batch, *[1] * dim)
-
-        # Recover same determinants from displacement or deformation fields.
-        grid = kt.transform.grid(size)
-        for is_disp in (True, False):
-            inp = kt.transform.compose(mat, grid=grid, absolute=not is_disp)
-            out = kt.transform.jacobian(inp, is_disp=is_disp)
-            assert out.allclose(det)
+    # Recover same determinants from displacement or deformation fields.
+    grid = kt.transform.grid(size)
+    inp = kt.transform.compose(mat, grid=grid, absolute=not is_disp)
+    out = kt.transform.jacobian(inp, is_disp=is_disp)
+    assert out.allclose(det)
 
 
-def test_fit_matrix_trivial():
+@pytest.mark.parametrize('dim', [2, 3])
+@pytest.mark.parametrize('batch', [(), (3, 4)])
+def test_fit_matrix_trivial(dim, batch):
     """Test output shape and dtype when fitting matrix transforms."""
-    # Expect a square matrix of size (N + 1) in N dimensions.
-    dim = 3
-    x = torch.rand(5, dim)
+    # Expect a square matrix of size (N + 1) in N dimensions, of default type.
+    x = torch.ones(*batch, 5, dim)
     out = kt.transform.fit_matrix(x, x, ridge=1e-4)
-    assert out.shape == (dim + 1, dim + 1)
-
-    # Expect output to have input batch dimensions.
-    batch = (3, 4)
-    dim = 2
-    x = torch.rand(*batch, 5, dim)
-    out = kt.transform.fit_matrix(x, x)
     assert out.shape == (*batch, dim + 1, dim + 1)
-
-    # Expect default data type.
     assert out.dtype == torch.get_default_dtype()
 
 
 def test_fit_matrix_scale():
-    """Test if matrix fit recovers scaling without noise, in 3D."""
+    """Test if matrix fit recovers scaling, in 3D."""
+    # Inputs.
     dim = 3
     scale = 2
-    x = torch.rand(20, dim)
+    x = kt.transform.grid(size=[3] * dim, dim=-1).view(-1, dim)
     y = scale * x
 
     expected = (*[scale] * dim, 1)
     expected = torch.tensor(expected, dtype=torch.get_default_dtype()).diag()
-
     out = kt.transform.fit_matrix(x, y, ridge=0)
     assert out.allclose(expected)
 
 
 def test_fit_matrix_shift():
-    """Test if matrix fit recovers translation without noise, in 2D."""
+    """Test if matrix fit recovers translation, in 2D."""
+    # Inputs.
     dim = 2
     shift = 7
-    x = torch.rand(10, dim)
+    x = kt.transform.grid(size=[3] * dim, dim=-1).view(-1, dim)
     y = x + shift
 
     expected = torch.eye(dim + 1)
     expected[:-1, -1] = shift
-
     out = kt.transform.fit_matrix(x, y, ridge=0)
-    assert out.allclose(expected, atol=1e-6)
+    assert out.allclose(expected)
 
 
 def test_fit_matrix_weighted():
     """Test matrix fit with down-weighted outlier."""
+    # Inputs.
     dim = 2
-    shift = -5
-    points = 10
-
-    # Noise-free data.
-    x = torch.rand(points, dim)
+    shift = 5
+    x = kt.transform.grid(size=[4] * dim, dim=-1).view(-1, dim)
     y = x + shift
 
     # Outlier with reduced weight.
     y[-1, :] = 100
-    weights = torch.ones(points)
+    weights = torch.ones(x.shape[0])
     weights[-1] = 0
 
     expected = torch.eye(dim + 1)
     expected[:-1, -1] = shift
-
-    out = kt.transform.fit_matrix(x, y, weights=weights)
-    assert out.allclose(expected, atol=1e-4)
+    out = kt.transform.fit_matrix(x, y, weights=weights, ridge=0)
+    assert out.allclose(expected)
