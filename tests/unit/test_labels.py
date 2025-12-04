@@ -65,17 +65,16 @@ def test_to_rgb_trivial():
 
     # One-hot labels in 3D.
     inp = torch.zeros(1, 4, 2, 2, 2)
-    out = kt.labels.to_rgb(inp, colors, labels)
+    out = kt.labels.to_rgb(inp, labels=labels)
     assert out.shape == (inp.shape[0], 3, *inp.shape[2:])
     assert out.dtype == torch.get_default_dtype()
 
 
 def test_to_rgb_illegal_arguments():
     """Test if RGB conversion of one-hot map requires a label list."""
-    colors = {0: {'name': 'unknown', 'color': (0, 0, 0)}}
     x = torch.zeros(1, 2, 3, 3)
     with pytest.raises(ValueError):
-        kt.labels.to_rgb(x, colors, labels=None)
+        kt.labels.to_rgb(x, labels=None)
 
 
 def test_to_rgb_labels(tmp_path):

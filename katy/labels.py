@@ -49,16 +49,16 @@ def to_image(x, /, channels=1, *, generator=None):
     return lut.view(-1)[ind]
 
 
-def to_rgb(x, /, colors, labels=None, *, dim=1):
+def to_rgb(x, /, colors=None, labels=None, *, dim=1):
     """Convert label maps to RGB color tensors.
 
     Parameters
     ----------
     x : (B, C, ...) torch.Tensor
         Discrete or one-hot label map.
-    colors : os.PathLike or dict
-        FreeSurfer color lookup table.
-    labels : os.PathLike or sequence of int
+    colors : os.PathLike or dict, optional
+        FreeSurfer color lookup table. None means default colors.
+    labels : os.PathLike or sequence of int, optional
         Labels corresponding to the C one-hot channels. Required if `C > 1.`
     dim : int, optional
         Output channel dimension.
@@ -77,6 +77,8 @@ def to_rgb(x, /, colors, labels=None, *, dim=1):
         x = collapse(x, labels)
 
     # Lookup table.
+    if colors is None:
+        colors = kt.io.default_colors()
     if not isinstance(colors, dict):
         colors = kt.io.read_colors(colors)
     colors = {k: v['color'] for k, v in colors.items()}

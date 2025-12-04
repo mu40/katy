@@ -31,3 +31,7 @@ lint.select = ['B', 'D', 'E', 'F', 'N', 'RUF', 'Q', 'W', 'UP']
 [tool.setuptools]
 dynamic.version = {attr = 'katy.__version__'}
 packages = ['katy']
+package-data = {katy = ['data/*.txt']}
+
+[tool.typos]
+files.extend-exclude = ['katy/data']

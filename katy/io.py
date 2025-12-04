@@ -1,5 +1,7 @@
 """IO module."""
 
+import functools
+import importlib
 import json
 import os
 import pathlib
@@ -104,3 +106,18 @@ def read_colors(lut):
         lut[label] = {'name': name, 'color': color}
 
     return lut
+
+
+@functools.cache
+def default_colors():
+    """Return the default FreeSurfer color lookup table.
+
+    Returns
+    -------
+    dict
+        Color table.
+
+    """
+    root = importlib.resources.files(__package__)
+    path = root / 'data' / 'FreeSurferColorLUT.txt'
+    return read_colors(path)

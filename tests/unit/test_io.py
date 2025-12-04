@@ -45,7 +45,7 @@ def test_load_illegal_extension(tmp_path):
 
 @pytest.mark.parametrize('dtype', [str, pathlib.Path])
 def test_read_colors(tmp_path, dtype):
-    """Test reading a FreeSurfer color table."""
+    """Test reading a FreeSurfer color lookup table."""
     lut = (
         '#No. Label Name:                R   G   B   A\n'
         '\n'
@@ -57,9 +57,19 @@ def test_read_colors(tmp_path, dtype):
     with open(path, mode='w') as f:
         f.write(lut)
 
-    out = kt.io.read_colors(path)
-    assert isinstance(out, dict)
-    assert out[0]['name'] == 'Unknown'
-    assert out[0]['color'] == (0, 0, 0)
-    assert out[1]['name'] == 'Left-Cerebral-Exterior'
-    assert out[1]['color'] == (70, 130, 180)
+    lut = kt.io.read_colors(path)
+    assert isinstance(lut, dict)
+    assert lut[0]['name'] == 'Unknown'
+    assert lut[0]['color'] == (0, 0, 0)
+    assert lut[1]['name'] == 'Left-Cerebral-Exterior'
+    assert lut[1]['color'] == (70, 130, 180)
+
+
+def test_default_colors():
+    """Test reading the default color lookup table."""
+    lut = kt.io.default_colors()
+    assert isinstance(lut, dict)
+    assert lut[0]['name'] == 'Unknown'
+    assert lut[0]['color'] == (0, 0, 0)
+    assert lut[3]['name'] == 'Left-Cerebral-Cortex'
+    assert lut[3]['color'] == (205, 62, 78)
