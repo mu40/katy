@@ -45,7 +45,10 @@ If you find this work useful, please cite the [paper it was developed with](http
 @article{hoffmann2025domain,
   title={Domain-randomized deep learning for neuroimage analysis},
   author={Hoffmann, Malte},
-  journal={arXiv preprint arXiv:2507.13458},
+  journal={IEEE Signal Processing Magazine},
+  volume={42},
+  number={4},
+  pages={78--90},
   year={2025}
 }
 ```
