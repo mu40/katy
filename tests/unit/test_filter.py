@@ -86,7 +86,7 @@ def test_dilate_dimensions():
     assert torch.all(out[:, 0] == b)
 
 
-@pytest.mark.parametrize('dtype', [torch.long, torch.float32])
+@pytest.mark.parametrize('dtype', [torch.int32, torch.float32])
 def test_erode_trivial(dtype):
     """Test erosion output data type and values."""
     x = torch.tensor((0.0, 1.1, 2.2, 3.3), dtype=dtype)
@@ -189,7 +189,7 @@ def test_open_2d():
     assert kt.filter.open(a).equal(b)
 
 
-@pytest.mark.parametrize('dtype', [torch.long, torch.float16])
+@pytest.mark.parametrize('dtype', [torch.int32, torch.float16])
 def test_fill_holes_trivial(dtype):
     """Test hole-filling output data type and values, in 1D."""
     x = torch.tensor((0.0, 1.1, 0.0, 3.3), dtype=dtype)
@@ -248,14 +248,14 @@ def test_label_flat():
     """Test labeling flat tensors, including types."""
     x = torch.tensor((0, 0, 0, 0))
     labels, values, sizes = kt.filter.label(x)
-    assert labels.dtype == torch.long
+    assert labels.dtype == torch.int64
     assert labels.eq(0).all()
     assert values.numel() == 0
     assert sizes.numel() == 0
 
     x = torch.tensor((2.2, 2.2, 2.2))
     labels, values, sizes = kt.filter.label(x)
-    assert labels.dtype == torch.long
+    assert labels.dtype == torch.int64
     assert labels.eq(1).all()
     assert values.equal(torch.tensor([1]))
     assert sizes.equal(torch.tensor([3]))

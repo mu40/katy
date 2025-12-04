@@ -271,7 +271,7 @@ def label(x, /):
     labels[bg] = torch.inf
 
     # Kernel: 4-neighborhood in 2D.
-    steps = torch.eye(x.ndim, dtype=torch.int)
+    steps = torch.eye(x.ndim, dtype=torch.int32)
     steps = torch.cat((-steps, steps))
     steps = (*(s.tolist() for s in steps), [0] * x.ndim)
 
@@ -296,7 +296,7 @@ def label(x, /):
 
     # Map to indices. Initialize last label to 0 in case of background only.
     new = 0
-    out = torch.zeros_like(labels, dtype=torch.long)
+    out = torch.zeros_like(labels, dtype=torch.int64)
     for new, old in enumerate(uniq, start=1):
         out[labels == old] = new
 

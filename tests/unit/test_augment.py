@@ -440,7 +440,7 @@ def test_permute_unchanged():
         assert inp.equal(orig)
 
 
-@pytest.mark.parametrize('dtype', [torch.int16, torch.long, torch.float64])
+@pytest.mark.parametrize('dtype', [torch.int16, torch.int32, torch.float64])
 def test_permute_dtype(dtype):
     """Test if channel permutation maintains shape, type, elements."""
     x = arange(1, 2, 2, dtype=dtype)
