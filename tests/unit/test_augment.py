@@ -11,7 +11,7 @@ def arange(*size, **kwargs):
     return torch.arange(n, **kwargs).view(*size)
 
 
-FUNCTIONS_INPUT_UNCHANGED = (
+FUNCTIONS_ALL = {
     kt.augment.gamma,
     kt.augment.noise,
     kt.augment.blur,
@@ -23,10 +23,16 @@ FUNCTIONS_INPUT_UNCHANGED = (
     kt.augment.roll,
     kt.augment.flip,
     kt.augment.permute,
-)
+}
 
 
-@pytest.mark.parametrize('func', FUNCTIONS_INPUT_UNCHANGED)
+FUNCTIONS_NORM = {
+    kt.augment.gamma,
+    kt.augment.remap,
+}
+
+
+@pytest.mark.parametrize('func', FUNCTIONS_ALL)
 def test_input_unchanged(func):
     """Test if the function does not modify the input."""
     inp = arange(1, 1, 5, 5, dtype=torch.get_default_dtype())
@@ -35,10 +41,19 @@ def test_input_unchanged(func):
     assert inp.equal(orig)
 
 
-def test_gamma_normalization():
-    """Test if gamma with zero probability is normalization, in 1D."""
-    inp = arange(1, 1, 4, dtype=torch.float32)
-    out = kt.augment.gamma(inp, prob=0)
+@pytest.mark.parametrize('func', FUNCTIONS_ALL - FUNCTIONS_NORM)
+def test_off_identity(func):
+    """Test if augmentation with zero probability is identity."""
+    inp = arange(1, 1, 5, dtype=torch.get_default_dtype())
+    out = func(inp, prob=torch.tensor(0))
+    assert out.equal(inp)
+
+
+@pytest.mark.parametrize('func', FUNCTIONS_NORM)
+def test_off_normalization(func):
+    """Test if augmentation with zero probability is normalization."""
+    inp = arange(1, 1, 2, dtype=torch.get_default_dtype())
+    out = func(inp, prob=0)
     inp -= inp.min()
     inp /= inp.max()
     assert out.equal(inp)
@@ -72,14 +87,8 @@ def test_gamma_illegal_values():
 def test_noise_change():
     """Test if adding noise changes the input, in 2D."""
     inp = torch.zeros(1, 1, 4, 4)
-
-    # Adding noise should change the input.
-    out = kt.augment.noise(inp, prob=1)
+    out = kt.augment.noise(inp)
     assert not out.equal(inp)
-
-    # Expect no change at zero probability.
-    out = kt.augment.noise(inp, prob=torch.tensor(0))
-    assert out.equal(inp)
 
 
 def test_blur_illegal_fwhm():
@@ -188,15 +197,6 @@ def test_downsample_shared_channels():
     out[:1].equal(out[1:])
 
 
-def test_remap_normalization():
-    """Test if remapping with zero probability is normalization, in 1D."""
-    inp = arange(1, 1, 8, dtype=torch.float32)
-    out = kt.augment.remap(inp, prob=0)
-    inp -= inp.min()
-    inp /= inp.max()
-    assert out.equal(inp)
-
-
 def test_remap_shared_channels():
     """Test if channel sharing yields identical channels, in 3D."""
     x = arange(1, 4, 4, 4, dtype=torch.float32).expand(3, -1, -1, -1)
@@ -260,13 +260,6 @@ def test_lines_count():
     # Expect unchanged size, some positive lines. Duplicates possible.
     assert out.shape == inp.shape
     assert out.ge(0).count_nonzero() == 4
-
-
-def test_lines_probability():
-    """Test if line corruption with zero probability is identity."""
-    inp = torch.zeros(1, 1, 2, 2)
-    out = kt.augment.lines(inp, prob=0)
-    assert out.equal(inp)
 
 
 def test_lines_illegal_value():

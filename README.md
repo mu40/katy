@@ -1,6 +1,6 @@
 # Katy
 
-Katy is a PyTorch-first toolbox for deep learning in medical image analysis.
+Katy is a toolbox for deep learning in medical image analysis with PyTorch.
 It is in early development, and breaking changes may occur without warning.
 
 

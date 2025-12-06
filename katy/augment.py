@@ -578,7 +578,7 @@ def roll(x, /, shift=0.1, *, prob=1, generator=None):
 
 
 @utility.batch(batch=True)
-def flip(x, /, dim=0, labels=None, *, generator=None):
+def flip(x, /, dim=0, labels=None, *, prob=1, generator=None):
     """Flip N-dimensional tensors along a random axis.
 
     Applies the same operation across all channels. Providing label names for
@@ -594,6 +594,8 @@ def flip(x, /, dim=0, labels=None, *, generator=None):
         Label-name mapping for left-right remapping. Applies to first tensor.
     batch : bool, optional
         Expect batched inputs.
+    prob : {0, 1}, optional
+        Use 0 to disable, 1 to enable.
     generator : torch.Generator, optional
         Pseudo-random number generator.
 
@@ -606,6 +608,11 @@ def flip(x, /, dim=0, labels=None, *, generator=None):
     # Input of shape `(C, *size)`. Batches handled by decorator.
     x = torch.as_tensor(x)
     ndim = len(x.shape[1:])
+
+    if prob not in (0, 1):
+        raise ValueError(f'probability {prob} must be 0 or 1')
+    if prob == 0:
+        return x
 
     # Dimensions. Account for channel dimension if non-negative.
     if dim is None:
@@ -641,7 +648,7 @@ def flip(x, /, dim=0, labels=None, *, generator=None):
 
 
 @utility.batch(batch=True)
-def permute(x, /, *, generator=None):
+def permute(x, /, *, prob=1, generator=None):
     """Randomly permute the channels of a tensor.
 
     Parameters
@@ -650,6 +657,8 @@ def permute(x, /, *, generator=None):
         Input with or without batch dimension, depending on `batch`.
     batch : bool, optional
         Expect batched inputs.
+    prob : {0, 1}, optional
+        Use 0 to disable, 1 to enable.
     generator : torch.Generator, optional
         Pseudo-random number generator.
 
@@ -662,5 +671,11 @@ def permute(x, /, *, generator=None):
     # Input of shape (C, *space). Batches permuted separately by decorator.
     x = torch.as_tensor(x)
     channels = x.size(0)
+
+    if prob not in (0, 1):
+        raise ValueError(f'probability {prob} must be 0 or 1')
+    if prob == 0:
+        return x
+
     ind = torch.randperm(channels, generator=generator, device=x.device)
     return x[ind]
