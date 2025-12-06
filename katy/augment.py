@@ -284,6 +284,8 @@ def downsample(x, /, factor=4, *, method='linear', prob=1, generator=None):
     x = torch.as_tensor(x)
     ndim = x.ndim - 1
     size = x.shape[1:]
+    if not x.dtype.is_floating_point:
+        x = x.to(torch.get_default_dtype())
 
     # Conform factor bounds to (a_1, b_1, a_2, b_2, ..., a_N, b_N).
     factor = torch.as_tensor(factor).ravel()

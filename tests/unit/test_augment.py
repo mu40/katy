@@ -35,16 +35,24 @@ FUNCTIONS_NORM = {
 @pytest.mark.parametrize('func', FUNCTIONS_ALL)
 def test_input_unchanged(func):
     """Test if the function does not modify the input."""
-    inp = arange(1, 1, 5, 5, dtype=torch.get_default_dtype())
+    inp = arange(1, 1, 5, 5)
     orig = inp.clone()
     func(inp)
     assert inp.equal(orig)
 
 
+@pytest.mark.parametrize('func', FUNCTIONS_ALL)
+@pytest.mark.parametrize('dtype', [torch.float32, torch.float64, torch.int64])
+def test_dtype_same_or_default(func, dtype):
+    """Test if functions accept and return the same or default data type."""
+    inp = torch.zeros(1, 1, 5, dtype=dtype)
+    assert func(inp).dtype in (torch.get_default_dtype(), dtype)
+
+
 @pytest.mark.parametrize('func', FUNCTIONS_ALL - FUNCTIONS_NORM)
 def test_off_identity(func):
     """Test if augmentation with zero probability is identity."""
-    inp = arange(1, 1, 5, dtype=torch.get_default_dtype())
+    inp = arange(1, 1, 5)
     out = func(inp, prob=torch.tensor(0))
     assert out.equal(inp)
 
@@ -52,7 +60,7 @@ def test_off_identity(func):
 @pytest.mark.parametrize('func', FUNCTIONS_NORM)
 def test_off_normalization(func):
     """Test if augmentation with zero probability is normalization."""
-    inp = arange(1, 1, 2, dtype=torch.get_default_dtype())
+    inp = arange(1, 1, 2, dtype=torch.float32)
     out = func(inp, prob=0)
     inp -= inp.min()
     inp /= inp.max()
@@ -192,21 +200,21 @@ def test_downsample_illegal_values():
 
 def test_downsample_shared_channels():
     """Test if shared channels are identical, with per-axis factor."""
-    inp = arange(1, 4, 4, dtype=torch.float32).expand(3, -1, -1)
+    inp = arange(1, 4, 4).expand(3, -1, -1)
     out = kt.augment.downsample(inp, factor=(1, 3, 1, 3), batch=False)
     out[:1].equal(out[1:])
 
 
 def test_remap_shared_channels():
     """Test if channel sharing yields identical channels, in 3D."""
-    x = arange(1, 4, 4, 4, dtype=torch.float32).expand(3, -1, -1, -1)
+    x = arange(1, 4, 4, 4).expand(3, -1, -1, -1)
     y = kt.augment.remap(x, bins=torch.tensor(99), shared=True, batch=False)
     assert torch.all(y[0] == y[1:])
 
 
-@pytest.mark.parametrize('dtype', [torch.int32, torch.float32, torch.float64])
+@pytest.mark.parametrize('dtype', [torch.int32, torch.float16, torch.float64])
 def test_crop_properties(dtype):
-    """Test datat type and shape after cropping."""
+    """Test if cropping maintains data type and shape."""
     inp = torch.ones(1, 3, 2, 2, dtype=dtype)
     out = kt.augment.crop(inp, crop=torch.tensor(1))
     assert out.dtype == inp.dtype
@@ -277,9 +285,9 @@ def test_roll_illegal_value(shift):
         kt.augment.roll(x, shift=(0, 1, 2))
 
 
-@pytest.mark.parametrize('dtype', [torch.int64, torch.float32, torch.float64])
+@pytest.mark.parametrize('dtype', [torch.int64, torch.float16, torch.float64])
 def test_roll_properties(dtype):
-    """Test if rolled type and shape remain the same, in 2D."""
+    """Test if rolling maintains data type and shape, in 2D."""
     x = torch.ones(2, 3, 4, 4, dtype=dtype)
     y = kt.augment.roll(x, shift=torch.tensor(0.3))
     assert y.dtype == x.dtype
@@ -344,9 +352,9 @@ def test_flip_remap():
         assert not out.equal(inp.flip(-2))
 
 
-@pytest.mark.parametrize('dtype', [torch.int16, torch.float32])
+@pytest.mark.parametrize('dtype', [torch.int16, torch.float16])
 def test_flip_dtype(dtype):
-    """Test if tensor flipping maintains data type type when remapping."""
+    """Test if flipping maintains data type when remapping."""
     x = torch.zeros((1, 1, 2, 2, 2), dtype=dtype)
     labels = {0: 'Left-Unknown', 1: 'Right-Unknown', 2: 'Banana'}
     for _ in range(10):
@@ -361,10 +369,10 @@ def test_flip_illegal_dim(dim):
         kt.augment.flip(x, dim=dim)
 
 
-@pytest.mark.parametrize('dtype', [torch.int16, torch.int32, torch.float64])
+@pytest.mark.parametrize('dtype', [torch.int16, torch.float16, torch.float64])
 def test_permute_dtype(dtype):
-    """Test if channel permutation maintains shape, type, elements."""
-    x = arange(1, 2, 2, dtype=dtype)
+    """Test if channel permutation maintains data type."""
+    x = arange(1, 2, 2)
     y = kt.augment.permute(x)
     assert y.dtype == x.dtype
 
