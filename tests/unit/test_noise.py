@@ -5,12 +5,12 @@ import pytest
 import torch
 
 
-@pytest.mark.parametrize('dim', [1, 2, 3])
-def test_perlin_dim(dim):
+@pytest.mark.parametrize('ndim', [1, 2, 3])
+def test_perlin_ndim(ndim):
     """Test Perlin noise shape in various dimensions."""
-    size = (6, 7, 8)
-    out = kt.noise.perlin(size=size[:dim], points=4)
-    assert out.shape == size[:dim]
+    size = (6, 7, 8)[:ndim]
+    out = kt.noise.perlin(size=size, points=4)
+    assert out.shape == size
 
 
 def test_perlin_scalar_size():

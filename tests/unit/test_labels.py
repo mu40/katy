@@ -32,12 +32,12 @@ def test_to_image_dtype():
     assert kt.labels.to_image(x).dtype == torch.get_default_dtype()
 
 
-@pytest.mark.parametrize('dim', [2, 3])
+@pytest.mark.parametrize('ndim', [2, 3])
 @pytest.mark.parametrize('channels', [2, 3])
-def test_to_image_shape(dim, channels):
+def test_to_image_shape(ndim, channels):
     """Test image synthesis output shape."""
     batch = 3
-    space = [4] * dim
+    space = [4] * ndim
 
     inp = torch.ones(batch, 1, *space)
     out = kt.labels.to_image(inp, channels)

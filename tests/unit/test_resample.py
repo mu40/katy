@@ -5,11 +5,11 @@ import pytest
 import torch
 
 
-@pytest.mark.parametrize('dim', [2, 3])
-def test_interpolate_identity(dim):
+@pytest.mark.parametrize('ndim', [2, 3])
+def test_interpolate_identity(ndim):
     """Test interpolating the grid at the grid locations."""
     # Data of shape: batch, channels, space.
-    grid = kt.transform.grid(size=[2] * dim)
+    grid = kt.transform.grid(size=[2] * ndim)
     inp = grid.unsqueeze(0)
 
     # Coordinates without batch dimension.
@@ -22,31 +22,31 @@ def test_interpolate_identity(dim):
     assert out.allclose(inp)
 
 
-@pytest.mark.parametrize('dim', [2, 3])
+@pytest.mark.parametrize('ndim', [2, 3])
 @pytest.mark.parametrize('mode', ['nearest', 'linear'])
 @pytest.mark.parametrize('padding', ['zeros', 'border', 'reflection'])
-def test_apply_identity(dim, mode, padding):
+def test_apply_identity(ndim, mode, padding):
     """Test applying an identity matrix and field with batch dimension."""
-    size = [5] * dim
+    size = [5] * ndim
     inp = torch.ones(size).view(1, 1, *size)
 
     # Test matrix and displacement field.
-    matrix = torch.eye(dim + 1).unsqueeze(0)
-    field = torch.zeros_like(inp).expand(1, dim, *size)
+    matrix = torch.eye(ndim + 1).unsqueeze(0)
+    field = torch.zeros_like(inp).expand(1, ndim, *size)
     for trans in (matrix, field):
         out = kt.transform.apply(inp, trans, mode=mode, padding=padding)
         assert out.allclose(inp)
 
 
-@pytest.mark.parametrize('dim', [2, 3])
-def test_apply_shift(dim):
+@pytest.mark.parametrize('ndim', [2, 3])
+def test_apply_shift(ndim):
     """Test if shifting is equivalent to rolling, except at the border."""
     shift = 2
     width = 5
-    inp = torch.arange(width ** dim).view(1, 1, *[width] * dim)
+    inp = torch.arange(width ** ndim).view(1, 1, *[width] * ndim)
 
     # Transform shifting along the trailing axis.
-    trans = torch.eye(dim + 1)
+    trans = torch.eye(ndim + 1)
     trans[-2, -1] = shift
     out = kt.transform.apply(inp, trans, mode='nearest')
 

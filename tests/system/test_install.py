@@ -34,7 +34,7 @@ def package_install(tmp_path_factory):
     # environment to avoid paths, variables leaking from local repository.
     def run(*f):
         p = subprocess.run(f, cwd=env, env={})
-        assert not p.returncode
+        assert p.returncode == 0
 
     # Virtual environment. Upgrade for finding latest CPU-only PyTorch.
     # CPU-only PyTorch avoids lengthy GPU install.

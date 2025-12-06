@@ -67,7 +67,7 @@ class Unet(nn.Module):
 
     def __init__(
         self,
-        dim=3,
+        ndim=3,
         inp=1,
         out=1,
         enc=(24, 48, 96, 192, 384),
@@ -82,8 +82,8 @@ class Unet(nn.Module):
 
         Parameters
         ----------
-        dim : int, optional
-            Number of spatial dimensions N.
+        ndim : int, optional
+            Dimensionality `N`.
         inp : int, optional
             Number of input channels.
         out : int, optional
@@ -108,8 +108,8 @@ class Unet(nn.Module):
         self.clip = clip
 
         # Layers.
-        pool = getattr(nn, f'MaxPool{dim}d')
-        conv = getattr(nn, f'Conv{dim}d')
+        pool = getattr(nn, f'MaxPool{ndim}d')
+        conv = getattr(nn, f'Conv{ndim}d')
         prop = dict(kernel_size=3, padding='same')
 
         # Encoder.

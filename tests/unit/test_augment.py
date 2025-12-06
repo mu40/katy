@@ -115,20 +115,20 @@ def test_blur_shared_channels():
     assert out[:, 0].equal(out[:, 1])
 
 
-@pytest.mark.parametrize('dim', [1, 2, 3])
-def test_blur_deterministic(dim):
+@pytest.mark.parametrize('ndim', [1, 2, 3])
+def test_blur_deterministic(ndim):
     """Test random blurring at pinned down FWHM."""
     # Blur input using specific FWHM.
     fwhm = 5
-    inp = arange(1, 1, *[4] * dim)
-    ref = kt.filter.blur(inp, fwhm, dim=range(2, dim + 2))
+    inp = arange(1, 1, *[4] * ndim)
+    ref = kt.filter.blur(inp, fwhm, dim=range(2, ndim + 2))
 
     # Sampling FWHM between identical values should yield the same result.
     out = kt.augment.blur(inp, fwhm=(fwhm, fwhm))
     assert out.equal(ref)
 
     # The same applies when specifying identical bounds for each axis.
-    out = kt.augment.blur(inp, fwhm=torch.tensor(fwhm).repeat(2 * dim))
+    out = kt.augment.blur(inp, fwhm=torch.tensor(fwhm).repeat(2 * ndim))
     assert out.equal(ref)
 
     # However, expect a different result when sampling between [0, fwhm).

@@ -12,22 +12,22 @@ def test_resize_dtype(dtype):
     assert kt.utility.resize(x, size=2).dtype == dtype
 
 
-@pytest.mark.parametrize('dim', [1, 2, 3])
-def test_resize_size(dim):
+@pytest.mark.parametrize('ndim', [1, 2, 3])
+def test_resize_size(ndim):
     """Test output shape when resizing tensors in 1D, 2D, and 3D."""
     batch = 1
     channel = 2
     size_old = (8, 4, 7)
     size_new = (5, 6, 8)
-    inp = torch.ones(batch, channel, *size_old[:dim])
+    inp = torch.ones(batch, channel, *size_old[:ndim])
 
     # Expect output of requested shape.
-    out = kt.utility.resize(inp, size_new[:dim])
-    assert out.shape == (batch, channel, *size_new[:dim])
+    out = kt.utility.resize(inp, size_new[:ndim])
+    assert out.shape == (batch, channel, *size_new[:ndim])
 
     # Expect expansion of scalar sizes.
     out = kt.utility.resize(inp, size_new[0])
-    assert out.shape == (batch, channel, *[size_new[0]] * dim)
+    assert out.shape == (batch, channel, *[size_new[0]] * ndim)
 
 
 def test_resize_identity():

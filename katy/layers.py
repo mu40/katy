@@ -27,7 +27,7 @@ class HyperConv(nn.Module):
         Parameters
         ----------
         ndim : {1, 2, 3}
-            Dimensionality.
+            Dimensionality `N`.
         in_channels : int
             Hyper convolution input channels.
         out_channels : int

@@ -47,44 +47,44 @@ def test_make_activation_instance():
 
 def test_unet_module_first_layer():
     """Test setting number of U-Net input channels."""
-    dim = 1
+    ndim = 1
     inp = 3
 
     # Get first layer.
-    first = kt.models.Unet(dim=dim, inp=inp, enc=(1,), dec=(1,))
+    first = kt.models.Unet(ndim=ndim, inp=inp, enc=(1,), dec=(1,))
     while len(list(first.children())) > 0:
         first = next(first.children())
 
     # Expect a convolution of specified filters.
-    assert isinstance(first, getattr(torch.nn, f'Conv{dim}d'))
+    assert isinstance(first, getattr(torch.nn, f'Conv{ndim}d'))
     assert first.in_channels == inp
 
 
 def test_unet_last_layer():
     """Test setting number of U-Net output channels, no final activation."""
-    dim = 2
+    ndim = 2
     out = 4
 
     # Get last layer.
-    last = kt.models.Unet(dim=dim, out=out, enc=(1,), dec=(1,), fin=None)
+    last = kt.models.Unet(ndim=ndim, out=out, enc=(1,), dec=(1,), fin=None)
     while len(list(last.children())) > 0:
         last = next(reversed(list(last.children())))
 
     # Without final activation, expect a convolution of specified filters.
-    assert isinstance(last, getattr(torch.nn, f'Conv{dim}d'))
+    assert isinstance(last, getattr(torch.nn, f'Conv{ndim}d'))
     assert last.out_channels == out
 
 
 def test_unet_inference_shape():
     """Test U-Net inference and output shape."""
-    dim = 3
-    size = (4,) * dim
+    ndim = 3
+    size = (4,) * ndim
     x = torch.zeros(2, 1, *size)
 
     # Expect output of input shape for balanced down and upsampling.
-    model = kt.models.Unet(dim, enc=(1, 1), dec=(1, 1), act=torch.nn.ReLU)
+    model = kt.models.Unet(ndim, enc=(1, 1), dec=(1, 1), act=torch.nn.ReLU)
     assert model(x).shape[2:] == size
 
     # Expect half-size output when omitting last decoder level.
-    model = kt.models.Unet(dim, enc=(1, 1), dec=(1,), add=(1,))
+    model = kt.models.Unet(ndim, enc=(1, 1), dec=(1,), add=(1,))
     assert model(x).shape[2:] == tuple(s // 2 for s in size)

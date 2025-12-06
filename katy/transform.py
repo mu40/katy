@@ -373,17 +373,17 @@ def decompose_rotation(mat, /, deg=True, *, dtype=None):
 
     """
     mat = torch.as_tensor(mat, dtype=torch.float64)
-    dim = mat.size(-1)
+    ndim = mat.size(-1)
 
-    if mat.ndim < 2 or mat.size(-2) != dim or dim not in (2, 3):
+    if mat.ndim < 2 or mat.size(-2) != ndim or ndim not in (2, 3):
         raise ValueError(f'size {mat.shape} is not (..., 2, 2) or (..., 3, 3)')
 
-    if dim == 2:
+    if ndim == 2:
         y = mat[..., 1, 0]
         x = mat[..., 0, 0]
         ang = torch.atan2(y, x).unsqueeze(-1)
 
-    elif dim == 3:
+    elif ndim == 3:
         ang2 = torch.asin(mat[..., 0, 2])
 
         # Initialize, check if gimbal lock for each matrix. Reduce relative

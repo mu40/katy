@@ -5,10 +5,10 @@ import pytest
 import torch
 
 
-@pytest.mark.parametrize('dim', [1, 2, 3])
-def test_dice_shape(dim):
+@pytest.mark.parametrize('ndim', [1, 2, 3])
+def test_dice_shape(ndim):
     """Test if Dice loss returns scalar."""
-    x = torch.ones(2, 3, *[4] * dim)
+    x = torch.ones(2, 3, *[4] * ndim)
     assert kt.losses.dice(x, x).ndim == 0
 
 
@@ -74,10 +74,10 @@ def test_ncc_trivial():
     assert out == -1
 
 
-@pytest.mark.parametrize('dim', [1, 2, 3])
-def test_axial_shape(dim):
+@pytest.mark.parametrize('ndim', [1, 2, 3])
+def test_axial_shape(ndim):
     """Test if axial diffusion loss returns scalar."""
-    x = torch.ones(2, dim, *[4] * dim)
+    x = torch.ones(2, ndim, *[4] * ndim)
     assert kt.losses.axial(x, norm=2).ndim == 0
 
 

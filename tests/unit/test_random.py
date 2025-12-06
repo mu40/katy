@@ -54,66 +54,66 @@ def test_affine_unchanged():
     assert x.equal(orig)
 
 
-@pytest.mark.parametrize('dim', [2, 3])
-def test_affine_batches(dim):
+@pytest.mark.parametrize('ndim', [2, 3])
+def test_affine_batches(ndim):
     """Test if generating affine-transforms, with per-axis tensor input."""
     # Input of shape: batch, channel, space.
-    x = torch.ones(7, 1, *[4] * dim)
-    shift = torch.tensor((0, 10) * dim)
+    x = torch.ones(7, 1, *[4] * ndim)
+    shift = torch.tensor((0, 10) * ndim)
     out = kt.random.affine(x, shift=shift)
-    assert out.shape == (x.size(0), dim + 1, dim + 1)
+    assert out.shape == (x.size(0), ndim + 1, ndim + 1)
 
 
-@pytest.mark.parametrize('dim', [2, 3])
+@pytest.mark.parametrize('ndim', [2, 3])
 @pytest.mark.parametrize('par', ['shift', 'angle', 'scale', 'shear'])
-def test_affine_ranges(dim, par):
+def test_affine_ranges(ndim, par):
     """Test defining affine sampling ranges in various ways."""
-    x = torch.ones(1, 1, *[4] * dim)
+    x = torch.ones(1, 1, *[4] * ndim)
 
-    n = 1 if dim == 2 else 3
+    n = 1 if ndim == 2 else 3
     if par in ('shift', 'scale'):
-        n = dim
+        n = ndim
 
     value = 0.5
     ranges = (value, [value], [value] * 2, [value] * 2 * n)
     ranges = (*ranges, *(torch.tensor(r) for r in ranges))
     for r in ranges:
-        assert kt.random.affine(x, **{par: r}).shape == (1, dim + 1, dim + 1)
+        assert kt.random.affine(x, **{par: r}).shape == (1, ndim + 1, ndim + 1)
 
 
-@pytest.mark.parametrize('dim', [2, 3])
-def test_affine_values(dim):
+@pytest.mark.parametrize('ndim', [2, 3])
+def test_affine_values(ndim):
     """Test generating translation, rotation, scaling, and shear matrices."""
     # Expect deterministic transforms for "fixed" sampling range.
     par = 7
-    space = [4] * dim
+    space = [4] * ndim
     x = torch.zeros(1, 1, *space)
 
     # Translation.
-    out = torch.eye(dim + 1)
-    out[:dim, -1] = par
+    out = torch.eye(ndim + 1)
+    out[:ndim, -1] = par
     out = kt.transform.center_matrix(space, out).unsqueeze(0)
     ranges = dict(shift=(par, par), angle=0, scale=0, shear=0)
     assert kt.random.affine(x, **ranges).allclose(out)
 
     # Rotation.
-    angle = [par] * (3 if dim == 3 else 1)
-    out = torch.eye(dim + 1)
-    out[:dim, :dim] = kt.transform.compose_rotation(angle)
+    angle = [par] * (3 if ndim == 3 else 1)
+    out = torch.eye(ndim + 1)
+    out[:ndim, :ndim] = kt.transform.compose_rotation(angle)
     out = kt.transform.center_matrix(space, out).unsqueeze(0)
     ranges = dict(shift=0, angle=(par, par), scale=0, shear=0)
     assert kt.random.affine(x, **ranges).allclose(out, rtol=1e-4)
 
     # Scaling. Function takes offset from 1.
-    out = torch.eye(dim + 1)
-    out.diagonal()[:dim] = par + 1
+    out = torch.eye(ndim + 1)
+    out.diagonal()[:ndim] = par + 1
     out = kt.transform.center_matrix(space, out).unsqueeze(0)
     ranges = dict(shift=0, angle=0, scale=(par, par), shear=0)
     assert kt.random.affine(x, **ranges).allclose(out)
 
     # Shear.
-    out = torch.eye(dim + 1)
-    out[*torch.triu_indices(dim, dim, offset=1)] = par
+    out = torch.eye(ndim + 1)
+    out[*torch.triu_indices(ndim, ndim, offset=1)] = par
     out = kt.transform.center_matrix(space, out).unsqueeze(0)
     ranges = dict(shift=0, angle=0, scale=0, shear=(par, par))
     assert kt.random.affine(x, **ranges).allclose(out)
@@ -128,16 +128,16 @@ def test_warp_unchanged():
     assert x.equal(orig)
 
 
-@pytest.mark.parametrize('dim', [2, 3])
-def test_warp_shape(dim):
+@pytest.mark.parametrize('ndim', [2, 3])
+def test_warp_shape(ndim):
     """Test the generated warp shape, with various inputs."""
     batch = 2
     channels = 3
-    space = (4, 4, 4)
+    space = [4] * ndim
 
-    x = torch.ones(batch, channels, *space[:dim])
+    x = torch.ones(batch, channels, *space)
     out = kt.random.warp(x, damp=torch.tensor(0.1), points=(2, 3))
-    assert out.shape == (batch, dim, *space[:dim])
+    assert out.shape == (batch, ndim, *space)
 
 
 def test_warp_maximum():
@@ -162,7 +162,7 @@ def test_warp_illegal_values():
     with pytest.raises(ValueError):
         kt.random.warp(x, points=4)
 
-    # Displacement strength should be of length in `(1, 2, 2 * dim)`.
+    # Displacement strength should be of length in `(1, 2, 2 * ndim)`.
     with pytest.raises(ValueError):
         kt.random.warp(x, points=2, disp=torch.ones(3))
 
