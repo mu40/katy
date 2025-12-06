@@ -1,4 +1,4 @@
-"""Unit tests for generation module."""
+"""Tests for generation module."""
 
 import katy as kt
 import pytest

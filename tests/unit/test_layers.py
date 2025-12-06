@@ -1,4 +1,4 @@
-"""Unit tests for label-manipulation and image-synthesis module."""
+"""Unit tests for layers module."""
 
 import katy as kt
 import torch
