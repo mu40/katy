@@ -249,7 +249,7 @@ def bias(
 
 
 @utility.batch(batch=True)
-def downsample(x, /, factor=4, *, method='linear', prob=1, generator=None):
+def downsample(x, /, factor=4, *, mode='linear', prob=1, generator=None):
     """Reduce the resolution of a tensor.
 
     Downsamples a tensor and upsamples it again, to simulate upsampled lower
@@ -265,8 +265,8 @@ def downsample(x, /, factor=4, *, method='linear', prob=1, generator=None):
         Subsampling range, greater or equal to 1. Pass 1 value `b` to sample
         from [1, b]. Pass 2 values `a` and `b` to sample from [a, b]. Pass
         `2 * N` values to set `(a_1, b_1, ..., a_N, b_N)` for N spatial axes.
-    method : {'nearest', 'linear'}, optional
-        Upsampling method. Use nearest for discrete-valued label maps.
+    mode : {'nearest', 'linear'}, optional
+        Upsampling mode. Use nearest for discrete-valued label maps.
     batch : bool, optional
         Expect batched inputs.
     prob : float, optional
@@ -309,17 +309,17 @@ def downsample(x, /, factor=4, *, method='linear', prob=1, generator=None):
     factor = factor * bit + ~bit
     factor = 1 / factor
 
-    if method == 'nearest':
-        method = 'nearest-exact'
-    if method == 'linear' and ndim == 2:
-        method = 'bilinear'
-    if method == 'linear' and ndim == 3:
-        method = 'trilinear'
+    if mode == 'nearest':
+        mode = 'nearest-exact'
+    if mode == 'linear' and ndim == 2:
+        mode = 'bilinear'
+    if mode == 'linear' and ndim == 3:
+        mode = 'trilinear'
 
     # The built-in function is way faster than applying scaling matrices.
     f = torch.nn.functional.interpolate
     x = f(x.unsqueeze(0), scale_factor=factor.tolist(), mode='nearest-exact')
-    return f(x, size=size, mode=method).squeeze(0)
+    return f(x, size=size, mode=mode).squeeze(0)
 
 
 @utility.batch(batch=True)

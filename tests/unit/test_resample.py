@@ -7,20 +7,18 @@ import torch
 
 @pytest.mark.parametrize('dim', [2, 3])
 def test_interpolate_identity(dim):
-    """Test interpolation at the grid locations."""
-    size = (6, 6, 6)
-
+    """Test interpolating the grid at the grid locations."""
     # Data of shape: batch, channels, space.
-    inp = torch.ones(1, 4, *size[:dim])
-    grid = kt.transform.grid(size[:dim])
+    grid = kt.transform.grid(size=[2] * dim)
+    inp = grid.unsqueeze(0)
 
     # Coordinates without batch dimension.
-    out = kt.transform.interpolate(inp, grid)
+    out = kt.transform.interpolate(inp, grid, mode='nearest', padding='border')
     assert out.allclose(inp)
 
     # Coordinates with batch dimension.
     grid = grid.unsqueeze(0)
-    out = kt.transform.interpolate(inp, grid)
+    out = kt.transform.interpolate(inp, grid, mode='linear', padding='zeros')
     assert out.allclose(inp)
 
 
@@ -36,7 +34,7 @@ def test_apply_identity(dim, mode, padding):
     matrix = torch.eye(dim + 1).unsqueeze(0)
     field = torch.zeros_like(inp).expand(1, dim, *size)
     for trans in (matrix, field):
-        out = kt.transform.apply(inp, trans, method=mode, padding=padding)
+        out = kt.transform.apply(inp, trans, mode=mode, padding=padding)
         assert out.allclose(inp)
 
 
@@ -50,7 +48,7 @@ def test_apply_shift(dim):
     # Transform shifting along the trailing axis.
     trans = torch.eye(dim + 1)
     trans[-2, -1] = shift
-    out = kt.transform.apply(inp, trans, method='nearest')
+    out = kt.transform.apply(inp, trans, mode='nearest')
 
     # Roll volume by the same amount. Remove border from comparison.
     inp = inp.roll(-shift, dims=-1).to(out.dtype)

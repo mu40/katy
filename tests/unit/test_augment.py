@@ -187,9 +187,8 @@ def test_bias_return_field():
 
 def test_downsample_illegal_values():
     """Test downsampling modulation with illegal input arguments, in 1D."""
-    x = torch.zeros(1, 1, 2)
-
     # Factors should be positive.
+    x = torch.zeros(1, 1, 2)
     with pytest.raises(ValueError):
         kt.augment.downsample(x, factor=0)
 
@@ -203,6 +202,14 @@ def test_downsample_shared_channels():
     inp = arange(1, 4, 4).expand(3, -1, -1)
     out = kt.augment.downsample(inp, factor=(1, 3, 1, 3), batch=False)
     out[:1].equal(out[1:])
+
+
+@pytest.mark.parametrize('mode', ['nearest', 'linear'])
+def test_downsample_identity_factor(mode):
+    """Test if downsampling with a factor of 1 returns the input."""
+    inp = arange(1, 1, 4)
+    out = kt.augment.downsample(inp, factor=(1, 1), mode=mode)
+    out.equal(inp)
 
 
 def test_remap_shared_channels():
