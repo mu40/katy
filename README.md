@@ -39,7 +39,7 @@ typos
 
 ## Attribution
 
-If you find this work useful, please cite the [paper it was developed with](https://arxiv.org/abs/2507.13458):
+If you find this work useful, please cite the associated [tutorial paper](https://arxiv.org/abs/2507.13458):
 
 ```bibtex
 @article{hoffmann2025domain,

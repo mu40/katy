@@ -298,17 +298,17 @@ def compose_rotation(angle, deg=True, *, dtype=None):
 
     if deg:
         angle = angle.deg2rad()
+
     c = torch.cos(angle)
     s = torch.sin(angle)
-
     if angle.size(-1) == 1:
         row_1 = torch.cat((c, -s), dim=-1)
         row_2 = torch.cat((s, c), dim=-1)
         out = torch.stack((row_1, row_2), dim=-2)
 
     elif angle.size(-1) == 3:
-        one = torch.tensor(1, device=angle.device).expand(angle.shape[:-1])
-        zero = torch.tensor(0, device=angle.device).expand(angle.shape[:-1])
+        one = angle.new_tensor(1).expand(angle.shape[:-1])
+        zero = angle.new_tensor(0).expand(angle.shape[:-1])
 
         row_1 = torch.stack((one, zero, zero), dim=-1)
         row_2 = torch.stack((zero, c[..., 0], -s[..., 0]), dim=-1)
@@ -390,7 +390,7 @@ def decompose_rotation(mat, /, deg=True, *, dtype=None):
         # tolerance to improve precision.
         ang1 = torch.zeros_like(ang2)
         ang3 = torch.zeros_like(ang2)
-        lock = 0.5 * torch.tensor(torch.pi, dtype=mat.dtype)
+        lock = 0.5 * mat.new_tensor(torch.pi)
         ind = ang2.abs().isclose(lock, rtol=1e-8)
 
         # Case abs(ang2) == 90 deg. Keep ang1 zero, as solution is not unique.

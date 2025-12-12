@@ -147,14 +147,14 @@ def warp(x, /, disp=25, points=16, damp=0.33, steps=0, *, generator=None):
     if len(points) not in (1, 2, 2 * ndim):
         raise ValueError(f'points {points} is not of length 1, 2, or 2N')
     if len(points) == 1:
-        points = torch.cat((torch.tensor([2], **dev), points))
+        points = torch.cat((points.new_tensor([2]), points))
     if len(points) == 2:
         points = points.repeat(ndim)
 
     # Control-point sampling.
     prop = dict(**dev, generator=generator)
     a, b = points[0::2], points[1::2] + 1
-    if a.lt(2).any() or torch.tensor(space, **dev).lt(b).any():
+    if a.lt(2).any() or points.new_tensor(space).lt(b).any():
         raise ValueError(f'controls points {points} is not all in [2, size)')
     points = torch.rand(batch, ndim, **prop) * (b - a) + a
     points = points.to(torch.int64)

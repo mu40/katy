@@ -255,7 +255,7 @@ def test_compose_field_matrix(ndim, batch):
     disp = torch.ones(batch, ndim, *size)
     mat = torch.eye(ndim + 1)
     mat[:-1, -1] = shift
-    mat = mat.unsqueeze(0).expand(batch, -1, -1)
+    mat = mat.expand(batch, -1, -1)
 
     # Shifts should add up.
     out = kt.transform.compose(disp, mat)
