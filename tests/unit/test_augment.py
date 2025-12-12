@@ -23,6 +23,7 @@ FUNCTIONS_ALL = {
     kt.augment.roll,
     kt.augment.flip,
     kt.augment.permute,
+    kt.augment.motion,
 }
 
 
@@ -45,7 +46,7 @@ def test_input_unchanged(func):
 @pytest.mark.parametrize('dtype', [torch.float32, torch.float64, torch.int64])
 def test_dtype_same_or_default(func, dtype):
     """Test if functions accept and return the same or default data type."""
-    inp = torch.zeros(1, 1, 5, dtype=dtype)
+    inp = torch.zeros(1, 1, 5, 5, dtype=dtype)
     assert func(inp).dtype in (torch.get_default_dtype(), dtype)
 
 
@@ -390,3 +391,30 @@ def test_permute_values():
     y = kt.augment.permute(x)
     assert y.shape == x.shape
     assert y.sort().values.equal(x)
+
+
+def test_motion_illegal_values():
+    """Test if invalid motion corruption arguments raise errors."""
+    x = torch.zeros(1, 1, 2, 2)
+
+    # Expect errors for `blocks` below 3 or with more than two elements.
+    with pytest.raises(ValueError):
+        kt.augment.motion(x, blocks=2)
+    with pytest.raises(ValueError):
+        kt.augment.motion(x, blocks=(3, 3, 3))
+
+    # Expect errors for non-scalar `moves` or greater or equal `blocks`
+    n = 4
+    with pytest.raises(ValueError):
+        kt.augment.motion(x, n, n)
+    with pytest.raises(ValueError):
+        kt.augment.motion(x, moves=0)
+
+
+@pytest.mark.parametrize('ndim', [2, 3])
+def test_motion_zero_shift_rotation(ndim):
+    """Test if corruption with zero motion returns the input."""
+    inp = arange(2, 1, *[4] * ndim, dtype=torch.get_default_dtype())
+    blocks = torch.tensor([3, 3])
+    out = kt.augment.motion(inp, blocks, moves=2, shift=0, angle=0)
+    assert out.equal(inp)

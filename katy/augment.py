@@ -590,7 +590,7 @@ def flip(x, /, dim=0, labels=None, *, prob=1, generator=None):
     ----------
     x : (..., C, *space) torch.Tensor
         Tensors with or without batch dimension, depending on `batch`.
-    dim : int or sequence of int
+    dim : int or sequence of int, optional
         Spatial dimensions to draw from, in [-N, N). None means all.
     labels : os.PathLike or dict, optional
         Label-name mapping for left-right remapping. Applies to first tensor.
@@ -681,3 +681,112 @@ def permute(x, /, *, prob=1, generator=None):
 
     ind = torch.randperm(channels, generator=generator, device=x.device)
     return x[ind]
+
+
+@utility.batch(batch=True)
+def motion(
+    x,
+    /,
+    blocks=10,
+    moves=3,
+    *,
+    shift=10,
+    angle=10,
+    prob=1,
+    generator=None,
+):
+    """Motion-corrupt an N-dimensional image by moving k-space segments.
+
+    Partitions k-space into an odd number of blocks along a random axis and
+    moves a subset. This simulates motion during sequential acquisition along
+    the segmentation axis, as with MPRAGE. The central low-frequency block
+    never moves. Supports 2D and 3D. Each batch of channels moves the same way.
+
+    Parameters
+    ----------
+    x : (..., C, ...) torch.Tensor
+        Image with or without batch dimension, depending on `batch`.
+    blocks : int or sequence of int, optional
+        Range of k-space segments. Pass 1 value `a` to sample from [3, a].
+        Pass 2 values `(a, b)` to sample from [a, b]. Must be greater than 2.
+    moves : int, optional
+        Maximum number of moving segments. Must be less than `blocks`.
+    shift : float or sequence of float, optional
+        See `katy.random.affine`.
+    angle : float or sequence of float, optional
+        See `katy.random.affine`.
+    batch : bool, optional
+        Expect batched inputs.
+    prob : float, optional
+        Probability of corrupting a batch entry.
+    generator : torch.Generator, optional
+        Pseudo-random number generator.
+
+    Returns
+    -------
+    (..., C, ...) torch.Tensor
+        Corrupted image.
+
+    """
+    # Input of shape `(C, *size)`. Batches handled by decorator.
+    x = torch.as_tensor(x, dtype=torch.get_default_dtype())
+    prop = dict(device=x.device, generator=generator)
+    if not kt.random.chance(prob, **prop):
+        return x
+
+    blocks = torch.as_tensor(blocks, device=x.device).ravel()
+    moves = torch.as_tensor(moves, device=x.device).ravel()
+    if len(blocks) not in (1, 2):
+        raise ValueError(f'blocks {blocks} is not of length 1, or 2')
+    if blocks.lt(3).any():
+        raise ValueError(f'blocks {blocks} is less than 3')
+    if len(blocks) == 1:
+        blocks = torch.cat((blocks.new_tensor([3]), blocks))
+    if moves < 1 or blocks.max() <= moves:
+        raise ValueError(f'moves {moves} is not in range [1, blocks)')
+
+    # Number of blocks and moving blocks.
+    a, b = blocks
+    low = (a - 1) // 2
+    upp = (b - 1) // 2
+    blocks = 2 * torch.randint(low, upp + 1, size=(), **prop) + 1
+    moves = torch.randint(1, min(moves + 1, blocks), size=(), **prop)
+
+    # Stationary base and moved blocks as batch entries.
+    base = x.unsqueeze(0)
+    x = x.expand(moves, *x.shape)
+    g = generator
+    trans = kt.random.affine(x, shift, angle, scale=0, shear=0, generator=g)
+    x = kt.transform.apply(x, trans)
+
+    # Base and moved blocks: moves + 1, *rest, to_segment.
+    dim = torch.randint(2, x.ndim, size=(), **prop)
+    space = tuple(range(2, x.ndim))
+    x = torch.cat((base, x))
+    k = torch.fft.fftn(x, dim=space)
+    k = k.movedim(dim, -1)
+
+    # Indices of blocks to move. Mapping from all blocks to batch index.
+    cen = blocks // 2
+    to_move = torch.arange(blocks, device=x.device)
+    to_move = to_move[to_move != cen]
+    perm = torch.randperm(to_move.numel(), **prop)[:moves]
+    to_move = to_move[perm]
+    mapping = torch.zeros(blocks, dtype=torch.int64, device=x.device)
+    for i, shot in enumerate(to_move, start=1):
+        mapping[shot] = i
+
+    # Map line indices along segmentation axis to blocks, to batches. Compute
+    # block indices as if we had fftshifted the segmentation axis, since we
+    # want the "central" low-frequency lines to remain stationary.
+    _, *rest, width = k.shape
+    ind = torch.arange(width, device=x.device)
+    ind = (ind + width // 2) % width  # Logical fftshift.
+    ind = ind.mul(blocks) // width
+    ind = mapping[ind]
+
+    # Gather over shot axis, restore shape.
+    ind = ind.expand(1, *rest, width)
+    k = torch.gather(k, dim=0, index=ind)
+    k = k.movedim(-1, dim)
+    return torch.fft.ifftn(k, dim=space).real.squeeze(0)
