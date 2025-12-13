@@ -3,7 +3,7 @@
 # Set up a virtual Python environment for development.
 
 set -e
-ENV='.venv'
+venv_dir='.venv'
 
 
 if [ ! -f .gitignore ]; then
@@ -13,15 +13,15 @@ fi
 
 
 # Virtual environment.
-if [ ! -d "$ENV" ]; then
+if [ ! -d "$venv_dir/bin" ]; then
     python=$(
         find /usr/bin/ /usr/local/bin/ -name 'python*' |
         grep 'python[0-9.]*$' |
         sort -V |
         tail -n1
     )
-    "$python" -m venv "$ENV"
-    . "$ENV/bin/activate"
+    "$python" -m venv "$venv_dir"
+    . "$venv_dir/bin/activate"
 
     # Packages.
     pip install -U pip setuptools
@@ -41,6 +41,10 @@ fi
 
 # Environment manager.
 cat >.envrc <<EOF
-[ -d "$ENV" ] && . "$ENV/bin/activate"
-export PYTHONPATH="$PWD"
+venv_dir='$venv_dir'
+if [ -d "\$venv_dir/bin" ]; then
+    export VIRTUAL_ENV="\$PWD/\$venv_dir"
+    PATH_add "\$VIRTUAL_ENV/bin"
+fi
+export PYTHONPATH="\$PWD"
 EOF
