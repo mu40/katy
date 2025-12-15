@@ -24,6 +24,8 @@ def test_to_image_illegal_inputs():
     x = torch.ones(1, 1, 4, 4)
     with pytest.raises(ValueError):
         kt.labels.to_image(x, channels=0)
+    with pytest.raises(ValueError):
+        kt.labels.to_image(x, channels=[1])
 
 
 def test_to_image_dtype():

@@ -30,7 +30,7 @@ def to_image(x, /, channels=1, *, generator=None):
 
     dev = dict(device=x.device)
     channels = torch.as_tensor(channels)
-    if channels.numel() > 1 or channels.lt(1):
+    if channels.numel() > 1 or channels.ndim > 0 or channels.lt(1):
         raise ValueError(f'channel count {channels} is not a positive scalar')
 
     # Lookup table.
