@@ -272,6 +272,38 @@ def test_compose_field_matrix(ndim, batch):
     assert out.shape[1:] == grid.shape
 
 
+def test_compose_broadcasting():
+    """Test if batch sizes broadcast when composing transforms."""
+    batch = 4
+    ndim = 2
+    field = torch.ones(ndim, *[2] * ndim)
+    mat = torch.eye(ndim + 1)
+
+    # Expect batch sizes to broadcast between matrices.
+    a = mat.expand(batch, *mat.shape)
+    b = mat.expand(1, *mat.shape)
+    assert kt.transform.compose(a, b).shape == (batch, ndim + 1, ndim + 1)
+    assert kt.transform.compose(b, a).shape == (batch, ndim + 1, ndim + 1)
+
+    # Expect batch sizes to broadcast between displacement fields.
+    a = field.expand(batch, *field.shape)
+    b = field.expand(1, *field.shape)
+    assert kt.transform.compose(a, b).shape == (batch, *field.shape)
+    assert kt.transform.compose(b, a).shape == (batch, *field.shape)
+
+    # Expect batch size to broadcast from matrix to field.
+    a = field.expand(batch, *field.shape)
+    b = mat.expand(1, *mat.shape)
+    assert kt.transform.compose(a, b).shape == (batch, *field.shape)
+    assert kt.transform.compose(b, a).shape == (batch, *field.shape)
+
+    # Expect batch size to broadcast from field to matrix.
+    a = field.expand(1, *field.shape)
+    b = mat.expand(batch, *mat.shape)
+    assert kt.transform.compose(a, b).shape == (batch, *field.shape)
+    assert kt.transform.compose(b, a).shape == (batch, *field.shape)
+
+
 def test_center_matrix_unchanged():
     """Test if centering matrix leaves input unchanged."""
     size = (128, 128)

@@ -23,6 +23,43 @@ def test_interpolate_identity(ndim):
 
 
 @pytest.mark.parametrize('ndim', [2, 3])
+def test_interpolate_broadcasting(ndim):
+    """Test batch broadcasting when interpolating."""
+    # Data of shape: batch, channels, space.
+    batch = 4
+    x = torch.ones(ndim, *[2] * ndim)
+
+    # Expect grid to broadcast to data.
+    inp = x.expand(batch, *x.shape)
+    points = x
+    assert kt.transform.interpolate(inp, points).size(0) == batch
+
+    # Expect data to broadcast to grid.
+    inp = x.unsqueeze(0)
+    points = x.expand(batch, *x.shape)
+    assert kt.transform.interpolate(inp, points).size(0) == batch
+
+
+def test_apply_broadcasting():
+    """Test batch broadcasting when applying matrix transforms."""
+    # Data of shape: batch, channels, space.
+    batch = 4
+    ndim = 2
+    space = [2] * ndim
+    eye = torch.eye(ndim + 1)
+
+    # Expect transform to broadcast to data.
+    data = torch.ones(batch, 3, *space)
+    trans = eye
+    assert kt.transform.apply(data, trans).shape == data.shape
+
+    # Expect data to broadcast to transform.
+    data = torch.ones(1, 3, *space)
+    trans = eye.expand(batch, *eye.shape)
+    assert kt.transform.apply(data, trans).shape == (batch, *data.shape[1:])
+
+
+@pytest.mark.parametrize('ndim', [2, 3])
 @pytest.mark.parametrize('mode', ['nearest', 'linear'])
 @pytest.mark.parametrize('padding', ['zeros', 'border', 'reflection'])
 def test_apply_identity(ndim, mode, padding):

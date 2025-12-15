@@ -150,7 +150,7 @@ def interpolate(x, /, points, mode='linear', *, padding='zeros'):
         Gridded input data of spatial `N`-element shape `size_in`.
     points : (..., N, *size_out) torch.Tensor
        New index coordinates to sample the input data at. The batch dimension
-       has to broadcast to `B`, `size_out` be of length `N`.
+       must be broadcastable with `B`, `size_out` be of length `N`.
     mode : {'linear', 'nearest'}, optional
         Interpolation mode.
     padding : {'zeros', 'border', 'reflection'}, optional
@@ -173,11 +173,13 @@ def interpolate(x, /, points, mode='linear', *, padding='zeros'):
     conv = index_to_torch(size, align_corners=align, device=x.device)
     points = grid_matmul(points, conv)
 
-    # Expand to data batch size last, to convert fewer batches of points.
-    ndim = x.ndim - 2
-    batch = 1 if points.ndim < x.ndim else points.size(0)
-    points = points.view(batch, ndim, *points.shape[-ndim:])
-    points = points.expand(x.size(0), *points.shape[1:]).movedim(1, -1)
+    # Broadcast batch dimensions last, to convert fewer points.
+    if points.ndim < x.ndim:
+        points = points.unsqueeze(0)
+
+    batch = max(x.shape[0], points.shape[0])
+    x = x.expand(batch, *x.shape[1:])
+    points = points.expand(batch, *points.shape[1:]).movedim(1, -1)
 
     if mode == 'linear':
         mode = 'bilinear'
@@ -197,7 +199,7 @@ def apply(x, /, trans, grid=None, mode='linear', *, padding='zeros'):
     x : (B, C, *size_in) torch.Tensor
         Input data of spatial `N`-element shape `size`.
     trans : (..., N, *size_out) or (..., N + 1, N + 1) torch.Tensor
-        Displacement field or matrix transform. Batch must broadcast to `x`.
+        Displacement field or matrix transform. Batch must broadcast with `x`.
     grid : (N, *size_out) torch.Tensor, optional
        Index coordinate grid. For efficiency and controlling `size_out`.
     mode : {'linear', 'nearest'}, optional
@@ -597,7 +599,7 @@ def compose(*trans, grid=None, absolute=False):
     Parameters
     ----------
     *trans : sequence of (B, N + 1, N + 1) or (B, N, *size) torch.Tensor
-        Matrices or displacement fields with the same batch dimension `B`.
+        Matrices or displacement fields with broadcastable batch dimension `B`.
     grid : (N, *size) torch.Tensor, optional
         Index coordinate grid, where `size` has `N` elements.
     absolute : bool, optional
