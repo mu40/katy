@@ -76,6 +76,7 @@ class Unet(nn.Module):
         rep=1,
         act=nn.ELU,
         fin=nn.Softmax,
+        normalize=True,
         clip=(None, None),
     ):
         """Initialize the model.
@@ -100,11 +101,14 @@ class Unet(nn.Module):
             Activation function after each convolution.
         fin : str or nn.Module or type or None, optional
             Final activaton function.
-        clip : tuple of float, optional
-            Clip min-max quantiles in [0, 1] before normalizing.
+        normalize : bool, optional
+            Min-max normalize network input.
+        clip : (float or None, float or None), optional
+            Clip intensities to quantiles in [0, 1] during normalization.
 
         """
         super().__init__()
+        self.normalize = normalize
         self.clip = clip
 
         # Layers.
@@ -167,7 +171,7 @@ class Unet(nn.Module):
             Model output.
 
         """
-        with torch.no_grad():
+        if self.normalize:
             dim = range(2, x.ndim)
             x = kt.utility.normalize(x, dim, *self.clip)
 
