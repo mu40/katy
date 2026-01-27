@@ -56,7 +56,7 @@ def make_activation(act, /, **kwargs):
     if act is nn.LeakyReLU:
         kwargs.setdefault('negative_slope', 0.1)
 
-    if any(act == f for f in (nn.ReLU, nn.ELU, nn.LeakyReLU)):
+    if any(act == f for f in (nn.ELU, nn.LeakyReLU, nn.ReLU, nn.SiLU)):
         kwargs.setdefault('inplace', True)
 
     return act(**kwargs)
@@ -74,7 +74,7 @@ class Unet(nn.Module):
         dec=(384, 192, 96, 48, 24),
         add=(),
         rep=1,
-        act=nn.ELU,
+        act=nn.SiLU,
         fin=nn.Softmax,
         normalize=True,
         clip=(None, None),
