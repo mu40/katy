@@ -25,8 +25,8 @@ if [ ! -d "$venv_dir/bin" ]; then
 
     # Packages.
     pip install -U pip setuptools
-    pip install pytest ruff shellcheck-py typos
     pip install -i https://download.pytorch.org/whl/cpu torch
+    pip install -e '.[dev]'
 fi
 
 

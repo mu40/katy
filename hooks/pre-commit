@@ -12,11 +12,16 @@ trap exit INT TERM
 
 
 # Identify relevant files. BusyBox's `awk` cannot print null characters.
+list() { git diff -z --staged --name-only --diff-filter=ACMRT -- "$@" ; }
 staged="$d/staged"
 python="$d/python"
+markdown="$d/md"
+yaml="$d/yaml"
 shell="$d/shell"
-git diff -z --staged --name-only --diff-filter=ACMRT           >"$staged"
-git diff -z --staged --name-only --diff-filter=ACMRT -- '*.py' >"$python"
+list                     >"$staged"
+list '*.py'              >"$python"
+list '*.md' '*.markdown' >"$markdown"
+list '*.yaml' '*.yml'    >"$yaml"
 xargs -0r file -i <"$staged" |
     awk -F: '/x-shellscript/ { print $1 }' |
         tr '\n' '\0' >"$shell"
@@ -28,27 +33,30 @@ git checkout-index --prefix="$d/" -a
 cd "$d"
 
 
-# Spell-check staged files.
 if [ -s "$staged" ]; then
     echo "Running spell checker"
     xargs -0 typos <"$staged"
 fi
 
-
-# Lint staged Python files.
 if [ -s "$python" ]; then
     echo "Running Python linter"
     xargs -0 ruff check -q <"$python"
 fi
 
-
-# Lint staged shell scripts.
 if [ -s "$shell" ]; then
-    echo "Linting shell scripts"
+    echo "Running shell linter"
     xargs -0 shellcheck <"$shell"
 fi
 
+if [ -s "$markdown" ]; then
+    echo "Running Markdown linter"
+    xargs -0 pymarkdown scan <"$markdown"
+fi
 
-# Run unit tests.
+if [ -s "$yaml" ]; then
+    echo "Running YAML linter"
+    xargs -0 yamllint -s <"$yaml"
+fi
+
 echo "Running unit tests"
 pytest -q tests/unit
