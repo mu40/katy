@@ -3,12 +3,10 @@
 Katy is a toolbox for deep learning in medical image analysis with PyTorch.
 It is in early development, and breaking changes may occur without warning.
 
-
 ## Ideas
 
 - Specialized image and transform types
 - Global, thread-safe batch dimension control
-
 
 ## Setup
 
@@ -18,14 +16,12 @@ Install a local virtual environment for development, with pre-commit hooks.
 ./setup.sh
 ```
 
-
 ## Development
 
 - Write unit tests for new code
 - Depend on Python's standard library and PyTorch
 - Focus support on the latest stable PyTorch version
 - Lint, spell-check, and test on commit
-
 
 ## Run checks
 
@@ -35,7 +31,6 @@ ruff check --watch
 shellcheck hooks/* setup.sh
 typos
 ```
-
 
 ## Attribution
 

@@ -12,6 +12,21 @@ name = 'katy'
 requires-python = '>=3.11'
 urls.homepage = 'https://github.com/mu40/katy'
 
+[project.optional-dependencies]
+dev = [
+    'pymarkdownlnt',
+    'pytest',
+    'ruff',
+    'shellcheck-py',
+    'typos',
+    'yamllint',
+]
+
+[tool.pymarkdown]
+mode.strict-config = true
+plugins.MD013.enabled = false  # line-length
+plugins.MD024.enabled = false  # no-duplicate-heading
+
 [tool.pytest.ini_options]
 addopts = ['--import-mode=importlib', '--no-header']
 filterwarnings = ['ignore:Failed to initialize NumPy:UserWarning']
