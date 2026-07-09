@@ -790,3 +790,67 @@ def motion(
     k = torch.gather(k, dim=0, index=ind)
     k = k.movedim(-1, dim)
     return torch.fft.ifftn(k, dim=space).real.squeeze(0)
+
+
+def resize(x, /, *, min=None, max=None, batch=True, prob=1, generator=None):
+    """Resize a tensor along a random spatial axis.
+
+    Selects a random spatial axis and samples its output size using `min`,
+    `max`, and the current size. `min` sets a lower bound; `max` sets an
+    upper bound. One-sided bounds use the current size as the other bound,
+    but sampled sizes are never smaller than `min` or larger than `max`.
+
+    Parameters
+    ----------
+    x : (..., C, ...) torch.Tensor
+        Input tensor of spatial `N`-element size. Batch depending on `batch`.
+    min : int or sequence of int, optional
+        Minimum output size. Pass 1 or N values.
+    max : int or sequence of int, optional
+        Maximum output size. Pass 1 or N values.
+    batch : bool, optional
+        Expect batched inputs.
+    prob : float, optional
+        Resizing probability.
+    generator : torch.Generator, optional
+        Pseudo-random number generator.
+
+    Returns
+    -------
+    (..., C, ...) torch.Tensor
+        Resized tensor.
+
+    """
+    # Spatial dimensions start after channel, and possibly batch.
+    x = torch.as_tensor(x)
+    ndim = x.ndim - (2 if batch else 1)
+    size = torch.tensor(x.shape[-ndim:])
+
+    def bound(v, name):
+        if v is None:
+            return None
+        v = torch.as_tensor(v).ravel()
+        if len(v) not in (1, ndim):
+            raise ValueError(f'{name} {v} not of length 1 or {ndim}')
+        if v.lt(1).any():
+            raise ValueError(f'{name} {v} is less than 1')
+        return v.expand(ndim)
+
+    lo = bound(min, 'min')
+    hi = bound(max, 'max')
+    if lo is not None and hi is not None:
+        for i, (a, b) in enumerate(zip(lo, hi, strict=True)):
+            if a > b:
+                raise ValueError(f'min {lo} exceeds max {hi} along axis {i}')
+
+    prop = dict(device=x.device, generator=generator)
+    if not kt.random.chance(prob, **prop) or (min is None and max is None):
+        return x
+
+    # Spatial axis and bounds. Missing bounds use the current size, unless it
+    # is smaller than the minimum or larger than the maximum.
+    dim = torch.randint(ndim, size=(), **prop)
+    a = torch.minimum(size[dim], hi[dim]) if lo is None else lo[dim]
+    b = torch.maximum(size[dim], lo[dim]) if hi is None else hi[dim]
+    size[dim] = torch.randint(a, b + 1, size=(), **prop)
+    return kt.utility.resize(x, size, batch=batch)

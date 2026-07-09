@@ -24,6 +24,7 @@ FUNCTIONS_ALL = {
     kt.augment.flip,
     kt.augment.permute,
     kt.augment.motion,
+    kt.augment.resize,
 }
 
 
@@ -418,3 +419,57 @@ def test_motion_zero_shift_rotation(ndim):
     blocks = torch.tensor([3, 3])
     out = kt.augment.motion(inp, blocks, moves=2, shift=0, angle=0)
     assert out.equal(inp)
+
+
+def test_resize_bounds():
+    """Test lower and upper bounds when resizing randomly."""
+    x = torch.ones(2, 1, 3)
+
+    # Expect no change by default.
+    assert kt.augment.resize(x).size(-1) == 3
+
+    # Expect no size below minimum.
+    assert kt.augment.resize(x, min=[4]).size(-1) == 4
+
+    # Expect no size above maximum
+    assert kt.augment.resize(x, max=torch.tensor(2)).size(-1) == 2
+
+
+@pytest.mark.parametrize('ndim', [1, 2, 3])
+def test_resize_ndim(ndim):
+    """Test resizing with different dimensionalities."""
+    x = torch.ones(1, 1, *[2] * ndim)
+    y = kt.augment.resize(x, min=3, max=[4] * ndim)
+
+    # Expect change along exactly one spatial dimension.
+    old = x.shape
+    new = y.shape
+    dim = [i for i, (o, n) in enumerate(zip(old, new, strict=True)) if o != n]
+    assert len(dim) == 1
+    assert dim[0] > 1
+
+
+def test_resize_batch():
+    """Test resizing with and without batch dimension."""
+    x = torch.ones(2, 1, 2)
+    assert kt.augment.resize(x, min=3, batch=True).shape == (2, 1, 3)
+
+    x = torch.ones(1, 2)
+    assert kt.augment.resize(x, min=3, batch=False).shape == (1, 3)
+
+
+def test_resize_illegal_values():
+    """Test if invalid motion corruption arguments raise errors."""
+    x = torch.ones(1, 1, 2, 2)
+
+    # Valid is 0 < a <= b, 1 or `ndim` values.
+    with pytest.raises(ValueError):
+        kt.augment.resize(x, min=3, max=1)
+    with pytest.raises(ValueError):
+        kt.augment.resize(x, min=0)
+    with pytest.raises(ValueError):
+        kt.augment.resize(x, max=[0])
+    with pytest.raises(ValueError):
+        kt.augment.resize(x, min=[2, 2, 2])
+    with pytest.raises(ValueError):
+        kt.augment.resize(x, max=[2, 2, 2])
