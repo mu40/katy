@@ -9,7 +9,7 @@ import torch
 def test_resize_dtype(dtype):
     """Test data type persistence when resizing tensors."""
     x = torch.ones(1, 1, 3, 3, dtype=dtype)
-    assert kt.utility.resize(x, size=2).dtype == dtype
+    assert kt.utility.resize(x, size=torch.tensor(2)).dtype == dtype
 
 
 @pytest.mark.parametrize('ndim', [1, 2, 3])
@@ -36,11 +36,14 @@ def test_resize_mode():
     assert kt.utility.resize(x, size=3, mode='min').shape == (*bc, 3, 4)
     assert kt.utility.resize(x, size=3, mode='max').shape == (*bc, 2, 3)
 
+    with pytest.raises(ValueError, match='mode'):
+        kt.utility.resize(x, size=(2,), mode='unknown')
+
 
 def test_resize_batch():
     """Test resizing without batch dimension."""
     x = torch.ones(1, 1, 3)
-    assert kt.utility.resize(x, size=2, batch=False).shape == (1, 2, 2)
+    assert kt.utility.resize(x, size=[2], batch=False).shape == (1, 2, 2)
 
 
 def test_resize_fill():
