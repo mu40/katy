@@ -15,26 +15,32 @@ def test_resize_dtype(dtype):
 @pytest.mark.parametrize('ndim', [1, 2, 3])
 def test_resize_size(ndim):
     """Test output shape when resizing tensors in 1D, 2D, and 3D."""
-    batch = 1
-    channel = 2
-    size_old = (8, 4, 7)
-    size_new = (5, 6, 8)
-    inp = torch.ones(batch, channel, *size_old[:ndim])
-
-    # Expect output of requested shape.
-    out = kt.utility.resize(inp, size_new[:ndim])
-    assert out.shape == (batch, channel, *size_new[:ndim])
-
-    # Expect expansion of scalar sizes.
-    out = kt.utility.resize(inp, size_new[0])
-    assert out.shape == (batch, channel, *[size_new[0]] * ndim)
-
+    bc = (1, 2)
+    old = (8, 4, 7)
+    new = (5, 6, 8)
+    inp = torch.ones(*bc, *old[:ndim])
+    assert kt.utility.resize(inp, new[:ndim]).shape == (*bc, *new[:ndim])
 
 def test_resize_identity():
     """Test if resizing to the same shape returns the same tensor."""
     size = (3, 3)
     x = torch.ones(1, 1, *size)
     assert kt.utility.resize(x, size) is x
+
+
+def test_resize_mode():
+    """Test resizing mode to exact, minimum, and maximum dimensions."""
+    bc = (1, 1)
+    x = torch.ones(*bc, 2, 4)
+    assert kt.utility.resize(x, size=3, mode='exact').shape == (*bc, 3, 3)
+    assert kt.utility.resize(x, size=3, mode='min').shape == (*bc, 3, 4)
+    assert kt.utility.resize(x, size=3, mode='max').shape == (*bc, 2, 3)
+
+
+def test_resize_batch():
+    """Test resizing without batch dimension."""
+    x = torch.ones(1, 1, 3)
+    assert kt.utility.resize(x, size=2, batch=False).shape == (1, 2, 2)
 
 
 def test_resize_fill():
@@ -48,7 +54,7 @@ def test_resize_fill():
 
     # Test setting specific fill value.
     fill = -3
-    out = kt.utility.resize(x, size=size, fill=fill)
+    out = kt.utility.resize(x, size, fill=fill)
     assert out[..., -1] == fill
 
 

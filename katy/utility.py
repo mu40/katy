@@ -86,29 +86,43 @@ def unbatch(*, batch):
     return wrapper
 
 
-def resize(x, /, size, *, fill=0):
+def resize(x, /, size, *, mode='exact', fill=0, batch=True):
     """Symmetrically crop or pad an N-dimensional tensor to a new size.
 
     Parameters
     ----------
     x : (B, C, ...) torch.Tensor
-        Tensor of `N`-element spatial shape.
+        Input tensor of spatial `N`-element size. Batch depending on `batch`.
     size : int or sequence of int
-        New spatial shape. Pass 1 or N values.
+        Spatial size. Pass 1 or N values.
+    mode : {'exact', 'min', 'max'}, optional
+        Resizing policy: 'exact' resizes to `size`, 'min' pads dimensions
+        smaller than `size`, and 'max' crops dimensions larger than `size`.
     fill : float, optional
         Fill value for padding.
+    batch : bool, optional
+        Expect batched inputs.
 
     Returns
     -------
-    (B, C, *size) torch.Tensor
+    (B, C, ...) torch.Tensor
         Resized tensor.
 
     """
     # Dimensions. Keep batch and channel dimensions.
-    ndim = x.ndim - 2
+    i = 2 if batch else 1
+    ndim = x.ndim - i
     size_old = torch.as_tensor(x.shape)
     size_new = torch.as_tensor(size).ravel().expand(ndim)
-    size_new = torch.cat((size_old[:2], size_new))
+    size_new = torch.cat((size_old[:i], size_new))
+
+    if mode == 'min':
+        size_new = torch.maximum(size_old, size_new)
+    elif mode == 'max':
+        size_new = torch.minimum(size_old, size_new)
+    elif mode != 'exact':
+        raise ValueError(f'mode "{mode}" is not "exact", "min", or "max"')
+
     if size_old.equal(size_new):
         return x
 
