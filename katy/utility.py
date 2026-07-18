@@ -113,7 +113,7 @@ def resize(x, /, size, *, mode='exact', fill=0, batch=True):
     i = 2 if batch else 1
     ndim = x.ndim - i
     size_old = torch.as_tensor(x.shape)
-    size_new = torch.as_tensor(size).ravel().expand(ndim)
+    size_new = torch.as_tensor(size, device='cpu').ravel().expand(ndim)
     size_new = torch.cat((size_old[:i], size_new))
 
     if mode == 'min':
