@@ -569,7 +569,12 @@ def decompose_affine(mat, deg=True, *, dtype=None):
     shear = upper[..., i, j]
 
     # Rotations after stripping scale and shear.
-    strip = compose_affine(scale=scale, shear=shear, dtype=mat.dtype)
+    strip = compose_affine(
+        scale=scale,
+        shear=shear,
+        dtype=mat.dtype,
+        device=mat.device
+    )
     mat = mat @ strip[..., :-1, :-1].inverse()
     angle = decompose_rotation(mat, deg=deg)
 
