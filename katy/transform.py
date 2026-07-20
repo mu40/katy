@@ -527,10 +527,6 @@ def compose_affine(
 def decompose_affine(mat, deg=True, *, dtype=None):
     """Derive affine parameters from N-dimensional matrix transforms.
 
-    The function composes 2D or 3D matrix transforms from parameters defining
-    translation, rotation, scaling, and shear. Specify at least one parameter.
-    Parameters can have any batch dimensions, but they must be broadcastable.
-
     Parameters
     ----------
     mat : (..., N + 1, N + 1) torch.Tensor
@@ -561,7 +557,6 @@ def decompose_affine(mat, deg=True, *, dtype=None):
     shift = mat[..., :-1, -1]
     mat = mat[..., :-1, :-1]
 
-    # import pdb; pdb.set_trace()
     # Scaling. Fix negative determinants.
     lower = torch.linalg.cholesky(mat.mT @ mat)
     scale = lower.diagonal(dim1=-2, dim2=-1)
