@@ -29,6 +29,29 @@ def test_save_load_tensor(tmp_path):
     assert path.is_file()
 
 
+@pytest.mark.parametrize('suffix', ['json', 'pickle', 'pt'])
+def test_save_atomic_no_temp(tmp_path, suffix):
+    """Test that a successful save leaves no temporary file behind."""
+    path = tmp_path / f'testfile.{suffix}'
+    x = [1, 0.3, 'apple', [2], {'key': False, 'list': []}, None]
+
+    kt.io.save(x, path)
+    assert list(tmp_path.iterdir()) == [path]
+
+
+def test_save_failure_keeps_original(tmp_path):
+    """Test if a failed write preserves the existing but no temporary file."""
+    path = tmp_path / 'testfile.json'
+    kt.io.save({'good': 1}, path)
+
+    # A set is not JSON-serializable, so the second save fails mid-write.
+    with pytest.raises(TypeError):
+        kt.io.save({'bad': {1, 2, 3}}, path)
+
+    assert kt.io.load(path) == {'good': 1}
+    assert list(tmp_path.iterdir()) == [path]
+
+
 def test_save_illegal_suffix(tmp_path):
     """Test saving to a file with an illegal suffix."""
     path = tmp_path / 'testfile.csv'
