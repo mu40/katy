@@ -6,11 +6,11 @@ import pytest
 import torch
 
 
-@pytest.mark.parametrize('ext', ['json', 'pickle', 'pt'])
-def test_save_load_generic(tmp_path, ext):
+@pytest.mark.parametrize('suffix', ['json', 'pickle', 'pt'])
+def test_save_load_generic(tmp_path, suffix):
     """Test saving and restoring data of generic Python types."""
     # JSON saves tuples as lists.
-    path = tmp_path / f'testfile.{ext}'
+    path = tmp_path / f'testfile.{suffix}'
     x = [1, 0.3, 'apple', [2], {'key': False, 'list': []}, None]
 
     kt.io.save(x, path)
@@ -29,15 +29,15 @@ def test_save_load_tensor(tmp_path):
     assert path.is_file()
 
 
-def test_save_illegal_extension(tmp_path):
-    """Test saving to a file with an illegal extension."""
+def test_save_illegal_suffix(tmp_path):
+    """Test saving to a file with an illegal suffix."""
     path = tmp_path / 'testfile.csv'
     with pytest.raises(ValueError):
         kt.io.save(data=None, path=path)
 
 
-def test_load_illegal_extension(tmp_path):
-    """Test loading from a file with an illegal extension."""
+def test_load_illegal_suffix(tmp_path):
+    """Test loading from a file with an illegal suffix."""
     path = tmp_path / 'testfile.csv'
     with pytest.raises(ValueError):
         kt.io.load(path=path)
