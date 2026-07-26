@@ -46,5 +46,4 @@ if [ -d "\$venv_dir/bin" ]; then
     export VIRTUAL_ENV="\$PWD/\$venv_dir"
     PATH_add "\$VIRTUAL_ENV/bin"
 fi
-export PYTHONPATH="\$PWD"
 EOF
