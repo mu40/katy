@@ -13,7 +13,9 @@ def save(data, path):
     """Serialize arbitrary data and write it to a file.
 
     Save data as a JSON, pickle or PyTorch file. Generally prefer JSON for
-    interoperability, readability, and safety. Use PyTorch for speed.
+    interoperability, readability, and safety. Use PyTorch for speed. We first
+    write data to a temporary file, then rename it in place. An interrupt
+    mid-write therefore never creates a partial or corrupted final file.
 
     Parameters
     ----------
@@ -24,22 +26,31 @@ def save(data, path):
 
     """
     path = pathlib.Path(path)
+    temp = path.with_suffix(path.suffix + '.temp')
 
-    # Indent and add trailing newline for readability on command line.
-    if path.suffix == '.json':
-        with open(path, mode='w', encoding='utf-8') as f:
-            json.dump(data, f, indent=4)
-            f.write(os.linesep)
+    try:
+        if path.suffix == '.json':
+            # Indent and add trailing newline for readability on command line.
+            with open(temp, mode='w', encoding='utf-8') as f:
+                json.dump(data, f, indent=4)
+                f.write(os.linesep)
 
-    elif path.suffix == '.pickle':
-        with open(path, mode='wb') as f:
-            pickle.dump(data, f)
+        elif path.suffix == '.pickle':
+            with open(temp, mode='wb') as f:
+                pickle.dump(data, f)
 
-    elif path.suffix == '.pt':
-        torch.save(data, path)
+        elif path.suffix == '.pt':
+            torch.save(data, temp)
 
-    else:
-        raise ValueError(f'suffix of "{path}" is not .json, .pickle, or .pt')
+        else:
+            raise ValueError(f'suffix of "{path}" not .json, .pickle, or .pt')
+
+    # Clean up temporary file on CTRL+C.
+    except BaseException:
+        temp.unlink(missing_ok=True)
+        raise
+
+    temp.replace(path)
 
 
 def load(path):
