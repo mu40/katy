@@ -161,7 +161,7 @@ def test_remap_memory():
     assert out.tolist() == [9, 2, 2, 1]
 
 
-@pytest.mark.parametrize('ext', ['json', 'pickle', 'pt'])
+@pytest.mark.parametrize('ext', ['json', 'pt'])
 def test_remap_disk(tmp_path, ext):
     """Test remapping labels with mapping in file."""
     # Tensors are not JSON serializable.
@@ -216,7 +216,7 @@ def test_one_hot_values():
         assert out[0, 1, :].tolist() == [0, 0, 1]
 
 
-@pytest.mark.parametrize('ext', ['json', 'pickle', 'pt'])
+@pytest.mark.parametrize('ext', ['json', 'pt'])
 def test_one_hot_disk(tmp_path, ext):
     """Test remapping labels with mapping in file."""
     inp = torch.tensor([0, 1, 1, 2]).view(1, 1, -1)
@@ -267,7 +267,7 @@ def test_collapse_memory():
         assert out[0, 0].tolist() == [4, 5, 4, 3]
 
 
-@pytest.mark.parametrize('ext', ['json', 'pickle', 'pt'])
+@pytest.mark.parametrize('ext', ['json', 'pt'])
 def test_collapse_disk(tmp_path, ext):
     """Test collapsing one-hot map with various label types in file."""
     inp = torch.tensor((

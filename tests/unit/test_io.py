@@ -6,7 +6,7 @@ import pytest
 import torch
 
 
-@pytest.mark.parametrize('suffix', ['json', 'pickle', 'pt'])
+@pytest.mark.parametrize('suffix', ['json', 'jsonl', 'pt'])
 def test_save_load_generic(tmp_path, suffix):
     """Test saving and restoring data of generic Python types."""
     # JSON saves tuples as lists.
@@ -29,7 +29,7 @@ def test_save_load_tensor(tmp_path):
     assert path.is_file()
 
 
-@pytest.mark.parametrize('suffix', ['json', 'pickle', 'pt'])
+@pytest.mark.parametrize('suffix', ['json', 'jsonl', 'pt'])
 def test_save_atomic_no_temp(tmp_path, suffix):
     """Test that a successful save leaves no temporary file behind."""
     path = tmp_path / f'testfile.{suffix}'
@@ -52,12 +52,23 @@ def test_save_failure_keeps_original(tmp_path):
     assert list(tmp_path.iterdir()) == [path]
 
 
+@pytest.mark.parametrize('suffix', ['json', 'jsonl'])
 @pytest.mark.parametrize('value', [float('nan'), float('inf'), float('-inf')])
-def test_save_rejects_non_finite(tmp_path, value):
+def test_save_reject_non_finite(tmp_path, value, suffix):
     """Test that non-finite floats raise instead of writing invalid JSON."""
-    path = tmp_path / 'testfile.json'
+    path = tmp_path / f'testfile.{suffix}'
     with pytest.raises(ValueError):
-        kt.io.save({'bad': value}, path)
+        kt.io.save([{'bad': value}], path)
+
+
+@pytest.mark.parametrize('bad', [{'a': 1}, 'hello', b'bytes'])
+def test_save_jsonl_invalid(tmp_path, bad):
+    """Test rejecting a mapping or string."""
+    path = tmp_path / 'testfile.jsonl'
+    with pytest.raises(TypeError):
+        kt.io.save(bad, path)
+
+    assert list(tmp_path.iterdir()) == []
 
 
 def test_save_illegal_suffix(tmp_path):
@@ -72,6 +83,13 @@ def test_load_illegal_suffix(tmp_path):
     path = tmp_path / 'testfile.csv'
     with pytest.raises(ValueError):
         kt.io.load(path=path)
+
+
+def test_load_jsonl_blank(tmp_path):
+    """Test that loading ignores blank lines."""
+    path = tmp_path / 'testfile.jsonl'
+    path.write_text('{"a": 1}\n\n{"a": 2}\n', encoding='utf-8')
+    assert kt.io.load(path) == [{'a': 1}, {'a': 2}]
 
 
 @pytest.mark.parametrize('dtype', [str, pathlib.Path])

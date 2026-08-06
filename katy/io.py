@@ -4,21 +4,20 @@ import functools
 import importlib
 import json
 import pathlib
-import pickle
 import torch
 
 
 def save(data, path):
-    """Serialize arbitrary data and write it to a file.
+    """Serialize data and write it to a file.
 
-    Save data as a JSON, pickle or PyTorch file.
+    Save data as a JSON, JSONL, or PyTorch file.
 
     Parameters
     ----------
     data : object
-        Data.
+        Data. An iterable of JSON-serializable records for JSONL.
     path : os.PathLike
-        File path, with suffix .json, .pickle, or .pt.
+        File path, with suffix .json, .jsonl, or .pt.
 
     """
     path = pathlib.Path(path)
@@ -31,15 +30,20 @@ def save(data, path):
                 json.dump(data, f, allow_nan=False, indent=4)
                 f.write('\n')
 
-        elif path.suffix == '.pickle':
-            with open(temp, mode='wb') as f:
-                pickle.dump(data, f)
+        elif path.suffix == '.jsonl':
+            if isinstance(data, (dict, str, bytes)):
+                raise TypeError('.jsonl expects an iterable of records')
+
+            # One record per line. Always '\n', disable newline translation.
+            with open(temp, mode='w', encoding='utf-8', newline='') as f:
+                for record in data:
+                    f.write(json.dumps(record, allow_nan=False) + '\n')
 
         elif path.suffix == '.pt':
             torch.save(data, temp)
 
         else:
-            raise ValueError(f'suffix of "{path}" not .json, .pickle, or .pt')
+            raise ValueError(f'suffix of "{path}" not .json, .jsonl, or .pt')
 
     # Clean up temporary file on CTRL+C.
     except BaseException:
@@ -52,33 +56,32 @@ def save(data, path):
 def load(path):
     """Deserialize data from a file.
 
-    Load data from a JSON, pickle or PyTorch file.
+    Load data from a JSON, JSONL, or PyTorch file.
 
     Parameters
     ----------
     path : os.PathLike
-        File path, with suffix .json, .pickle, or .pt.
+        File path, with suffix .json, .jsonl, or .pt.
 
     Returns
     -------
     data : object
-        Data.
+        Data. A list for JSONL.
 
     """
     path = pathlib.Path(path)
-
     if path.suffix == '.json':
         with open(path, encoding='utf-8') as f:
             return json.load(f)
 
-    if path.suffix == '.pickle':
-        with open(path, mode='rb') as f:
-            return pickle.load(f)
+    if path.suffix == '.jsonl':
+        with open(path, encoding='utf-8') as f:
+            return [json.loads(line) for line in f if line.strip()]
 
     if path.suffix == '.pt':
         return torch.load(path, weights_only=True)
 
-    raise ValueError(f'suffix of "{path}" is not .json, .pickle, or .pt')
+    raise ValueError(f'suffix of "{path}" is not .json, .jsonl, or .pt')
 
 
 def read_colors(lut):
