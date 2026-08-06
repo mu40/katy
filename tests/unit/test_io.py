@@ -52,6 +52,14 @@ def test_save_failure_keeps_original(tmp_path):
     assert list(tmp_path.iterdir()) == [path]
 
 
+@pytest.mark.parametrize('value', [float('nan'), float('inf'), float('-inf')])
+def test_save_rejects_non_finite(tmp_path, value):
+    """Test that non-finite floats raise instead of writing invalid JSON."""
+    path = tmp_path / 'testfile.json'
+    with pytest.raises(ValueError):
+        kt.io.save({'bad': value}, path)
+
+
 def test_save_illegal_suffix(tmp_path):
     """Test saving to a file with an illegal suffix."""
     path = tmp_path / 'testfile.csv'

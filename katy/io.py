@@ -26,9 +26,9 @@ def save(data, path):
 
     try:
         if path.suffix == '.json':
-            # Indent and add trailing newline for readability on command line.
+            # Indent and add trailing newline for readability.
             with open(temp, mode='w', encoding='utf-8') as f:
-                json.dump(data, f, indent=4)
+                json.dump(data, f, allow_nan=False, indent=4)
                 f.write('\n')
 
         elif path.suffix == '.pickle':
