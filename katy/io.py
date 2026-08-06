@@ -3,7 +3,6 @@
 import functools
 import importlib
 import json
-import os
 import pathlib
 import pickle
 import torch
@@ -12,10 +11,7 @@ import torch
 def save(data, path):
     """Serialize arbitrary data and write it to a file.
 
-    Save data as a JSON, pickle or PyTorch file. Generally prefer JSON for
-    interoperability, readability, and safety. Use PyTorch for speed. We first
-    write data to a temporary file, then rename it in place. An interrupt
-    mid-write therefore never creates a partial or corrupted final file.
+    Save data as a JSON, pickle or PyTorch file.
 
     Parameters
     ----------
@@ -33,7 +29,7 @@ def save(data, path):
             # Indent and add trailing newline for readability on command line.
             with open(temp, mode='w', encoding='utf-8') as f:
                 json.dump(data, f, indent=4)
-                f.write(os.linesep)
+                f.write('\n')
 
         elif path.suffix == '.pickle':
             with open(temp, mode='wb') as f:
