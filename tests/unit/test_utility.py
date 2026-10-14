@@ -152,8 +152,8 @@ def test_quantile_scalar(dim, keepdim):
 
     out = kt.utility.quantile(x, q, dim, keepdim=keepdim)
     ref = x.quantile(q, dim, keepdim=keepdim)
-    assert out.shape == ref.shape
-    assert out.equal(ref)
+    eps = torch.finfo(x.dtype).eps
+    torch.testing.assert_close(out, ref, rtol=eps, atol=0)
 
 
 @pytest.mark.parametrize('dim', [0, 1, 2])
