@@ -322,67 +322,79 @@ def downsample(x, /, factor=4, *, mode='linear', prob=1, generator=None):
     return f(x, size=size, mode=mode).squeeze(0)
 
 
-@utility.batch(batch=True)
-def remap(x, /, points=8, bins=256, *, prob=1, shared=False, generator=None):
-    """Remap image intensities using smooth lookup tables.
+@kt.utility.batch(batch=True)
+def remap(x, /, points=8, bins=256, *, min=0, max=0.99, prob=1, shared=False):
+    """Remap image intensities using random lookup tables.
 
     Parameters
     ----------
     x : (..., C, *size) torch.Tensor
         Input with or without batch dimension, depending on `batch`.
     points : int or sequence of int, optional
-        Control-point range. Pass 1 value to set the upper bound `b`, keeping
-        the lower bound `a` at 2. Pass 2 values to set `(a, b)`.
+        Control-point range, at least 2. Pass 1 value to set the upper bound
+        `b`, keeping the lower bound `a` at 2. Pass 2 values to set `(a, b)`.
     bins : int, optional
-        Number of grayscale levels remap.
+        Number of grayscale levels to remap.
+    min : float, optional
+        Lower quantile in [0, 1] to clip to before discretization.
+    max : float, optional
+        Upper quantile in [0, 1] to clip to before discretization.
     batch : bool, optional
         Expect batched inputs.
     prob : float, optional
         Remapping probability.
     shared : bool, optional
         Remap all channels the same way.
-    generator : torch.Generator, optional
-        Pseudo-random number generator.
 
     Returns
     -------
-    (..., C, ...) torch.Tensor
-        Remapped intensities, min-max normalized to [0, 1].
+    (..., C, *size) torch.Tensor
+        Remapped intensities in [0, 1].
 
     """
     # Input of shape `(C, *size)`. Batches handled by decorator.
     x = torch.as_tensor(x)
     ndim = x.ndim - 1
-    bins = torch.as_tensor(bins)
-
-    # Shared channels.
     channels = 1 if shared else x.size(0)
-    prop = dict(device=x.device, generator=generator)
 
     # Control-point bounds.
-    points = torch.as_tensor(points).ravel()
+    points = torch.as_tensor(points).ravel().tolist()
     if len(points) not in (1, 2):
         raise ValueError(f'points {points} is not of length 1 or 2')
     if len(points) == 1:
-        points = torch.cat((torch.tensor([2]), points))
+        points = [2, *points]
 
-    # Control-point sampling.
-    a, b = points[0], points[1] + 1
-    if a.lt(2).any() or bins.lt(b).any():
-        raise ValueError(f'controls points {points} is not all in [2, {bins})')
-    points = torch.rand(1, **prop) * (b - a) + a
-    points = points.to(torch.int64)
+    a, b = points
+    if a < 2:
+        raise ValueError(f'lower control-point bound {a} is less than 2')
+    if a > b:
+        raise ValueError(f'control-point bounds {points} are not ordered')
+    if b >= bins:
+        raise ValueError(f'upper control-point bound {b} is not below {bins}')
 
-    # Discretization.
-    x = kt.utility.normalize(x, dim=range(0 if shared else 1, x.ndim))
+    # Control-point count. Sample on CPU to avoid synchronizing with GPU.
+    points = int(torch.randint(a, b + 1, size=()))
+
+    # Discretization. Clip to quantiles so outliers do not compress tissue.
+    dim = range(0 if shared else 1, x.ndim)
+    x = kt.utility.normalize(x, dim=dim, min=min, max=max)
     copy = x
     x = x * (bins - 1e-3)
     x = x.to(torch.int64)
 
-    # Lookup tables. Oversample, as edges are zero. Normalize to full range.
-    lut = kt.noise.perlin(bins * 2, points, batch=channels, **prop)
-    lut = lut[:, bins // 2:-bins // 2]
-    lut = kt.utility.normalize(lut, dim=-1)
+    # Lookup tables. Uniform random values at evenly spaced control points.
+    knots = torch.rand(channels, 1, points, device=x.device)
+    lut = torch.nn.functional.interpolate(
+        knots,
+        size=bins,
+        mode='linear',
+        align_corners=True,
+    )
+    lut = lut.view(channels, bins)
+
+    # Rank transform. Replace each LUT value by its rank among all values,
+    # scaled to [0, 1]. This spaces the output levels evenly to keep contrast.
+    lut = lut.argsort(-1).argsort(-1).float() / (bins - 1)
 
     # Indexing into LUT.
     offset = torch.arange(channels, device=x.device) * bins
@@ -390,7 +402,7 @@ def remap(x, /, points=8, bins=256, *, prob=1, shared=False, generator=None):
     out = lut.reshape(-1)[ind]
 
     # Randomization.
-    bit = kt.random.chance(prob, size=(channels, *[1] * ndim), **prop)
+    bit = kt.random.chance(prob, size=(channels, *[1] * ndim), device=x.device)
     return out.where(bit, copy)
 
 
