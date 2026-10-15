@@ -5,7 +5,7 @@ import os
 import torch
 
 
-def to_image(x, /, channels=1, *, generator=None):
+def to_image(x, /, channels=1):
     """Synthesize gray-scale images from a discrete-valued label map.
 
     Parameters
@@ -14,8 +14,6 @@ def to_image(x, /, channels=1, *, generator=None):
         Discrete, positive-valued label map.
     channels : int, optional
         Number of output channels.
-    generator : torch.Generator, optional
-        Pseudo-random number generator.
 
     Returns
     -------
@@ -28,7 +26,6 @@ def to_image(x, /, channels=1, *, generator=None):
     if ndim < 1 or x.size(1) != 1:
         raise ValueError(f'label map size {x.shape} is not (B, 1, *size)')
 
-    dev = dict(device=x.device)
     channels = torch.as_tensor(channels)
     if channels.numel() > 1 or channels.ndim > 0 or channels.lt(1):
         raise ValueError(f'channel count {channels} is not a positive scalar')
@@ -36,13 +33,13 @@ def to_image(x, /, channels=1, *, generator=None):
     # Lookup table.
     batch = x.size(0)
     labels = x.max() + 1
-    lut = torch.rand(batch, channels, labels, generator=generator, **dev)
+    lut = torch.rand(batch, channels, labels, device=x.device)
 
     # Indices into LUT. Keep channels on CPU until here.
-    channels = channels.to(**dev)
-    off_c = torch.arange(channels, **dev) * labels
+    channels = channels.to(device=x.device)
+    off_c = torch.arange(channels, device=x.device) * labels
     off_c = off_c.view(1, channels, *[1] * ndim)
-    off_b = torch.arange(batch, **dev) * channels * labels
+    off_b = torch.arange(batch, device=x.device) * channels * labels
     off_b = off_b.view(-1, 1, *[1] * ndim)
     ind = x + off_b + off_c
 

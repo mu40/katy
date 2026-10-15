@@ -5,7 +5,7 @@ import katy as kt
 import torch
 
 
-def chance(prob=0.5, size=1, *, device=None, generator=None):
+def chance(prob=0.5, size=1, *, device=None):
     """Return True with given probability.
 
     Parameters
@@ -16,8 +16,6 @@ def chance(prob=0.5, size=1, *, device=None, generator=None):
         Output shape.
     device : torch.device, optional
         Device of the returned tensor.
-    generator : torch.Generator, optional
-        Pseudo-random number generator.
 
     Returns
     -------
@@ -31,10 +29,10 @@ def chance(prob=0.5, size=1, *, device=None, generator=None):
     if isinstance(size, torch.Tensor):
         size = size.tolist()
 
-    return torch.rand(size, device=device, generator=generator) < prob
+    return torch.rand(size, device=device) < prob
 
 
-def affine(x, /, shift=30, angle=30, scale=0.1, shear=0.1, *, generator=None):
+def affine(x, /, shift=30, angle=30, scale=0.1, shear=0.1):
     """Draw N-dimensional matrix transforms.
 
     Uniformly samples parameters from [a, b]. For each parameter, pass one
@@ -54,8 +52,6 @@ def affine(x, /, shift=30, angle=30, scale=0.1, shear=0.1, *, generator=None):
         Scaling range, offset from 1. Pass `a` for factors in [1 - a, 1 + a].
     shear : float or sequence of float, optional
         Shearing range.
-    generator : torch.Generator, optional
-        Pseudo-random number generator.
 
     Returns
     -------
@@ -91,22 +87,20 @@ def affine(x, /, shift=30, angle=30, scale=0.1, shear=0.1, *, generator=None):
         raise ValueError(f'scale {scale} includes non-positive values')
 
     # Sample parameters.
-    prop = dict(device=x.device, generator=generator)
     bounds = torch.cat((shift, angle, scale, shear))
     a, b = bounds[0::2], bounds[1::2]
-    par = torch.rand(x.size(0), *a.shape, **prop) * (b - a) + a
+    par = torch.rand(x.size(0), *a.shape, device=x.device) * (b - a) + a
 
     # Construct matrix, with double precision.
-    prop = dict(device=x.device)
     splits = (3, 3, 3, 3) if ndim == 3 else (2, 1, 2, 1)
     par = torch.split(par, splits, dim=-1)
-    mat = kt.transform.compose_affine(*par, **prop)
+    mat = kt.transform.compose_affine(*par, device=x.device)
 
     # Apply in centered frame.
     return kt.transform.center_matrix(x.shape[2:], mat)
 
 
-def warp(x, /, disp=25, points=16, damp=0.33, steps=0, *, generator=None):
+def warp(x, /, disp=25, points=16, damp=0.33, steps=0):
     """Draw N-dimensional displacement fields.
 
     Uniformly samples control points and the maximum displacement strength.
@@ -127,8 +121,6 @@ def warp(x, /, disp=25, points=16, damp=0.33, steps=0, *, generator=None):
         Positive damping factor. Reduces amplitudes of higher frequencies.
     steps : int, optional
         Number of integration steps. Consider damping less when integrating.
-    generator : torch.Generator, optional
-        Pseudo-random number generator.
 
     Returns
     -------
@@ -140,10 +132,9 @@ def warp(x, /, disp=25, points=16, damp=0.33, steps=0, *, generator=None):
     ndim = x.ndim - 2
     batch = x.size(0)
     space = x.shape[2:]
-    dev = dict(device=x.device)
 
     # Conform control-point bounds to (a_1, b_1, a_2, b_2, ..., a_N, b_N).
-    points = torch.as_tensor(points, **dev).ravel()
+    points = torch.as_tensor(points, device=x.device).ravel()
     if len(points) not in (1, 2, 2 * ndim):
         raise ValueError(f'points {points} is not of length 1, 2, or 2N')
     if len(points) == 1:
@@ -152,15 +143,14 @@ def warp(x, /, disp=25, points=16, damp=0.33, steps=0, *, generator=None):
         points = points.repeat(ndim)
 
     # Control-point sampling.
-    prop = dict(**dev, generator=generator)
     a, b = points[0::2], points[1::2] + 1
     if a.lt(2).any() or points.new_tensor(space).lt(b).any():
         raise ValueError(f'controls points {points} is not all in [2, size)')
-    points = torch.rand(batch, ndim, **prop) * (b - a) + a
+    points = torch.rand(batch, ndim, device=x.device) * (b - a) + a
     points = points.to(torch.int64)
 
     # Damping factor, reducing amplitudes of higher (effective) frequencies.
-    damp = torch.as_tensor(damp, **dev).ravel()
+    damp = torch.as_tensor(damp, device=x.device).ravel()
     if len(damp) != 1 or damp.lt(0):
         raise ValueError(f'damping factor {damp} is not a positive scalar')
     feff_2 = points.square().sum(-1)
@@ -169,7 +159,7 @@ def warp(x, /, disp=25, points=16, damp=0.33, steps=0, *, generator=None):
     damp = damp.view(batch, 1, *[1] * ndim)
 
     # Conform displacement range.
-    disp = torch.as_tensor(disp, **dev).ravel()
+    disp = torch.as_tensor(disp, device=x.device).ravel()
     if len(disp) not in (1, 2, 2 * ndim):
         raise ValueError(f'displacement {disp} is not of length 1, 2, or 2N')
     if len(disp) == 1:
@@ -179,13 +169,13 @@ def warp(x, /, disp=25, points=16, damp=0.33, steps=0, *, generator=None):
 
     # Displacement-strength sampling.
     a, b = disp[0::2], disp[1::2]
-    disp = torch.rand(batch, ndim, **prop) * (b - a) + a
+    disp = torch.rand(batch, ndim, device=x.device) * (b - a) + a
     disp = disp.view(batch, ndim, *[1] * ndim)
 
     # Field of zero mean.
-    field = torch.empty(batch, ndim, *space, **dev)
+    field = torch.empty(batch, ndim, *space, device=x.device)
     for i, p in enumerate(points):
-        field[i] = kt.noise.perlin(space, p, batch=ndim, **prop)
+        field[i] = kt.noise.perlin(space, p, batch=ndim, device=x.device)
     dim = tuple(range(2, x.ndim))
     field -= field.mean(dim, keepdim=True)
     field *= disp * damp / field.abs().amax(dim, keepdim=True)
@@ -193,21 +183,20 @@ def warp(x, /, disp=25, points=16, damp=0.33, steps=0, *, generator=None):
     return kt.transform.integrate(field, steps)
 
 
-def replay(f, /, *, generator=None, device=None):
+def replay(f, /, *, seed=None):
     """Initialize each call to a function with the same random state.
 
-    Calls to a wrapped augmentation function should generally apply the same
-    augmentation each time. However, changing the function arguments between
-    calls may lead to different results depending on the wrapped function.
+    Calls to a wrapped function start from the same state of the global
+    generators, so they apply the same randomization as long as the function
+    draws the same sequence of random numbers. Changing arguments between calls
+    may lead to different results. The global random state remains unchanged.
 
     Parameters
     ----------
     f : callable
-        Callable taking a `torch.Generator` as keyword argument `generator`.
-    generator : torch.Generator, optional
-        Pseudo-random number generator.
-    device : torch.device, optional
-        Device used if `generator` is None.
+        Function to wrap, drawing from global random-number generators.
+    seed : int, optional
+        Seed for every call. None means drawing a random seed.
 
     Returns
     -------
@@ -215,16 +204,20 @@ def replay(f, /, *, generator=None, device=None):
         Wrapper function.
 
     """
-    if generator is None:
-        generator = torch.Generator(device)
+    if seed is None:
+        seed = int(torch.randint(2 ** 63 - 1, size=()))
 
-    state = generator.get_state()
-
-    # Reset before call so the state has advanced after. Otherwise, the next
-    # call to `f` would depart from the same state even without the wrapper.
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
-        generator.set_state(state)
-        return f(*args, **kwargs, generator=generator)
+        cuda = torch.cuda.is_initialized()
+        devices = range(torch.cuda.device_count()) if cuda else []
+
+        # Restore CPU and CUDA states on exit. Need CUDA initialized to fork.
+        with torch.random.fork_rng(devices=devices):
+            torch.default_generator.manual_seed(seed)
+            for i in devices:
+                torch.cuda.default_generators[i].manual_seed(seed)
+
+            return f(*args, **kwargs)
 
     return wrapper

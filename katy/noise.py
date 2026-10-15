@@ -5,15 +5,7 @@ import katy as kt
 import torch
 
 
-def perlin(
-    size,
-    points=2,
-    *,
-    batch=None,
-    return_grad=False,
-    device=None,
-    generator=None,
-):
+def perlin(size, points=2, *, batch=None, return_grad=False, device=None):
     """Generate Perlin noise in N dimensions.
 
     Inspired by https://adrianb.io/2014/08/09/perlinnoise.html.
@@ -31,8 +23,6 @@ def perlin(
         Return the gradient field.
     device : torch.device, optional
         Device of the returned tensor.
-    generator : torch.Generator, optional
-        Pseudo-random number generator.
 
     Returns
     -------
@@ -43,7 +33,6 @@ def perlin(
 
     """
     # Inputs.
-    dev = dict(device=device)
     size = torch.as_tensor(size).ravel()
     ndim = size.numel()
     points = torch.as_tensor(points, device=size.device).ravel().expand(ndim)
@@ -54,12 +43,12 @@ def perlin(
 
     # Grid of gradient directions at integral coordinate locations.
     batch = torch.as_tensor(batch).ravel()
-    grad = torch.rand(ndim, *batch, *points, generator=generator, **dev)
+    grad = torch.rand(ndim, *batch, *points, device=device)
     grad = grad.mul(2).sub(1).view(ndim, *batch, -1)
 
     # Output grid, subsampling between gradient coordinates.
     grid = zip(points, size, strict=True)
-    grid = (torch.linspace(0, c - 1, s, **dev) for c, s in grid)
+    grid = (torch.linspace(0, c - 1, s, device=device) for c, s in grid)
     grid = torch.meshgrid(*grid, indexing='ij')
     grid = torch.stack(grid)
 
@@ -99,7 +88,7 @@ def perlin(
     return (out, grad.view(ndim, *batch, *points)) if return_grad else out
 
 
-def octaves(size, points, pers, *, batch=None, device=None, generator=None):
+def octaves(size, points, pers, *, batch=None, device=None):
     """Generate and mix M isotropic octaves of Perlin noise in N dimensions.
 
     Inspired by https://www.arendpeter.com/Perlin_Noise.html.
@@ -116,8 +105,6 @@ def octaves(size, points, pers, *, batch=None, device=None, generator=None):
         Batch size.
     device : torch.device, optional
         Device of the returned tensor.
-    generator : torch.Generator, optional
-        Pseudo-random number generator.
 
     Returns
     -------
@@ -126,13 +113,12 @@ def octaves(size, points, pers, *, batch=None, device=None, generator=None):
 
     """
     # Inputs.
-    dev = dict(device=device)
-    size = torch.as_tensor(size, **dev).ravel()
-    points = torch.as_tensor(points, **dev).ravel()
-    pers = torch.as_tensor(pers, **dev)
+    size = torch.as_tensor(size, device=device).ravel()
+    points = torch.as_tensor(points, device=device).ravel()
+    pers = torch.as_tensor(pers, device=device)
     if batch is None:
         batch = []
-    batch = torch.as_tensor(batch, **dev).ravel()
+    batch = torch.as_tensor(batch, device=device).ravel()
 
     # Make sure that multi-persistence inputs have to broadcast to batch only.
     if pers.le(0).any() or pers.gt(1).any():
@@ -144,7 +130,7 @@ def octaves(size, points, pers, *, batch=None, device=None, generator=None):
     out = 0
     for p in points:
         amp = pers ** torch.log2(p)
-        out += amp * perlin(size, p, batch=batch, **dev, generator=generator)
+        out += amp * perlin(size, p, batch=batch, device=device)
 
     # Batch-wise normalization.
     return kt.utility.normalize(out, dim=range(len(batch), out.ndim))

@@ -7,7 +7,7 @@ import torch
 from . import utility
 
 
-def gamma(x, /, gamma=0.5, *, prob=1, shared=False, generator=None):
+def gamma(x, /, gamma=0.5, *, prob=1, shared=False):
     """Apply a random gamma transform to the intensities of a tensor.
 
     See https://en.wikipedia.org/wiki/Gamma_correction.
@@ -23,8 +23,6 @@ def gamma(x, /, gamma=0.5, *, prob=1, shared=False, generator=None):
         Probability of transforming a channel.
     shared : bool, optional
         Transform all channels the same way.
-    generator : torch.Generator, optional
-        Pseudo-random number generator.
 
     Returns
     -------
@@ -45,20 +43,19 @@ def gamma(x, /, gamma=0.5, *, prob=1, shared=False, generator=None):
     x = kt.utility.normalize(x, dim=range(1 if shared else 2, x.ndim))
 
     # Exponents. Randomize across batches, or batches and channels.
-    prop = dict(device=x.device, generator=generator)
     size = torch.as_tensor(x.shape)
     size[1 if shared else 2:] = 1
     a, b = gamma
-    exp = torch.rand(*size, **prop) * (b - a) + a
+    exp = torch.rand(*size, device=x.device) * (b - a) + a
 
     # Randomize application.
-    bit = kt.random.chance(prob, size, **prop)
+    bit = kt.random.chance(prob, size, device=x.device)
     exp = bit * exp + ~bit * 1
 
     return x.pow(exp)
 
 
-def noise(x, /, sd=(0.01, 0.1), *, prob=1, shared=False, generator=None):
+def noise(x, /, sd=(0.01, 0.1), *, prob=1, shared=False):
     """Add Gaussian noise to a tensor.
 
     Uniformly samples the standard deviation (SD) of the noise.
@@ -74,8 +71,6 @@ def noise(x, /, sd=(0.01, 0.1), *, prob=1, shared=False, generator=None):
         Probability of adding noise to a channel.
     shared : bool, optional
         Use the same SD for all channels.
-    generator : torch.Generator, optional
-        Pseudo-random number generator.
 
     Returns
     -------
@@ -86,20 +81,19 @@ def noise(x, /, sd=(0.01, 0.1), *, prob=1, shared=False, generator=None):
     # Inputs.
     x = torch.as_tensor(x)
     sd = torch.as_tensor(sd, device=x.device).ravel()
-    prop = dict(device=x.device, generator=generator)
 
     # Standard deviation.
     size = torch.as_tensor(x.shape)
     size[1 if shared else 2:] = 1
     a, b = (0, sd) if len(sd) == 1 else sd
-    sd = torch.rand(*size, **prop) * (b - a) + a
-    sd = sd * kt.random.chance(prob, size, **prop)
+    sd = torch.rand(*size, device=x.device) * (b - a) + a
+    sd = sd * kt.random.chance(prob, size, device=x.device)
 
-    return x + sd * torch.randn(x.shape, **prop)
+    return x + sd * torch.randn(x.shape, device=x.device)
 
 
 @utility.batch(batch=True)
-def blur(x, /, fwhm=1, *, prob=1, generator=None):
+def blur(x, /, fwhm=1, *, prob=1):
     """Blur a tensor by convolving its N spatial axes with Gaussian kernels.
 
     Uniformly samples anisotropic blurring full widths at half maximum (FWHM)
@@ -117,8 +111,6 @@ def blur(x, /, fwhm=1, *, prob=1, generator=None):
         Expect batched inputs.
     prob : float, optional
         Probability of blurring a batch entry.
-    generator : torch.Generator, optional
-        Pseudo-random number generator.
 
     Returns
     -------
@@ -140,13 +132,12 @@ def blur(x, /, fwhm=1, *, prob=1, generator=None):
         fwhm = fwhm.repeat(ndim)
 
     # Smoothing at per-batch probability.
-    prop = dict(device=x.device, generator=generator)
-    if not kt.random.chance(prob, **prop):
+    if not kt.random.chance(prob):
         return x
 
     # Blur.
     a, b = fwhm[0::2], fwhm[1::2]
-    fwhm = torch.rand(ndim, **prop) * (b - a) + a
+    fwhm = torch.rand(ndim, device=x.device) * (b - a) + a
     dim = torch.arange(1, 1 + ndim)
     return kt.filter.blur(x, fwhm, dim)
 
@@ -160,7 +151,6 @@ def bias(
     *,
     prob=1,
     shared=False,
-    generator=None,
     return_bias=False,
 ):
     """Modulate intensities by applying a smooth bias field.
@@ -186,8 +176,6 @@ def bias(
         Probability of modulating a channel.
     shared : bool, optional
         Modulate all channels of a batch with the same field.
-    generator : torch.Generator, optional
-        Pseudo-random number generator.
     return_bias : bool, optional
         Return bias field.
 
@@ -213,10 +201,9 @@ def bias(
         floor = torch.cat((floor, torch.ones_like(floor)))
 
     # Sampling.
-    prop = dict(device=x.device, generator=generator)
-    bit = kt.random.chance(prob, size=channels, **prop)
+    bit = kt.random.chance(prob, size=channels, device=x.device)
     a, b = floor
-    floor = torch.rand(channels, **prop) * (b - a) + a
+    floor = torch.rand(channels, device=x.device) * (b - a) + a
     floor = bit * floor + ~bit
 
     # Conform control-point bounds to (a_1, b_1, a_2, b_2, ..., a_N, b_N).
@@ -234,11 +221,11 @@ def bias(
         raise ValueError(f'controls points {points} is not all in [2, size)')
     a = a.to(x.device)
     b = b.to(x.device)
-    points = torch.rand(1, ndim, **prop) * (b - a) + a
+    points = torch.rand(1, ndim, device=x.device) * (b - a) + a
     points = points.to(torch.int64)
 
     # Field.
-    field = kt.noise.perlin(size, points, batch=channels[0], **prop)
+    field = kt.noise.perlin(size, points, batch=channels[0], device=x.device)
 
     # Channel-wise normalization.
     field = kt.utility.normalize(field, dim=range(1, x.ndim))
@@ -249,7 +236,7 @@ def bias(
 
 
 @utility.batch(batch=True)
-def downsample(x, /, factor=4, *, mode='linear', prob=1, generator=None):
+def downsample(x, /, factor=4, *, mode='linear', prob=1):
     """Reduce the resolution of a tensor.
 
     Downsamples a tensor and upsamples it again, to simulate upsampled lower
@@ -271,8 +258,6 @@ def downsample(x, /, factor=4, *, mode='linear', prob=1, generator=None):
         Expect batched inputs.
     prob : float, optional
         Downsampling probability.
-    generator : torch.Generator, optional
-        Pseudo-random number generator.
 
     Returns
     -------
@@ -301,11 +286,10 @@ def downsample(x, /, factor=4, *, mode='linear', prob=1, generator=None):
         raise ValueError(f'factors {factor} not all less than size')
 
     # Factor sampling.
-    prop = dict(device=x.device, generator=generator)
     factor = factor.to(x.device)
     a, b = factor[0::2], factor[1::2]
-    factor = torch.rand(ndim, **prop) * (b - a) + a
-    bit = kt.random.chance(prob, **prop)
+    factor = torch.rand(ndim, device=x.device) * (b - a) + a
+    bit = kt.random.chance(prob, device=x.device)
     factor = factor * bit + ~bit
     factor = 1 / factor
 
@@ -407,15 +391,7 @@ def remap(x, /, points=8, bins=256, *, min=0, max=0.99, prob=1, shared=False):
 
 
 @utility.batch(batch=True)
-def crop(
-    x,
-    /,
-    crop=0.33,
-    *,
-    prob=1,
-    generator=None,
-    return_mask=False,
-):
+def crop(x, /, crop=0.33, *, prob=1, return_mask=False):
     """Crop a tensor along a random spatial axis.
 
     Has the same effect on all channels.
@@ -431,8 +407,6 @@ def crop(
         Expect batched inputs.
     prob : float, optional
         Cropping probability.
-    generator : torch.Generator, optional
-        Pseudo-random number generator.
     return_mask : bool, optional
         Return cropping mask.
 
@@ -459,15 +433,14 @@ def crop(
         crop = torch.cat((torch.zeros_like(crop), crop))
 
     # Draw cropping amount, proportion to apply to lower end.
-    prop = dict(device=x.device, generator=generator)
     a, b = crop
-    crop = torch.rand(1, **prop) * (b - a) + a
-    crop = crop * kt.random.chance(prob, **prop)
+    crop = torch.rand(1, device=x.device) * (b - a) + a
+    crop = crop * kt.random.chance(prob, device=x.device)
 
     # Distribute cropping between lower and upper end of random axis.
     dim = torch.randint(ndim, size=())
     crop = crop * size[dim]
-    low = torch.rand(1, **prop)
+    low = torch.rand(1, device=x.device)
     low = (crop * low).to(torch.int64)
     upp = (crop - low).to(torch.int64)
 
@@ -484,7 +457,7 @@ def crop(
 
 
 @utility.batch(batch=True)
-def lines(x, /, lines=3, *, prob=1, generator=None):
+def lines(x, /, lines=3, *, prob=1):
     """Fill lines along an axis with a random value between 0 and 1.
 
     Affects all channels the same way.
@@ -500,8 +473,6 @@ def lines(x, /, lines=3, *, prob=1, generator=None):
         Expect batched inputs.
     prob : float, optional
         Line-corruption probability.
-    generator : torch.Generator, optional
-        Pseudo-random number generator.
 
     Returns
     -------
@@ -524,23 +495,23 @@ def lines(x, /, lines=3, *, prob=1, generator=None):
         lines = torch.cat((torch.ones_like(lines), lines))
 
     # Axis.
-    prop = dict(device=x.device, generator=generator)
-    dim = torch.randint(ndim, size=(), **prop)
+    dim = torch.randint(ndim, size=(), device=x.device)
 
     # Number of lines.
     a, b = lines
-    lines = torch.randint(a, b + 1, size=(), **prop)
-    lines = lines * kt.random.chance(prob, **prop)
+    lines = torch.randint(a, b + 1, size=(), device=x.device)
+    lines = lines * kt.random.chance(prob, device=x.device)
 
     # Line selection.
-    ind = torch.randperm(size[dim], **prop)[:lines]
+    ind = torch.randperm(size[dim], device=x.device)[:lines]
 
     # Fill value.
-    return x.index_fill(dim + 1, ind, value=torch.rand(size=(), **prop))
+    value = torch.rand(size=(), device=x.device)
+    return x.index_fill(dim=dim + 1, index=ind, value=value)
 
 
 @utility.batch(batch=True)
-def roll(x, /, shift=0.1, *, prob=1, generator=None):
+def roll(x, /, shift=0.1, *, prob=1):
     """Roll a tensor along a random spatial axis.
 
     Affects all channels the same way.
@@ -556,8 +527,6 @@ def roll(x, /, shift=0.1, *, prob=1, generator=None):
         Expect batched inputs.
     prob : float, optional
         Rolling probability.
-    generator : torch.Generator, optional
-        Pseudo-random number generator.
 
     Returns
     -------
@@ -578,21 +547,20 @@ def roll(x, /, shift=0.1, *, prob=1, generator=None):
     if len(shift) == 1:
         shift = torch.cat((torch.zeros_like(shift), shift))
 
-    prop = dict(device=x.device, generator=generator)
-    if not kt.random.chance(prob, **prop):
+    if not kt.random.chance(prob):
         return x
 
     # Draw shifts.
     a, b = shift
-    shift = torch.rand(1, **prop) * (b - a) + a
-    shift = shift * (-1) ** kt.random.chance(0.5, **prop)
+    shift = torch.rand(1, device=x.device) * (b - a) + a
+    shift = shift * (-1) ** kt.random.chance(0.5, device=x.device)
 
     dim = torch.randint(ndim, size=()) + 1
     return x.roll(shifts=int(shift * x.shape[dim]), dims=int(dim))
 
 
 @utility.batch(batch=True)
-def flip(x, /, dim=0, labels=None, *, prob=1, generator=None):
+def flip(x, /, dim=0, labels=None, *, prob=1):
     """Flip N-dimensional tensors along a random axis.
 
     Applies the same operation across all channels. Providing label names for
@@ -610,8 +578,6 @@ def flip(x, /, dim=0, labels=None, *, prob=1, generator=None):
         Expect batched inputs.
     prob : {0, 1}, optional
         Use 0 to disable, 1 to enable.
-    generator : torch.Generator, optional
-        Pseudo-random number generator.
 
     Returns
     -------
@@ -654,7 +620,7 @@ def flip(x, /, dim=0, labels=None, *, prob=1, generator=None):
                 labels[k] = k
 
     # Randomization. No flip as likely as any flip.
-    ind = torch.randint(-1, len(dim), size=(), generator=generator)
+    ind = torch.randint(-1, len(dim), size=())
     if ind < 0:
         return x
 
@@ -662,7 +628,7 @@ def flip(x, /, dim=0, labels=None, *, prob=1, generator=None):
 
 
 @utility.batch(batch=True)
-def permute(x, /, *, prob=1, generator=None):
+def permute(x, /, *, prob=1):
     """Randomly permute the channels of a tensor.
 
     Parameters
@@ -673,8 +639,6 @@ def permute(x, /, *, prob=1, generator=None):
         Expect batched inputs.
     prob : {0, 1}, optional
         Use 0 to disable, 1 to enable.
-    generator : torch.Generator, optional
-        Pseudo-random number generator.
 
     Returns
     -------
@@ -691,22 +655,12 @@ def permute(x, /, *, prob=1, generator=None):
     if prob == 0:
         return x
 
-    ind = torch.randperm(channels, generator=generator, device=x.device)
+    ind = torch.randperm(channels, device=x.device)
     return x[ind]
 
 
 @utility.batch(batch=True)
-def motion(
-    x,
-    /,
-    blocks=10,
-    moves=3,
-    *,
-    shift=10,
-    angle=10,
-    prob=1,
-    generator=None,
-):
+def motion(x, /, blocks=10, moves=3, *, shift=10, angle=10, prob=1):
     """Motion-corrupt an N-dimensional image by moving k-space segments.
 
     Partitions k-space into an odd number of blocks along a random axis and
@@ -731,8 +685,6 @@ def motion(
         Expect batched inputs.
     prob : float, optional
         Probability of corrupting a batch entry.
-    generator : torch.Generator, optional
-        Pseudo-random number generator.
 
     Returns
     -------
@@ -742,8 +694,7 @@ def motion(
     """
     # Input of shape `(C, *size)`. Batches handled by decorator.
     x = torch.as_tensor(x, dtype=torch.get_default_dtype())
-    prop = dict(device=x.device, generator=generator)
-    if not kt.random.chance(prob, **prop):
+    if not kt.random.chance(prob):
         return x
 
     blocks = torch.as_tensor(blocks, device=x.device).ravel()
@@ -761,18 +712,17 @@ def motion(
     a, b = blocks
     low = (a - 1) // 2
     upp = (b - 1) // 2
-    blocks = 2 * torch.randint(low, upp + 1, size=(), **prop) + 1
-    moves = torch.randint(1, min(moves + 1, blocks), size=(), **prop)
+    blocks = 2 * torch.randint(low, upp + 1, size=(), device=x.device) + 1
+    moves = torch.randint(1, min(moves + 1, blocks), size=(), device=x.device)
 
     # Stationary base and moved blocks as batch entries.
     base = x.unsqueeze(0)
     x = x.expand(moves, *x.shape)
-    g = generator
-    trans = kt.random.affine(x, shift, angle, scale=0, shear=0, generator=g)
+    trans = kt.random.affine(x, shift, angle, scale=0, shear=0)
     x = kt.transform.apply(x, trans)
 
     # Base and moved blocks: moves + 1, *rest, to_segment.
-    dim = torch.randint(2, x.ndim, size=(), **prop)
+    dim = torch.randint(2, x.ndim, size=(), device=x.device)
     space = tuple(range(2, x.ndim))
     x = torch.cat((base, x))
     k = torch.fft.fftn(x, dim=space)
@@ -782,7 +732,7 @@ def motion(
     cen = blocks // 2
     to_move = torch.arange(blocks, device=x.device)
     to_move = to_move[to_move != cen]
-    perm = torch.randperm(to_move.numel(), **prop)[:moves]
+    perm = torch.randperm(to_move.numel(), device=x.device)[:moves]
     to_move = to_move[perm]
     mapping = torch.zeros(blocks, dtype=torch.int64, device=x.device)
     for i, shot in enumerate(to_move, start=1):
@@ -804,7 +754,7 @@ def motion(
     return torch.fft.ifftn(k, dim=space).real.squeeze(0)
 
 
-def resize(x, /, *, min=None, max=None, batch=True, prob=1, generator=None):
+def resize(x, /, *, min=None, max=None, batch=True, prob=1):
     """Resize a tensor along a random spatial axis.
 
     Selects a random spatial axis and samples its output size using `min`,
@@ -824,8 +774,6 @@ def resize(x, /, *, min=None, max=None, batch=True, prob=1, generator=None):
         Expect batched inputs.
     prob : float, optional
         Resizing probability.
-    generator : torch.Generator, optional
-        Pseudo-random number generator.
 
     Returns
     -------
@@ -855,14 +803,13 @@ def resize(x, /, *, min=None, max=None, batch=True, prob=1, generator=None):
             if a > b:
                 raise ValueError(f'min {lo} exceeds max {hi} along axis {i}')
 
-    prop = dict(device=x.device, generator=generator)
-    if not kt.random.chance(prob, **prop) or (min is None and max is None):
+    if not kt.random.chance(prob) or (min is None and max is None):
         return x
 
     # Spatial axis and bounds. Missing bounds use the current size, unless it
     # is smaller than the minimum or larger than the maximum.
-    dim = torch.randint(ndim, size=(), **prop)
+    dim = torch.randint(ndim, size=(), device=x.device)
     a = torch.minimum(size[dim], hi[dim]) if lo is None else lo[dim]
     b = torch.maximum(size[dim], lo[dim]) if hi is None else hi[dim]
-    size[dim] = torch.randint(a, b + 1, size=(), **prop)
+    size[dim] = torch.randint(a, b + 1, size=(), device=x.device)
     return kt.utility.resize(x, size, batch=batch)

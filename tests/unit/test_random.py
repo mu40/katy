@@ -171,47 +171,100 @@ def test_warp_illegal_values():
         kt.random.warp(x, points=2, steps=-1)
 
 
-def test_replay_without_generator():
-    """Test replaying randomized operations without passing generator."""
-    def add_noise(x, generator=None):
-        return x + torch.rand(x.shape, generator=generator)
+FUNCTIONS_RANDOM = {
+    kt.augment.gamma,
+    kt.augment.noise,
+    lambda x: kt.augment.blur(x, fwhm=3),
+    kt.augment.bias,
+    kt.augment.downsample,
+    kt.augment.remap,
+    lambda x: kt.augment.crop(x, crop=0.5),
+    kt.augment.lines,
+    lambda x: kt.augment.roll(x, shift=0.5),
+    lambda x: kt.augment.flip(x, dim=None),
+    kt.augment.permute,
+    kt.augment.motion,
+    lambda x: kt.augment.resize(x, min=4, max=12),
+    kt.random.affine,
+    lambda x: kt.random.warp(x, points=4),
+    lambda x: kt.random.chance(size=x.shape),
+    lambda x: kt.noise.perlin(x.shape[2:], points=4),
+    lambda x: kt.labels.to_image(x[:, :1].mul(4).to(torch.int64)),
+}
 
-    # Expect same noise.
-    x = torch.zeros(4, 4)
-    replay = kt.random.replay(add_noise, device=None)
-    a = replay(x)
-    b = replay(x)
-    assert b.equal(a)
+
+@pytest.mark.parametrize('func', FUNCTIONS_RANDOM)
+def test_replay_repeats(func):
+    """Test if replaying randomized functions repeats the randomization."""
+    # Input of shape: batch, channel, space.
+    x = torch.rand(2, 2, 8, 8)
+
+    # Expect same randomization.
+    replay = kt.random.replay(func)
+    assert replay(x).equal(replay(x))
 
 
-def test_replay_with_generator():
-    """Test replaying randomized operations, passing a generator."""
-    def noise(generator):
-        return torch.rand(10, generator=generator)
+def test_replay_pipeline():
+    """Test replaying a composition of randomized functions."""
+    def f(x):
+        return kt.augment.flip(kt.augment.crop(kt.augment.roll(x)), dim=None)
 
-    # Expect same noise.
-    gen = torch.Generator()
-    replay = kt.random.replay(noise, generator=gen)
-    a = replay()
-    b = replay()
+    # Expect same randomization.
+    x = torch.rand(2, 1, 8, 8)
+    replay = kt.random.replay(f)
+    assert replay(x).equal(replay(x))
+
+
+def test_replay_global_state():
+    """Test if replayed calls leave global random state unchanged."""
+    replay = kt.random.replay(lambda: torch.rand(10))
+
+    state = torch.get_rng_state()
+    replay()
+    assert torch.get_rng_state().equal(state)
+
+
+def test_replay_wrappers():
+    """Test if separately created wrappers randomize differently."""
+    def noise():
+        return torch.rand(10)
+
+    a = kt.random.replay(noise)()
+    b = kt.random.replay(noise)()
+    assert not a.equal(b)
+
+
+def test_replay_manual_seed():
+    """Test if replaying respects the global seed."""
+    def noise():
+        return torch.rand(10)
+
+    torch.manual_seed(0)
+    a = kt.random.replay(noise)()
+    torch.manual_seed(0)
+    b = kt.random.replay(noise)()
     assert a.equal(b)
 
 
-def test_replay_illegal_values():
-    """Test replaying randomizations with illegal arguments."""
-    def without_generator():
-        return
+def test_replay_seed():
+    """Test replaying with an explicit seed."""
+    def noise():
+        return torch.rand(10)
 
-    def with_generator(generator=None):
-        return
+    a = kt.random.replay(noise, seed=1)()
+    b = kt.random.replay(noise, seed=1)()
+    assert a.equal(b)
 
-    # Expect wrapped function to require keyword argument `generator`.
-    f = kt.random.replay(without_generator)
-    with pytest.raises(TypeError):
-        f()
 
-    # Expect not to be able to pass `generator` to wrapped function.
-    f = kt.random.replay(with_generator)
-    f()
-    with pytest.raises(TypeError):
-        f(generator=None)
+@pytest.mark.skipif(not torch.cuda.is_available(), reason='no GPU')
+def test_replay_cuda():
+    """Test replaying functions drawing on both CPU and GPU."""
+    def noise(x):
+        return x + torch.rand(x.shape, device=x.device) + torch.randint(9, ())
+
+    # Expect same randomization and unchanged CUDA state.
+    x = torch.zeros(10, device='cuda')
+    replay = kt.random.replay(noise)
+    state = torch.cuda.get_rng_state()
+    assert replay(x).equal(replay(x))
+    assert torch.cuda.get_rng_state().equal(state)
