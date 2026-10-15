@@ -125,16 +125,20 @@ def index_to_torch(size, align_corners=False, *, device=None):
     swap = torch.eye(ndim).flipud()
     swap = torch.block_diag(swap, one)
 
-    return (swap @ norm if align_corners else swap @ norm @ align).to(device)
+    # Copy without blocking, to avoid synchronizing.
+    out = swap @ norm if align_corners else swap @ norm @ align
+    return out.to(device, non_blocking=True)
 
 
-def torch_to_index(*args, **kwargs):
+def torch_to_index(size, align_corners=False, *, device=None):
     """Construct a matrix transforming "PyTorch" to index coordinates.
 
     See `index_to_torch` for details.
 
     """
-    return torch.inverse(index_to_torch(*args, **kwargs))
+    # Invert on CPU. Faster and inversion on GPU synchronizes for error check.
+    out = index_to_torch(size, align_corners).inverse()
+    return out.to(device, non_blocking=True)
 
 
 def interpolate(x, /, points, mode='linear', *, padding='zeros'):
@@ -309,8 +313,8 @@ def compose_rotation(angle, deg=True, *, dtype=None):
         out = torch.stack((row_1, row_2), dim=-2)
 
     elif angle.size(-1) == 3:
-        one = angle.new_tensor(1).expand(angle.shape[:-1])
-        zero = angle.new_tensor(0).expand(angle.shape[:-1])
+        one = torch.ones_like(angle[..., 0])
+        zero = torch.zeros_like(one)
 
         row_1 = torch.stack((one, zero, zero), dim=-1)
         row_2 = torch.stack((zero, c[..., 0], -s[..., 0]), dim=-1)
@@ -711,10 +715,8 @@ def center_matrix(size, mat):
     cen[:-1, -1] = -0.5 * (size - 1)
     unc[:-1, -1] = -cen[:-1, -1]
 
-    # Keep most small operations on CPU.
-    cen = cen.to(mat.device)
-    unc = unc.to(mat.device)
-
+    cen = cen.to(mat.device, non_blocking=True)
+    unc = unc.to(mat.device, non_blocking=True)
     return (unc @ mat.to(cen.dtype) @ cen).to(mat.dtype)
 
 

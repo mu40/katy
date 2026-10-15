@@ -65,7 +65,7 @@ def affine(x, /, shift=30, angle=30, scale=0.1, shear=0.1):
         raise ValueError(f'{x.shape} is not a 2D or 3D tensor shape')
 
     def conform(f, name, sizes):
-        f = torch.as_tensor(f, device=x.device).ravel()
+        f = torch.as_tensor(f).ravel()
 
         if len(f) not in (1, 2, 2 * ndim):
             raise ValueError(f'size of {ndim}D {name} {f} is not in {sizes}')
@@ -86,18 +86,19 @@ def affine(x, /, shift=30, angle=30, scale=0.1, shear=0.1):
     if scale.le(0).any():
         raise ValueError(f'scale {scale} includes non-positive values')
 
-    # Sample parameters.
+    # Sample parameters. Keep these small operations on the CPU.
     bounds = torch.cat((shift, angle, scale, shear))
     a, b = bounds[0::2], bounds[1::2]
-    par = torch.rand(x.size(0), *a.shape, device=x.device) * (b - a) + a
+    par = torch.rand(x.size(0), *a.shape) * (b - a) + a
 
     # Construct matrix, with double precision.
     splits = (3, 3, 3, 3) if ndim == 3 else (2, 1, 2, 1)
     par = torch.split(par, splits, dim=-1)
-    mat = kt.transform.compose_affine(*par, device=x.device)
+    mat = kt.transform.compose_affine(*par)
 
-    # Apply in centered frame.
-    return kt.transform.center_matrix(x.shape[2:], mat)
+    # Apply in centered frame. Copy without blocking to avoid synchronizing.
+    mat = kt.transform.center_matrix(x.shape[2:], mat)
+    return mat.to(x.device, non_blocking=True)
 
 
 def warp(x, /, disp=25, points=16, damp=0.33, steps=0):
@@ -134,7 +135,7 @@ def warp(x, /, disp=25, points=16, damp=0.33, steps=0):
     space = x.shape[2:]
 
     # Conform control-point bounds to (a_1, b_1, a_2, b_2, ..., a_N, b_N).
-    points = torch.as_tensor(points, device=x.device).ravel()
+    points = torch.as_tensor(points).ravel()
     if len(points) not in (1, 2, 2 * ndim):
         raise ValueError(f'points {points} is not of length 1, 2, or 2N')
     if len(points) == 1:
@@ -146,11 +147,11 @@ def warp(x, /, disp=25, points=16, damp=0.33, steps=0):
     a, b = points[0::2], points[1::2] + 1
     if a.lt(2).any() or points.new_tensor(space).lt(b).any():
         raise ValueError(f'controls points {points} is not all in [2, size)')
-    points = torch.rand(batch, ndim, device=x.device) * (b - a) + a
+    points = torch.rand(batch, ndim) * (b - a) + a
     points = points.to(torch.int64)
 
     # Damping factor, reducing amplitudes of higher (effective) frequencies.
-    damp = torch.as_tensor(damp, device=x.device).ravel()
+    damp = torch.as_tensor(damp).ravel()
     if len(damp) != 1 or damp.lt(0):
         raise ValueError(f'damping factor {damp} is not a positive scalar')
     feff_2 = points.square().sum(-1)
@@ -159,7 +160,7 @@ def warp(x, /, disp=25, points=16, damp=0.33, steps=0):
     damp = damp.view(batch, 1, *[1] * ndim)
 
     # Conform displacement range.
-    disp = torch.as_tensor(disp, device=x.device).ravel()
+    disp = torch.as_tensor(disp).ravel()
     if len(disp) not in (1, 2, 2 * ndim):
         raise ValueError(f'displacement {disp} is not of length 1, 2, or 2N')
     if len(disp) == 1:
@@ -167,10 +168,11 @@ def warp(x, /, disp=25, points=16, damp=0.33, steps=0):
     if len(disp) == 2:
         disp = disp.repeat(ndim)
 
-    # Displacement-strength sampling.
+    # Displacement-strength, damped. Without blocking to avoid synchronizing.
     a, b = disp[0::2], disp[1::2]
-    disp = torch.rand(batch, ndim, device=x.device) * (b - a) + a
-    disp = disp.view(batch, ndim, *[1] * ndim)
+    disp = torch.rand(batch, ndim) * (b - a) + a
+    disp = disp.view(batch, ndim, *[1] * ndim) * damp
+    disp = disp.to(x.device, non_blocking=True)
 
     # Field of zero mean.
     field = torch.empty(batch, ndim, *space, device=x.device)
@@ -178,7 +180,7 @@ def warp(x, /, disp=25, points=16, damp=0.33, steps=0):
         field[i] = kt.noise.perlin(space, p, batch=ndim, device=x.device)
     dim = tuple(range(2, x.ndim))
     field -= field.mean(dim, keepdim=True)
-    field *= disp * damp / field.abs().amax(dim, keepdim=True)
+    field *= disp / field.abs().amax(dim, keepdim=True)
 
     return kt.transform.integrate(field, steps)
 

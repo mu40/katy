@@ -23,14 +23,14 @@ def gaussian_kernel(fwhm, width=None, *, device=None):
         Gaussian kernel.
 
     """
-    fwhm = torch.as_tensor(fwhm, device=device).squeeze()
+    fwhm = torch.as_tensor(fwhm).squeeze()
     sd = fwhm.div(2.3548).clamp(min=1e-6)
 
     if width is None:
         width = torch.round(3 * sd) * 2 + 1
-    width = torch.as_tensor(width, device=sd.device).squeeze()
+    width = torch.as_tensor(width).squeeze()
 
-    x = torch.arange(width, device=sd.device) - 0.5 * (width - 1)
+    x = torch.arange(width, device=device) - 0.5 * (width - 1)
     kern = torch.exp(-0.5 * x.div(sd).pow(2))
     return kern.div(kern.sum())
 
@@ -105,10 +105,10 @@ def dilate(x, /, n=1, *, dim=None):
     ndim = len(dim)
 
     # Kernel: "4-neighborhood" in 2D.
-    kern = torch.zeros([3] * ndim)
+    kern = torch.zeros([3] * ndim, device=x.device)
     for i in range(ndim):
         kern[(*[1] * i, slice(None), *[1] * (ndim - i - 1))] = 1
-    kern = kern.unsqueeze(0).unsqueeze(0).to(x.device)
+    kern = kern.unsqueeze(0).unsqueeze(0)
 
     # Reshaping to: batch, 1 channel, working space.
     end = tuple(range(-ndim, 0))

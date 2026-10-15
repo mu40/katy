@@ -80,12 +80,12 @@ def noise(x, /, sd=(0.01, 0.1), *, prob=1, shared=False):
     """
     # Inputs.
     x = torch.as_tensor(x)
-    sd = torch.as_tensor(sd, device=x.device).ravel()
+    sd = torch.as_tensor(sd).ravel()
 
     # Standard deviation.
     size = torch.as_tensor(x.shape)
     size[1 if shared else 2:] = 1
-    a, b = (0, sd) if len(sd) == 1 else sd
+    a, b = (0, *sd) if len(sd) == 1 else sd
     sd = torch.rand(*size, device=x.device) * (b - a) + a
     sd = sd * kt.random.chance(prob, size, device=x.device)
 
@@ -121,7 +121,7 @@ def blur(x, /, fwhm=1, *, prob=1):
     # Input of shape `(C, *size)`. Batches handled by decorator.
     x = torch.as_tensor(x)
     ndim = x.ndim - 1
-    fwhm = torch.as_tensor(fwhm, device=x.device).ravel()
+    fwhm = torch.as_tensor(fwhm).ravel()
     if len(fwhm) not in (1, 2, 2 * ndim):
         raise ValueError(f'FWHM {fwhm} is not of length 1, 2, or 2N')
 
@@ -137,7 +137,7 @@ def blur(x, /, fwhm=1, *, prob=1):
 
     # Blur.
     a, b = fwhm[0::2], fwhm[1::2]
-    fwhm = torch.rand(ndim, device=x.device) * (b - a) + a
+    fwhm = torch.rand(ndim) * (b - a) + a
     dim = torch.arange(1, 1 + ndim)
     return kt.filter.blur(x, fwhm, dim)
 
@@ -219,9 +219,7 @@ def bias(
     a, b = points[0::2], points[1::2] + 1
     if a.lt(2).any() or torch.tensor(size).lt(b).any():
         raise ValueError(f'controls points {points} is not all in [2, size)')
-    a = a.to(x.device)
-    b = b.to(x.device)
-    points = torch.rand(1, ndim, device=x.device) * (b - a) + a
+    points = torch.rand(1, ndim) * (b - a) + a
     points = points.to(torch.int64)
 
     # Field.
@@ -286,10 +284,9 @@ def downsample(x, /, factor=4, *, mode='linear', prob=1):
         raise ValueError(f'factors {factor} not all less than size')
 
     # Factor sampling.
-    factor = factor.to(x.device)
     a, b = factor[0::2], factor[1::2]
-    factor = torch.rand(ndim, device=x.device) * (b - a) + a
-    bit = kt.random.chance(prob, device=x.device)
+    factor = torch.rand(ndim) * (b - a) + a
+    bit = kt.random.chance(prob)
     factor = factor * bit + ~bit
     factor = 1 / factor
 
@@ -434,13 +431,13 @@ def crop(x, /, crop=0.33, *, prob=1, return_mask=False):
 
     # Draw cropping amount, proportion to apply to lower end.
     a, b = crop
-    crop = torch.rand(1, device=x.device) * (b - a) + a
-    crop = crop * kt.random.chance(prob, device=x.device)
+    crop = torch.rand(1) * (b - a) + a
+    crop = crop * kt.random.chance(prob)
 
     # Distribute cropping between lower and upper end of random axis.
     dim = torch.randint(ndim, size=())
     crop = crop * size[dim]
-    low = torch.rand(1, device=x.device)
+    low = torch.rand(1)
     low = (crop * low).to(torch.int64)
     upp = (crop - low).to(torch.int64)
 
@@ -495,18 +492,18 @@ def lines(x, /, lines=3, *, prob=1):
         lines = torch.cat((torch.ones_like(lines), lines))
 
     # Axis.
-    dim = torch.randint(ndim, size=(), device=x.device)
+    dim = torch.randint(ndim, size=())
 
     # Number of lines.
     a, b = lines
-    lines = torch.randint(a, b + 1, size=(), device=x.device)
-    lines = lines * kt.random.chance(prob, device=x.device)
+    lines = torch.randint(a, b + 1, size=())
+    lines = lines * kt.random.chance(prob)
 
     # Line selection.
     ind = torch.randperm(size[dim], device=x.device)[:lines]
 
     # Fill value.
-    value = torch.rand(size=(), device=x.device)
+    value = torch.rand(size=())
     return x.index_fill(dim=dim + 1, index=ind, value=value)
 
 
@@ -552,8 +549,8 @@ def roll(x, /, shift=0.1, *, prob=1):
 
     # Draw shifts.
     a, b = shift
-    shift = torch.rand(1, device=x.device) * (b - a) + a
-    shift = shift * (-1) ** kt.random.chance(0.5, device=x.device)
+    shift = torch.rand(1) * (b - a) + a
+    shift = shift * (-1) ** kt.random.chance(0.5)
 
     dim = torch.randint(ndim, size=()) + 1
     return x.roll(shifts=int(shift * x.shape[dim]), dims=int(dim))
@@ -697,8 +694,8 @@ def motion(x, /, blocks=10, moves=3, *, shift=10, angle=10, prob=1):
     if not kt.random.chance(prob):
         return x
 
-    blocks = torch.as_tensor(blocks, device=x.device).ravel()
-    moves = torch.as_tensor(moves, device=x.device).ravel()
+    blocks = torch.as_tensor(blocks).ravel()
+    moves = torch.as_tensor(moves).ravel()
     if len(blocks) not in (1, 2):
         raise ValueError(f'blocks {blocks} is not of length 1, or 2')
     if blocks.lt(3).any():
@@ -712,8 +709,8 @@ def motion(x, /, blocks=10, moves=3, *, shift=10, angle=10, prob=1):
     a, b = blocks
     low = (a - 1) // 2
     upp = (b - 1) // 2
-    blocks = 2 * torch.randint(low, upp + 1, size=(), device=x.device) + 1
-    moves = torch.randint(1, min(moves + 1, blocks), size=(), device=x.device)
+    blocks = 2 * torch.randint(low, upp + 1, size=()) + 1
+    moves = torch.randint(1, min(moves + 1, blocks), size=())
 
     # Stationary base and moved blocks as batch entries.
     base = x.unsqueeze(0)
@@ -722,21 +719,19 @@ def motion(x, /, blocks=10, moves=3, *, shift=10, angle=10, prob=1):
     x = kt.transform.apply(x, trans)
 
     # Base and moved blocks: moves + 1, *rest, to_segment.
-    dim = torch.randint(2, x.ndim, size=(), device=x.device)
+    dim = torch.randint(2, x.ndim, size=())
     space = tuple(range(2, x.ndim))
     x = torch.cat((base, x))
     k = torch.fft.fftn(x, dim=space)
     k = k.movedim(dim, -1)
 
-    # Indices of blocks to move. Mapping from all blocks to batch index.
+    # Indices of blocks to move, skipping the stationary central block.
+    # Mapping from all blocks to batch index.
     cen = blocks // 2
-    to_move = torch.arange(blocks, device=x.device)
-    to_move = to_move[to_move != cen]
-    perm = torch.randperm(to_move.numel(), device=x.device)[:moves]
-    to_move = to_move[perm]
+    to_move = torch.randperm(blocks - 1, device=x.device)[:moves]
+    to_move = to_move + (to_move >= cen)
     mapping = torch.zeros(blocks, dtype=torch.int64, device=x.device)
-    for i, shot in enumerate(to_move, start=1):
-        mapping[shot] = i
+    mapping[to_move] = torch.arange(1, moves + 1, device=x.device)
 
     # Map line indices along segmentation axis to blocks, to batches. Compute
     # block indices as if we had fftshifted the segmentation axis, since we
@@ -808,8 +803,8 @@ def resize(x, /, *, min=None, max=None, batch=True, prob=1):
 
     # Spatial axis and bounds. Missing bounds use the current size, unless it
     # is smaller than the minimum or larger than the maximum.
-    dim = torch.randint(ndim, size=(), device=x.device)
+    dim = torch.randint(ndim, size=())
     a = torch.minimum(size[dim], hi[dim]) if lo is None else lo[dim]
     b = torch.maximum(size[dim], lo[dim]) if hi is None else hi[dim]
-    size[dim] = torch.randint(a, b + 1, size=(), device=x.device)
+    size[dim] = torch.randint(a, b + 1, size=())
     return kt.utility.resize(x, size, batch=batch)

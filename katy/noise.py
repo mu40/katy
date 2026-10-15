@@ -113,17 +113,18 @@ def octaves(size, points, pers, *, batch=None, device=None):
 
     """
     # Inputs.
-    size = torch.as_tensor(size, device=device).ravel()
-    points = torch.as_tensor(points, device=device).ravel()
-    pers = torch.as_tensor(pers, device=device)
+    size = torch.as_tensor(size).ravel()
+    points = torch.as_tensor(points).ravel()
+    pers = torch.as_tensor(pers)
     if batch is None:
         batch = []
-    batch = torch.as_tensor(batch, device=device).ravel()
+    batch = torch.as_tensor(batch).ravel()
 
     # Make sure that multi-persistence inputs have to broadcast to batch only.
     if pers.le(0).any() or pers.gt(1).any():
         raise ValueError(f'persistence {pers} is not in (0, 1]')
     pers = pers.view(*pers.shape, *(1,) * size.numel())
+    pers = pers.to(device)
 
     # With the definitions of `freq = 2 ** i` and `amp = pers ** i`, from the
     # reference, we have `i = log2(freq)` and thus `amp = pers ** log2(freq)`.

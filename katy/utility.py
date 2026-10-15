@@ -113,7 +113,7 @@ def resize(x, /, size, *, mode='exact', fill=0, batch=True):
     i = 2 if batch else 1
     ndim = x.ndim - i
     size_old = torch.as_tensor(x.shape)
-    size_new = torch.as_tensor(size, device='cpu').ravel().expand(ndim)
+    size_new = torch.as_tensor(size).ravel().expand(ndim)
     size_new = torch.cat((size_old[:i], size_new))
 
     if mode == 'min':
@@ -222,10 +222,10 @@ def quantile(x, /, q, dim=None, *, keepdim=False):
     q = q.view(size)
     x, _ = x.sort(dim)
 
-    # Indices.
+    # Indices. Copy without blocking to avoid synchronizing.
     n = torch.tensor(x.size(dim))
     ind = q * (n - 1)
-    ind = ind.to(x.device)
+    ind = ind.to(x.device, non_blocking=True)
     ind_0 = ind.to(torch.int64)
     ind_1 = torch.minimum(ind_0 + 1, n - 1)
 
