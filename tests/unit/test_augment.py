@@ -203,15 +203,15 @@ def test_downsample_shared_channels():
     """Test if shared channels are identical, with per-axis factor."""
     inp = arange(1, 4, 4).expand(3, -1, -1)
     out = kt.augment.downsample(inp, factor=(1, 3, 1, 3), batch=False)
-    out[:1].equal(out[1:])
+    assert out[1:].eq(out[:1]).all()
 
 
 @pytest.mark.parametrize('mode', ['nearest', 'linear'])
 def test_downsample_identity_factor(mode):
     """Test if downsampling with a factor of 1 returns the input."""
-    inp = arange(1, 1, 4)
+    inp = arange(1, 1, 4, dtype=torch.get_default_dtype())
     out = kt.augment.downsample(inp, factor=(1, 1), mode=mode)
-    out.equal(inp)
+    assert out.equal(inp)
 
 
 def test_remap_shared_channels():
@@ -291,7 +291,7 @@ def test_roll_illegal_value(shift):
     """Test rolling tensors with illegal shifts, not 1-2 values in [0, 1]."""
     x = torch.zeros(1, 1, 4)
     with pytest.raises(ValueError):
-        kt.augment.roll(x, shift=(0, 1, 2))
+        kt.augment.roll(x, shift=shift)
 
 
 @pytest.mark.parametrize('dtype', [torch.int64, torch.float16, torch.float64])

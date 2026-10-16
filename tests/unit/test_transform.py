@@ -207,7 +207,7 @@ def test_compose_matrices_grid(ndim, batch):
     # Matrix and grid.
     zoom = 3.
     mat = torch.tensor((*[zoom] * ndim, 1)).diag()
-    mat.expand(*batch, *mat.shape)
+    mat = mat.expand(*batch, *mat.shape)
     grid = kt.transform.grid(size=[5] * ndim, dtype=mat.dtype)
 
     # With a grid, a matrix should become a displacement field.
