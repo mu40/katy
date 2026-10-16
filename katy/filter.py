@@ -255,7 +255,7 @@ def label(x, /):
     torch.Tensor
         Labeled components, valued 1 through K. Same shape as `x`.
     (K,) torch.Tensor
-        Unique labels 1 through K for lartest to smallest.
+        Unique labels 1 through K for largest to smallest.
     (K,) torch.Tensor
         Corresponding label sizes.
 
@@ -268,7 +268,7 @@ def label(x, /):
     labels = torch.arange(x.numel(), dtype=torch.float32, device=x.device)
     labels = labels.view_as(x)
     bg = x.eq(0)
-    labels[bg] = torch.inf
+    labels.masked_fill_(bg, torch.inf)
 
     # Kernel: 4-neighborhood in 2D.
     steps = torch.eye(x.ndim, dtype=torch.int32)
@@ -282,22 +282,16 @@ def label(x, /):
         prev = labels
         neigh = [torch.roll(labels, shifts=s, dims=dims) for s in steps]
         labels, _ = torch.stack(neigh).min(dim=0)
-        labels[bg] = torch.inf
+        labels.masked_fill_(bg, torch.inf)
 
-    # Remove padding, order by size.
-    labels = labels[(slice(1, -1),) * labels.ndim]
-    uniq, size = labels.unique(return_counts=True)
-    if uniq.numel() and uniq[-1] == torch.inf:
-        uniq, size = uniq[:-1], size[:-1]
+    # Order by size. Padding guarantees background, which sorts last as inf.
+    _, inv, size = labels.unique(return_inverse=True, return_counts=True)
+    ind = size[:-1].argsort(descending=True)
 
-    ind = size.argsort(descending=True)
-    uniq = uniq[ind]
-    size = size[ind]
+    # Map each component to its rank, starting at 1. Background stays 0.
+    rank = torch.zeros_like(size)
+    rank[ind] = torch.arange(1, 1 + len(ind), device=ind.device)
+    unpad = (slice(1, -1),) * inv.ndim
+    out = rank[inv[unpad]]
 
-    # Map to indices. Initialize last label to 0 in case of background only.
-    new = 0
-    out = torch.zeros_like(labels, dtype=torch.int64)
-    for new, old in enumerate(uniq, start=1):
-        out[labels == old] = new
-
-    return out, torch.arange(1, 1 + new), size
+    return out, torch.arange(1, 1 + len(ind)), size[ind]

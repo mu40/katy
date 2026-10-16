@@ -392,29 +392,19 @@ def decompose_rotation(mat, /, deg=True, *, dtype=None):
     elif ndim == 3:
         ang2 = torch.asin(mat[..., 0, 2])
 
-        # Initialize, check if gimbal lock for each matrix. Reduce relative
-        # tolerance to improve precision.
-        ang1 = torch.zeros_like(ang2)
-        ang3 = torch.zeros_like(ang2)
-        lock = 0.5 * mat.new_tensor(torch.pi)
-        ind = ang2.abs().isclose(lock, rtol=1e-8)
+        # Check if gimbal lock. Reduce relative tolerance to improve precision.
+        lock = torch.full_like(ang2, 0.5 * torch.pi)
+        lock = ang2.abs().isclose(lock, rtol=1e-8)
 
-        # Case abs(ang2) == 90 deg. Keep ang1 zero, as solution is not unique.
-        y = mat[..., 1, 0][ind]
-        x = mat[..., 1, 1][ind]
-        ang3[ind] = torch.atan2(y, x)
+        # Case abs(ang2) != 90 deg. Dividing both arguments of `atan2` by
+        # cos(ang2) would not change the result, as cos(ang2) > 0.
+        ang1 = torch.atan2(-mat[..., 1, 2], mat[..., 2, 2])
+        ang3 = torch.atan2(-mat[..., 0, 1], mat[..., 0, 0])
 
-        # Case abs(ang2) != 90 deg.
-        ind = ind.logical_not()
-        c2 = torch.cos(ang2[ind])
-        y = -mat[..., 1, 2][ind].div(c2)
-        x = mat[..., 2, 2][ind].div(c2)
-        ang1[ind] = torch.atan2(y, x)
-
-        # Other angle.
-        y = -mat[..., 0, 1][ind].div(c2)
-        x = mat[..., 0, 0][ind].div(c2)
-        ang3[ind] = torch.atan2(y, x)
+        # Case abs(ang2) == 90 deg. Make ang1 zero, as solution is not unique.
+        ang1 = torch.where(lock, 0, ang1)
+        alt3 = torch.atan2(mat[..., 1, 0], mat[..., 1, 1])
+        ang3 = torch.where(lock, alt3, ang3)
 
         ang = torch.stack((ang1, ang2, ang3), dim=-1)
 
@@ -795,8 +785,8 @@ def fit_matrix(x, y, /, weights=None, *, ridge=1e-6):
     if weights is not None:
         xt = xt * torch.as_tensor(weights, dtype=x.dtype).unsqueeze(-2)
 
-    # Least squares.
-    beta = (xt @ x + ridge).inverse() @ xt @ y
+    # Least squares. Solving without error check avoids synchronizing.
+    beta = torch.linalg.solve_ex(xt @ x + ridge, xt @ y).result
 
     # Last row.
     size = (*beta.shape[:-2], ndim + 1, ndim + 1)

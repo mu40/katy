@@ -32,11 +32,10 @@ def to_image(x, /, channels=1):
 
     # Lookup table.
     batch = x.size(0)
-    labels = x.max() + 1
+    labels = int(x.max()) + 1
     lut = torch.rand(batch, channels, labels, device=x.device)
 
-    # Indices into LUT. Keep channels on CPU until here.
-    channels = channels.to(device=x.device)
+    # Indices into LUT.
     off_c = torch.arange(channels, device=x.device) * labels
     off_c = off_c.view(1, channels, *[1] * ndim)
     off_b = torch.arange(batch, device=x.device) * channels * labels
@@ -80,14 +79,13 @@ def to_rgb(x, /, colors=None, labels=None, *, dim=1):
         colors = kt.io.read_colors(colors)
     colors = {k: v['color'] for k, v in colors.items()}
 
-    # Lookup table.
-    size = max(colors) + 1
-    lut = torch.zeros(size, 3, device=x.device)
-    for i, color in colors.items():
-        lut[i] = torch.as_tensor(color)
+    # Lookup table, in [0, 1]. Copy without blocking to avoid synchronizing.
+    lut = torch.zeros(max(colors) + 1, 3)
+    lut[list(colors)] = torch.tensor(list(colors.values()), dtype=lut.dtype)
+    lut = lut.div(255).to(x.device, non_blocking=True)
 
-    # Do not cast to integers before `argmax`.
-    return lut[x.to(torch.int64)].squeeze(1).movedim(-1, dim) / 255
+    # Cast to integers now, after `argmax` of one-hot maps.
+    return lut[x.to(torch.int64)].squeeze(1).movedim(-1, dim)
 
 
 def remap(x, /, mapping=None, unknown=None):
@@ -125,15 +123,22 @@ def remap(x, /, mapping=None, unknown=None):
         mapping = kt.io.load(mapping)
     mapping = {int(k): v for k, v in mapping.items()}
 
-    # Lookup table.
-    size = max(max(mapping), x.max()) + 1
+    # Lookup table. Clamping maps labels beyond the keys to an extra entry.
+    size = max(mapping) + 2
     if unknown is None:
         lut = torch.arange(size)
     else:
         lut = torch.full([size], fill_value=unknown)
 
     lut[list(mapping)] = torch.tensor(list(mapping.values()))
-    return lut.to(x.device)[x].to(dtype)
+    lut = lut.to(x.device, non_blocking=True)
+    out = lut[x.clamp(max=size - 1)]
+
+    # Clamping breaks identity beyond the keys.
+    if unknown is None:
+        out = out.where(x < size, x)
+
+    return out.to(dtype)
 
 
 def one_hot(x, /, labels):
@@ -163,16 +168,19 @@ def one_hot(x, /, labels):
         labels = list(map(int, labels))
 
     labels = torch.as_tensor(labels).ravel()
+    if labels.dtype in (torch.uint8, torch.bool) or labels.is_floating_point():
+        raise ValueError(f'labels {labels} are not of integer type')
     if len(labels.unique(sorted=False)) != len(labels):
         raise ValueError(f'label values {labels} are not unique')
 
-    # Lookup table.
-    size = max(x.max(), labels.max()) + 1
-    lut = torch.zeros(size, dtype=torch.int64)
+    # Lookup table. Clamping maps labels beyond those passed to an extra entry,
+    # that is, to channel 0. Copy without blocking to avoid synchronizing.
+    lut = torch.zeros(labels.max() + 2, dtype=torch.int64)
     lut[labels] = torch.arange(len(labels))
+    lut = lut.to(x.device, non_blocking=True)
 
     # Replace the singleton channel dimension.
-    x = lut.to(x.device)[x]
+    x = lut[x.clamp(max=len(lut) - 1)]
     x = torch.nn.functional.one_hot(x, num_classes=len(labels))
     return x.squeeze(1).movedim(-1, 1).to(torch.get_default_dtype())
 
