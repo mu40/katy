@@ -32,7 +32,7 @@ def test_perlin_batches(batch):
 
 @pytest.mark.parametrize('points', [2, (3,), (2, 3), torch.tensor((2, 3))])
 def test_perlin_points(points):
-    """Test generating 2D Perlin noise with various control point types."""
+    """Test generating 2D Perlin noise with various control-point types."""
     size = (5, 5)
     assert kt.noise.perlin(size, points=points).shape == size
 

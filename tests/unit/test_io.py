@@ -40,7 +40,7 @@ def test_save_atomic_no_temp(tmp_path, suffix):
 
 
 def test_save_failure_keeps_original(tmp_path):
-    """Test if a failed write preserves the existing but no temporary file."""
+    """Test if a failed write keeps the original, leaving no temporary file."""
     path = tmp_path / 'testfile.json'
     kt.io.save({'good': 1}, path)
 

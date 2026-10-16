@@ -21,7 +21,7 @@ def test_gaussian_kernel_default_width_odd():
 
 
 def test_blur_unchanged():
-    """Test if blurring leaves the input changed."""
+    """Test if blurring leaves the input unchanged."""
     inp = torch.zeros(2, 3, 4)
     fwhm = torch.tensor(1)
     orig = inp.clone()
@@ -96,7 +96,7 @@ def test_erode_trivial(dtype):
 
 
 def test_erode_iterations():
-    """Test iterative erosion, in 1D. See Scipy examples."""
+    """Test iterative erosion, in 1D. See SciPy examples."""
     x = torch.tensor((0, 1, 1, 1, 1, 1))
     assert kt.filter.erode(x, n=0).equal(x)
     assert kt.filter.erode(x, n=1).equal(torch.tensor((0, 0, 1, 1, 1, 0)))
@@ -104,7 +104,7 @@ def test_erode_iterations():
 
 
 def test_erode_dimensions():
-    """Test eroding specific dimensions, in 2D. See Scipy examples."""
+    """Test eroding specific dimensions, in 2D. See SciPy examples."""
     # Expected input and output.
     a = torch.tensor((
         (0, 0, 0, 0),
@@ -135,7 +135,7 @@ def test_erode_dimensions():
 
 
 def test_close_1d():
-    """Test closing, in 1D. See Scipy examples."""
+    """Test closing, in 1D. See SciPy examples."""
     a = torch.tensor((0, 0, 1, 1, 0, 1))
     b = torch.tensor((0, 0, 1, 1, 1, 0))
 
@@ -144,7 +144,7 @@ def test_close_1d():
 
 
 def test_close_2d():
-    """Test closing, in 2D. See Scipy examples."""
+    """Test closing, in 2D. See SciPy examples."""
     a = torch.tensor((
         (0, 0, 0, 0, 0),
         (0, 1, 1, 1, 0),
@@ -163,7 +163,7 @@ def test_close_2d():
 
 
 def test_open_1d():
-    """Test opening, in 1D. See Scipy examples."""
+    """Test opening, in 1D. See SciPy examples."""
     a = torch.tensor((0, 1, 1, 1, 0, 1))
     b = torch.tensor((0, 1, 1, 1, 0, 0))
     assert kt.filter.open(a, n=0).equal(a)
@@ -171,7 +171,7 @@ def test_open_1d():
 
 
 def test_open_2d():
-    """Test opening, in 2D. See Scipy examples."""
+    """Test opening, in 2D. See SciPy examples."""
     a = torch.tensor((
         (1, 0, 0, 0, 1),
         (0, 1, 1, 1, 0),

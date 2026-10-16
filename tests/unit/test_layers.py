@@ -31,7 +31,7 @@ def test_hyper_conv_shape():
     h = torch.zeros(batch, 5)
     ndim = len(space)
 
-    # Without padding, expect 2 voxels less for kernel size 3.
+    # Without padding, expect 2 voxels fewer for kernel size 3.
     out = kt.layers.HyperConv(ndim, i, o, kernel_size=3)(x, h)
     assert out.shape == (batch, o, *(s - 2 for s in space))
 

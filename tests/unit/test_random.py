@@ -56,7 +56,7 @@ def test_affine_unchanged():
 
 @pytest.mark.parametrize('ndim', [2, 3])
 def test_affine_batches(ndim):
-    """Test if generating affine-transforms, with per-axis tensor input."""
+    """Test generating affine transforms, with per-axis tensor input."""
     # Input of shape: batch, channel, space.
     x = torch.ones(7, 1, *[4] * ndim)
     shift = torch.tensor((0, 10) * ndim)

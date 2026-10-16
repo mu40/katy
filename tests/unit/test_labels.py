@@ -133,7 +133,7 @@ def test_to_rgb_one_hot():
     # Expect no green.
     assert rgb[:, 1, :].eq(0).all()
 
-    # Expect green in second half of space only
+    # Expect blue in second half of space only.
     assert rgb[:, 2, :2].eq(0).all()
     assert rgb[:, 2, 2:].eq(1).all()
 
@@ -155,7 +155,7 @@ def test_remap_memory():
     out = kt.labels.remap(inp, mapping, unknown=None)
     assert out.tolist() == [5, 2, 2, 1]
 
-    # Expect unspecified labels become specific value.
+    # Expect unspecified labels to become specific value.
     inp = list(x)
     out = kt.labels.remap(inp, mapping=mapping, unknown=9)
     assert out.tolist() == [9, 2, 2, 1]
@@ -192,7 +192,7 @@ def test_one_hot_dtype():
 
 
 def test_one_hot_illegal_inputs():
-    """Test if one-hotting with illegal input values."""
+    """Test one-hotting with illegal input values."""
     # Input label map should have one channel.
     x = torch.ones(1, 2, 3)
     with pytest.raises(ValueError):
@@ -218,7 +218,7 @@ def test_one_hot_values():
 
 @pytest.mark.parametrize('ext', ['json', 'pt'])
 def test_one_hot_disk(tmp_path, ext):
-    """Test remapping labels with mapping in file."""
+    """Test one-hot encoding with labels in file."""
     inp = torch.tensor([0, 1, 1, 2]).view(1, 1, -1)
     x = (0, 1, 2)
 

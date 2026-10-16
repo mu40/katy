@@ -43,7 +43,7 @@ def test_dice_values():
 
 
 def test_dice_channels():
-    """Test Dice loss average over channels, in 3D."""
+    """Test Dice loss average over channels, in 2D."""
     half = 4
     size = (1, 1, half * 2, half * 2)
 

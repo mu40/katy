@@ -36,7 +36,7 @@ class HyperConv(nn.Module):
             Kernel size, of length 1 or `ndim`.
         bias : bool, optional
             Have the hyper convolution apply an additive bias.
-        groups : int, optional.
+        groups : int, optional
             Number of groups.
         **kwargs : dict, optional
             Key-value `torch.nn.functional.conv{N}d` settings.
@@ -77,7 +77,7 @@ class HyperConv(nn.Module):
         batch = h.size(0)
         h = h.view(batch, -1)
 
-        # Hyper bias has shape `(B, self.out`) already.
+        # Hyper bias has shape `(B, self.out)` already.
         if reuse and self.cache:
             par = self.cache
 
@@ -146,7 +146,7 @@ class HyperLinear(nn.Module):
         batch = h.size(0)
         h = h.view(batch, -1)
 
-        # Hyper bias has shape `(B, self.out`) already.
+        # Hyper bias has shape `(B, self.out)` already.
         if reuse and self.cache:
             par = self.cache
 

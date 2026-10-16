@@ -37,7 +37,7 @@ def perlin(size, points=2, *, batch=None, return_grad=False, device=None):
     ndim = size.numel()
     points = torch.as_tensor(points, device=size.device).ravel().expand(ndim)
     if points.lt(2).any() or points.ge(size).any():
-        raise ValueError(f'controls points {points} is not all in [2, size)')
+        raise ValueError(f'control points {points} are not all in [2, size)')
     if batch is None:
         batch = []
 
@@ -69,7 +69,7 @@ def perlin(size, points=2, *, batch=None, return_grad=False, device=None):
     diff = (dx0, -dx1)
     weights = (fade(dx1), fade(dx0))
 
-    # Aggregate values each corner point. Avoid stacking, as it is slow.
+    # Aggregate values at each corner point. Avoid stacking, as it is slow.
     out = 0
     for corner in itertools.product((0, 1), repeat=ndim):
         # Sample gradients at corner point.
@@ -120,7 +120,7 @@ def octaves(size, points, pers, *, batch=None, device=None):
         batch = []
     batch = torch.as_tensor(batch).ravel()
 
-    # Make sure that multi-persistence inputs have to broadcast to batch only.
+    # Make sure that multi-persistence inputs broadcast to batch only.
     if pers.le(0).any() or pers.gt(1).any():
         raise ValueError(f'persistence {pers} is not in (0, 1]')
     pers = pers.view(*pers.shape, *(1,) * size.numel())

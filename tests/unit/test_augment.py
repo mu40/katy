@@ -6,7 +6,7 @@ import torch
 
 
 def arange(*size, **kwargs):
-    """Return a non-deterministic tensor that does not have flat values."""
+    """Return a tensor that does not have flat values."""
     n = torch.tensor(size).prod()
     return torch.arange(n, **kwargs).view(*size)
 
@@ -404,7 +404,7 @@ def test_motion_illegal_values():
     with pytest.raises(ValueError):
         kt.augment.motion(x, blocks=(3, 3, 3))
 
-    # Expect errors for non-scalar `moves` or greater or equal `blocks`
+    # Expect errors for non-scalar `moves` or `moves` of at least `blocks`.
     n = 4
     with pytest.raises(ValueError):
         kt.augment.motion(x, n, n)
@@ -431,7 +431,7 @@ def test_resize_bounds():
     # Expect no size below minimum.
     assert kt.augment.resize(x, min=[4]).size(-1) == 4
 
-    # Expect no size above maximum
+    # Expect no size above maximum.
     assert kt.augment.resize(x, max=torch.tensor(2)).size(-1) == 2
 
 
@@ -459,7 +459,7 @@ def test_resize_batch():
 
 
 def test_resize_illegal_values():
-    """Test if invalid motion corruption arguments raise errors."""
+    """Test if invalid resizing arguments raise errors."""
     x = torch.ones(1, 1, 2, 2)
 
     # Valid is 0 < a <= b, 1 or `ndim` values.

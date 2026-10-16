@@ -255,7 +255,7 @@ def label(x, /):
     torch.Tensor
         Labeled components, valued 1 through K. Same shape as `x`.
     (K,) torch.Tensor
-        Unique labels 1 through K for largest to smallest.
+        Unique labels 1 through K from largest to smallest.
     (K,) torch.Tensor
         Corresponding label sizes.
 

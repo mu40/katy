@@ -18,7 +18,7 @@ def gamma(x, /, gamma=0.5, *, prob=1, shared=False):
         Input tensor.
     gamma : float or sequence of float, optional
         Exponent range. Pass 1 value `a` to sample from [1 - a, 1 + a]. Pass 2
-        values `(a, b)` to sample from [a, b]. The range must be greater zero.
+        values `(a, b)` to sample from [a, b]. Range must be greater than zero.
     prob : float, optional
         Probability of transforming a channel.
     shared : bool, optional
@@ -37,7 +37,7 @@ def gamma(x, /, gamma=0.5, *, prob=1, shared=False):
     if len(gamma) == 1:
         gamma = torch.tensor((1 - gamma, 1 + gamma))
     if gamma.le(0).any():
-        raise ValueError(f'gamma range {gamma} must be greater 0')
+        raise ValueError(f'gamma range {gamma} must be greater than 0')
 
     # Need intensities in [0, 1] range.
     x = kt.utility.normalize(x, dim=range(1 if shared else 2, x.ndim))
@@ -218,7 +218,7 @@ def bias(
     # Control-point sampling.
     a, b = points[0::2], points[1::2] + 1
     if a.lt(2).any() or torch.tensor(size).lt(b).any():
-        raise ValueError(f'controls points {points} is not all in [2, size)')
+        raise ValueError(f'control points {points} are not all in [2, size)')
     points = torch.rand(1, ndim) * (b - a) + a
     points = points.to(torch.int64)
 
@@ -423,7 +423,7 @@ def crop(x, /, crop=0.33, *, prob=1, return_mask=False):
     # Conform bounds to (a, b).
     crop = torch.as_tensor(crop).ravel()
     if len(crop) not in (1, 2):
-        raise ValueError(f'crop {crop} not of length 1, or 2')
+        raise ValueError(f'crop {crop} is not of length 1 or 2')
     if crop.lt(0).any() or crop.gt(1).any():
         raise ValueError(f'crop {crop} includes values outside range [0, 1]')
     if len(crop) == 1:
@@ -538,7 +538,7 @@ def roll(x, /, shift=0.1, *, prob=1):
     # Conform bounds to (a, b).
     shift = torch.as_tensor(shift).ravel()
     if len(shift) not in (1, 2):
-        raise ValueError(f'shift {shift} is not of length 1, or 2')
+        raise ValueError(f'shift {shift} is not of length 1 or 2')
     if shift.lt(0).any() or shift.gt(1).any():
         raise ValueError(f'shift {shift} has values outside range [0, 1]')
     if len(shift) == 1:
@@ -697,7 +697,7 @@ def motion(x, /, blocks=10, moves=3, *, shift=10, angle=10, prob=1):
     blocks = torch.as_tensor(blocks).ravel()
     moves = torch.as_tensor(moves).ravel()
     if len(blocks) not in (1, 2):
-        raise ValueError(f'blocks {blocks} is not of length 1, or 2')
+        raise ValueError(f'blocks {blocks} is not of length 1 or 2')
     if blocks.lt(3).any():
         raise ValueError(f'blocks {blocks} is less than 3')
     if len(blocks) == 1:

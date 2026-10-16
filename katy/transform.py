@@ -105,11 +105,11 @@ def index_to_torch(size, align_corners=False, *, device=None):
     one = torch.tensor([1])
 
     # Coordinates indicate the location of pixel centers. With the default
-    # `align_corners=False`, values -1 and 1 refer to the outmost pixel
+    # `align_corners=False`, values -1 and 1 refer to the outermost pixel
     # borders instead of their centers. For indices, this means values 0 and
     # N - 1 refer to the borders instead of the centers. That is, we have to
     # move the first pixel center from 0 to 0.5, and change the FOV width
-    # between oustmost pixel borders from N to N - 1.
+    # between outermost pixel borders from N to N - 1.
     if not align_corners:
         shift = torch.eye(ndim + 1)
         shift[:-1, -1] = 0.5
@@ -121,7 +121,7 @@ def index_to_torch(size, align_corners=False, *, device=None):
     norm = torch.diag(norm)
     norm[:-1, -1] = -1
 
-    # Reverse the dimensions that serve to index into spactial axes.
+    # Reverse the dimensions that serve to index into spatial axes.
     swap = torch.eye(ndim).flipud()
     swap = torch.block_diag(swap, one)
 
@@ -270,12 +270,12 @@ def integrate(x, /, steps, grid=None):
 
 
 def compose_rotation(angle, deg=True, *, dtype=None):
-    """Compose an N-dimensional rotation matrices from angles.
+    """Compose N-dimensional rotation matrices from angles.
 
     The function composes intrinsic 2D or 3D rotation matrices in a
     right-handed "ij-indexing" space. That is, rotations apply in the
     body-centered frame of reference. With your right thumb indicating the
-    rotation axis, a positive angles describes a rotation in the direction
+    rotation axis, a positive angle describes a rotation in the direction
     that the other fingers point to.
 
     Parameters
@@ -356,7 +356,7 @@ def decompose_rotation(mat, /, deg=True, *, dtype=None):
     where si and ci are sine and cosine of the rotation angle about i. When
     the rotation angle about the y-axis is 90 or -90 degrees, we run into
     "gimbal lock". The system loses one degree of freedom, the solution is no
-    longer unique. In this case, we set angle 1 to zero and solve for angle 2.
+    longer unique. In this case, we set angle 1 to zero and solve for angle 3.
 
     Parameters
     ----------
@@ -652,7 +652,7 @@ def compose(*trans, grid=None, absolute=False):
         # values for extrapolation instead of zeros, to avoid steep cliffs.
         curr = curr + interpolate(next, curr, padding='border')
 
-    # If we don't have a grid at this points, we need no conversion.
+    # If we don't have a grid at this point, we need no conversion.
     if grid is None:
         return curr
 
@@ -733,8 +733,8 @@ def jacobian(f, /, *, det=True, is_disp=True):
     if f.ndim != ndim + 2:
         raise ValueError(f'field does not have {ndim} spatial axes')
 
-    # Compute Jacobian matrix J_ij = df_i/dx_j with respect to the N spatial
-    # If f is a displacement field, must add the coordinate grid to obtain the
+    # Compute Jacobian matrix J_ij = df_i/dx_j with respect to N spatial axes.
+    # If f is a displacement field, must add coordinate grid to obtain the
     # deformation field F(x) = x + f(x). As dF(x)/dx = Id + df/dx, we can add
     # an identity matrix to df/dx instead, which is slightly more efficient.
     df = torch.gradient(f, dim=tuple(range(2, f.ndim)))

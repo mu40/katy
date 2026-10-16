@@ -28,7 +28,7 @@ def dice(x, y, /):
     x = x.flatten(start_dim=2)
     y = y.flatten(start_dim=2)
 
-    # Nominator, denominator.
+    # Numerator, denominator.
     top = 2 * (x * y).sum(-1)
     bot = (x * x).sum(-1) + (y * y).sum(-1)
 

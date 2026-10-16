@@ -17,7 +17,7 @@ def clone_repo(tmp_path_factory):
     else:
         pytest.fail(f'no pyproject.toml upstream of {__file__}')
 
-    # Clean copy: `tmp_path_factory` fixture asince `tmp_path` function-scoped.
+    # Clean copy: `tmp_path_factory` fixture since `tmp_path` function-scoped.
     copy = tmp_path_factory.mktemp('scratch') / 'copy'
     ignore = (repo / '.gitignore').read_text().split()
     ignore = shutil.ignore_patterns('.git', *ignore)

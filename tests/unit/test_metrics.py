@@ -43,7 +43,7 @@ def test_dice_disk(tmp_path):
 
 
 def test_dice_illegal_inputs():
-    """Test computing Dice raises an error for different input shapes."""
+    """Test if computing Dice raises an error for different input shapes."""
     x = torch.zeros(1, 3, 3, 3)
     y = torch.zeros(1, 2, 3, 3)
     with pytest.raises(ValueError):

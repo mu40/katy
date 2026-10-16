@@ -9,7 +9,7 @@ import venv
 
 @pytest.fixture(scope='module')
 def package_install(tmp_path_factory):
-    """Install package with PIP once per module and return Python function."""
+    """Install package with pip once per module and return Python function."""
     # Repository.
     for repo in pathlib.Path(__file__).resolve().parents:
         if (repo / 'pyproject.toml').exists():

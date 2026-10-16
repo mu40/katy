@@ -36,7 +36,7 @@ def test_index_to_torch(ndim, align):
     x = torch.meshgrid(*x, indexing='ij')
     x = torch.stack(x).view(ndim, -1)
 
-    # Convert indices to Pytorch coordinates.
+    # Convert indices to PyTorch coordinates.
     mat = kt.transform.index_to_torch(size, align_corners=align)
     x = mat[:-1, :-1] @ x + mat[:-1, -1:]
     x = x.movedim(0, -1).view(1, *size, ndim)
@@ -79,7 +79,7 @@ def test_compose_rotation_direction_3d(dim, deg):
     deg = torch.tensor(deg)
     ijk = torch.arange(3)
 
-    # A rotating by a small positive angle about i should move the unit vector
+    # Rotating by a small positive angle about i should move the unit vector
     # along j towards positive k. A small negative angle should move it towards
     # negative k. Both should leave the component along i unchanged.
     i = dim
@@ -195,7 +195,7 @@ def test_compose_matrices(ndim):
     # A single matrix input should be returned as is.
     assert kt.transform.compose(zoom) is zoom
 
-    # Composing matrix should be equivalent to their matrix product.
+    # Composing matrices should be equivalent to their matrix product.
     out = kt.transform.compose(zoom, zoom)
     assert out.allclose(zoom @ zoom)
 

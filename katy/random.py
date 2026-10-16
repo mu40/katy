@@ -107,8 +107,8 @@ def warp(x, /, disp=25, points=16, damp=0.33, steps=0):
     Uniformly samples control points and the maximum displacement strength.
     For the displacement and control-point ranges, pass 1 value to set the
     upper bound `b`, keeping the lower bound `a` at 0 and 2, respectively.
-    Pass 2 values to set `(a, b)`. Pass `2 * N` for the N spatial axes, to
-    to set `(a_1, b_1, ..., a_N, b_N)` for the N spatial axes.
+    Pass 2 values to set `(a, b)`. Pass `2 * N` values to set
+    `(a_1, b_1, ..., a_N, b_N)` for the N spatial axes.
 
     Parameters
     ----------
@@ -117,7 +117,7 @@ def warp(x, /, disp=25, points=16, damp=0.33, steps=0):
     disp : float or sequence of float, optional
         Per-axis displacement range, in voxels. Applies to lowest frequency.
     points : int or sequence of int, optional
-        Control-point range, greater 1. Controls the spatial frequencies.
+        Control-point range, greater than 1. Controls the spatial frequencies.
     damp : float, optional
         Positive damping factor. Reduces amplitudes of higher frequencies.
     steps : int, optional
@@ -146,7 +146,7 @@ def warp(x, /, disp=25, points=16, damp=0.33, steps=0):
     # Control-point sampling.
     a, b = points[0::2], points[1::2] + 1
     if a.lt(2).any() or points.new_tensor(space).lt(b).any():
-        raise ValueError(f'controls points {points} is not all in [2, size)')
+        raise ValueError(f'control points {points} are not all in [2, size)')
     points = torch.rand(batch, ndim) * (b - a) + a
     points = points.to(torch.int64)
 

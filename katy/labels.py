@@ -55,7 +55,7 @@ def to_rgb(x, /, colors=None, labels=None, *, dim=1):
     colors : os.PathLike or dict, optional
         FreeSurfer color lookup table. None means default colors.
     labels : os.PathLike or sequence of int, optional
-        Labels corresponding to the C one-hot channels. Required if `C > 1.`
+        Labels corresponding to the C one-hot channels. Required if `C > 1`.
     dim : int, optional
         Output channel dimension.
 

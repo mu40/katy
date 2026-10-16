@@ -100,7 +100,7 @@ class Unet(nn.Module):
         act : str or nn.Module or type, optional
             Activation function after each convolution.
         fin : str or nn.Module or type or None, optional
-            Final activaton function.
+            Final activation function.
         normalize : bool, optional
             Min-max normalize network input.
         clip : (float or None, float or None), optional

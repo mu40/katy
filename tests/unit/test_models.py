@@ -81,7 +81,7 @@ def test_unet_inference_shape():
     size = (4,) * ndim
     x = torch.zeros(2, 1, *size)
 
-    # Expect output of input shape for balanced down and upsampling.
+    # Expect output of input shape for balanced down- and upsampling.
     model = kt.models.Unet(ndim, enc=(1, 1), dec=(1, 1), act=torch.nn.ReLU)
     assert model(x).shape[2:] == size
 
