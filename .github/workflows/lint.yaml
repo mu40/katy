@@ -49,8 +49,8 @@ jobs:
       - name: Find shell scripts
         run: |
           git ls-files -z |
-            xargs -0 file -i |
-            awk -F: '/x-shellscript/ { print $(NF-1) }' |
+            xargs -0 file |
+            awk '/shell script/ { sub(/:[^:]*$/, ""); print }' |
             tr '\n' '\0' |
             tee $RUNNER_TEMP/scripts
       - name: Run linter
