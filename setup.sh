@@ -8,14 +8,14 @@ venv_dir='.venv'
 
 
 # Virtual environment.
-if [ ! -d "$venv_dir/bin" ]; then
+if ! "$venv_dir/bin/python" -c 'import pip, pytest, ruff' 2>/dev/null; then
     python=$(
         find /usr/bin/ /usr/local/bin/ -name 'python*' |
         grep 'python[0-9.]*$' |
         sort -V |
         tail -n1
     )
-    "$python" -m venv "$venv_dir"
+    "$python" -m venv --clear "$venv_dir"
     . "$venv_dir/bin/activate"
 
     # Packages.
@@ -25,11 +25,13 @@ if [ ! -d "$venv_dir/bin" ]; then
 fi
 
 
-# Git hooks.
+# Git hooks. Relative symlinks, so edits apply without rerunning setup.
 if [ -d .git/hooks ]; then
-    cp -v hooks/* .git/hooks
+    for f in hooks/*; do
+        ln -sfn "../../$f" ".git/hooks/${f#hooks/}"
+    done
     if f=$(command -v commit-msg.py 2>/dev/null); then
-        ln -vsfn "$f" .git/hooks/commit-msg
+        ln -sfn "$f" .git/hooks/commit-msg
     fi
 fi
 
