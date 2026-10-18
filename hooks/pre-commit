@@ -61,5 +61,6 @@ if [ -s "$yaml" ]; then
     xargs -0 yamllint -s <"$yaml"
 fi
 
+# Module form tests the staged copy, not the editable install.
 echo "Running unit tests"
-pytest -q tests/unit
+python -m pytest -q tests/unit
