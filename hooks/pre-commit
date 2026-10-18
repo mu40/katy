@@ -1,7 +1,10 @@
-#!/bin/sh -e
+#!/bin/sh
 
 # Run the spell checker, linter, and unit tests on every commit. The working
 # directory of this script will be the top level of the Git repository.
+
+set -e
+PATH="${VIRTUAL_ENV:-$PWD/.venv}/bin:$PATH"
 
 
 # Temporary storage. Single quotes on `$d` to expand now, not when signalled.
@@ -22,15 +25,15 @@ list                     >"$staged"
 list '*.py'              >"$python"
 list '*.md' '*.markdown' >"$markdown"
 list '*.yaml' '*.yml'    >"$yaml"
-xargs -0r file -i <"$staged" |
-    awk -F: '/x-shellscript/ { print $1 }' |
+xargs -0r file <"$staged" |
+    awk '/shell script/ { sub(/:[^:]*$/, ""); print }' |
         tr '\n' '\0' >"$shell"
 
 
 # Copy the staged tree. In case of a partial commit, we want to run tests on
 # the staged files, not the working tree.
-git checkout-index --prefix="$d/" -a
-cd "$d"
+git checkout-index --prefix="$d/tree/" -a
+cd "$d/tree"
 
 
 if [ -s "$staged" ]; then
