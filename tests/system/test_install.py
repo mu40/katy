@@ -39,7 +39,7 @@ def package_install(tmp_path_factory):
     # Virtual environment. Upgrade for finding latest CPU-only PyTorch.
     # CPU-only PyTorch avoids lengthy GPU install.
     venv.EnvBuilder(with_pip=True).create(env)
-    run(pip, 'install', '-U', 'pip', 'setuptools')
+    run(pip, 'install', '-U', 'pip')
     run(pip, 'install', 'torch', '-i', 'https://download.pytorch.org/whl/cpu')
     run(pip, 'install', copy)
 

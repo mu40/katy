@@ -19,7 +19,7 @@ if [ ! -d "$venv_dir/bin" ]; then
     . "$venv_dir/bin/activate"
 
     # Packages.
-    pip install -U pip setuptools
+    pip install -U pip
     pip install -i https://download.pytorch.org/whl/cpu torch
     pip install -e '.[dev]'
 fi
