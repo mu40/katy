@@ -3,13 +3,8 @@
 # Set up a virtual Python environment for development.
 
 set -e
+cd "$(dirname "$0")"
 venv_dir='.venv'
-
-
-if [ ! -f .gitignore ]; then
-    echo "ERROR: not in the top-level repository directory"
-    exit 1
-fi
 
 
 # Virtual environment.
