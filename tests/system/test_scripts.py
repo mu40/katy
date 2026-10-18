@@ -34,4 +34,4 @@ def clone_repo(tmp_path_factory):
 
 def test_setup(clone_repo):
     """Test setting up a development environment."""
-    clone_repo('./setup.sh')
+    clone_repo('./setup.sh', 'cpu')

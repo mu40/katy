@@ -7,8 +7,17 @@ cd "$(dirname "$0")"
 venv_dir='.venv'
 
 
+# Arguments.
+if [ $# -ne 1 ]; then
+    echo "Usage: $(basename "$0") PYTORCH_PLATFORM"
+    echo "Platforms: cpu or cu<N> (https://pytorch.org/get-started)"
+    exit 1
+fi
+platform="$1"
+
+
 # Virtual environment.
-if ! "$venv_dir/bin/python" -c 'import pip, pytest, ruff' 2>/dev/null; then
+if ! "$venv_dir/bin/python" -c 'import pip' 2>/dev/null; then
     python=$(
         find /usr/bin/ /usr/local/bin/ -name 'python*' |
         grep 'python[0-9.]*$' |
@@ -20,7 +29,7 @@ if ! "$venv_dir/bin/python" -c 'import pip, pytest, ruff' 2>/dev/null; then
 
     # Packages.
     pip install -U pip
-    pip install -i https://download.pytorch.org/whl/cpu torch
+    pip install -i "https://download.pytorch.org/whl/$platform" torch
     pip install -e '.[dev]'
 fi
 
