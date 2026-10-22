@@ -298,8 +298,15 @@ def downsample(x, /, factor=4, *, mode='linear', prob=1):
         mode = 'trilinear'
 
     # The built-in function is way faster than applying scaling matrices.
+    # Recomputing the scale factor from the rounded output size aligns the
+    # sampling grids of both calls. Otherwise, content shifts.
     f = torch.nn.functional.interpolate
-    x = f(x.unsqueeze(0), scale_factor=factor.tolist(), mode='nearest-exact')
+    x = f(
+        x.unsqueeze(0),
+        scale_factor=factor.tolist(),
+        mode='nearest-exact',
+        recompute_scale_factor=True,
+    )
     return f(x, size=size, mode=mode).squeeze(0)
 
 

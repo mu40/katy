@@ -214,6 +214,20 @@ def test_downsample_identity_factor(mode):
     assert out.equal(inp)
 
 
+@pytest.mark.parametrize('mode', ['nearest', 'linear'])
+@pytest.mark.parametrize('factor', [2.9, 3])
+def test_downsample_no_shift(mode, factor):
+    """Test if downsampling keeps content in place, with odd factors."""
+    inp = arange(1, 1, 100, dtype=torch.get_default_dtype())
+    out = kt.augment.downsample(inp, factor=(factor, factor), mode=mode)
+
+    # Output values are input indices. Their offset should average out, also
+    # locally, as a mismatch between sampling grids grows along the axis.
+    diff = out.sub(inp)
+    assert diff.mean().abs() < 0.1
+    assert diff.view(4, 25).mean(dim=-1).abs().lt(0.5).all()
+
+
 def test_remap_shared_channels():
     """Test if channel sharing yields identical channels, in 3D."""
     x = arange(1, 4, 4, 4).expand(3, -1, -1, -1)
