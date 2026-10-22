@@ -717,8 +717,10 @@ def motion(x, /, blocks=10, moves=3, *, shift=10, angle=10, prob=1):
 
     # Number of blocks and moving blocks.
     a, b = blocks
-    low = (a - 1) // 2
+    low = a // 2
     upp = (b - 1) // 2
+    if low > upp:
+        raise ValueError(f'blocks {blocks} include no odd value')
     blocks = 2 * torch.randint(low, upp + 1, size=()) + 1
     moves = torch.randint(1, min(moves + 1, blocks), size=())
 

@@ -424,6 +424,8 @@ def test_motion_illegal_values():
         kt.augment.motion(x, blocks=2)
     with pytest.raises(ValueError):
         kt.augment.motion(x, blocks=(3, 3, 3))
+    with pytest.raises(ValueError):
+        kt.augment.motion(x, blocks=(4, 4))
 
     # Expect errors for non-scalar `moves` or `moves` of at least `blocks`.
     n = 4
