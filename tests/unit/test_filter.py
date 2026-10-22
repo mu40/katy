@@ -35,6 +35,12 @@ def test_blur_fwhm_zero():
     assert kt.filter.blur(x, fwhm=0).allclose(x)
 
 
+def test_blur_constant():
+    """Test if blurring leaves constant tensors unchanged, including edges."""
+    x = torch.ones(2, 3, 4)
+    assert kt.filter.blur(x, fwhm=5).allclose(x)
+
+
 def test_blur_default_dtype():
     """Test the default output data type."""
     x = torch.zeros(5)

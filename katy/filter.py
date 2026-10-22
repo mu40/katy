@@ -38,7 +38,7 @@ def gaussian_kernel(fwhm, width=None, *, device=None):
 def blur(x, /, fwhm, dim=None):
     """Blur an N-dimensional tensor by convolving it with a Gaussian.
 
-    Uses explicit convolutions in the spatial domain.
+    Uses explicit convolutions in the spatial domain, replicating edge values.
 
     Parameters
     ----------
@@ -68,9 +68,12 @@ def blur(x, /, fwhm, dim=None):
         kern = gaussian_kernel(f, device=x.device).view(1, 1, -1)
 
         # Move axis to end, make everything else batch, convolve, and restore.
+        # Replicate edges, as zero padding darkens borders.
         tmp = x.transpose(i, -1)
+        p = kern.size(-1) // 2
         x = tmp.reshape(-1, 1, tmp.size(-1))
-        x = torch.nn.functional.conv1d(x, kern, padding='same')
+        x = torch.nn.functional.pad(x, pad=(p, p), mode='replicate')
+        x = torch.nn.functional.conv1d(x, kern)
         x = x.view_as(tmp).transpose(i, -1)
 
     return x
