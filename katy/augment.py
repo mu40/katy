@@ -470,8 +470,8 @@ def lines(x, /, lines=3, *, prob=1):
     ----------
     x : (..., C, *size) torch.Tensor
         Input tensor with or without batch dimension, depending on `batch`.
-    lines : float, optional
-        Line sampling range, greater than 0. Pass 1 value `b` to sample from
+    lines : int or sequence of int, optional
+        Line sampling range, at least 1. Pass 1 value `b` to sample from
         [1, b]. Pass 2 values `a` and `b` to sample from [a, b].
     batch : bool, optional
         Expect batched inputs.
