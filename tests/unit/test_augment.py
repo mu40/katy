@@ -384,6 +384,13 @@ def test_flip_dtype(dtype):
         assert kt.augment.flip(x, labels=labels).dtype == x.dtype
 
 
+def test_flip_unpaired_labels():
+    """Test if flipping fails for labels without left-right counterpart."""
+    x = torch.zeros(1, 1, 2)
+    with pytest.raises(ValueError):
+        kt.augment.flip(x, labels={0: 'Left-Unknown', 1: 'Banana'})
+
+
 @pytest.mark.parametrize('dim', [1, -2])
 def test_flip_illegal_dim(dim):
     """Test tensor flipping with spatial dimensions outside [0, N)."""

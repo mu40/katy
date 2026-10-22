@@ -615,13 +615,16 @@ def flip(x, /, dim=0, labels=None, *, prob=1):
     if labels:
         labels = {int(k): v.lower() for k, v in labels.items()}
         retour = {v: k for k, v in labels.items()}
-        for k, v in labels.items():
-            if 'left' in v:
-                labels[k] = retour[v.replace('left', 'right')]
-            elif 'right' in v:
-                labels[k] = retour[v.replace('right', 'left')]
-            else:
-                labels[k] = k
+        try:
+            for k, v in labels.items():
+                if 'left' in v:
+                    labels[k] = retour[v.replace('left', 'right')]
+                elif 'right' in v:
+                    labels[k] = retour[v.replace('right', 'left')]
+                else:
+                    labels[k] = k
+        except KeyError as e:
+            raise ValueError(f'missing left-right counterpart {e}') from None
 
     # Randomization. No flip as likely as any flip.
     ind = torch.randint(-1, len(dim), size=())
