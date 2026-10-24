@@ -30,7 +30,7 @@ if ! "$venv_dir/bin/python" -c 'import pip' 2>/dev/null; then
     # Packages.
     pip install -U pip
     pip install -i "https://download.pytorch.org/whl/$platform" torch
-    pip install -e '.[dev]'
+    pip install -e . --group dev
 fi
 
 

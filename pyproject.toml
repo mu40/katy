@@ -5,22 +5,15 @@ requires = ['setuptools']
 [project]
 authors = [{name = 'Malte Hoffmann'}]
 dependencies = ['torch>=2.7']
-description = 'PyTorch-first deep learning in medical image analysis'
+description = 'Medical image analysis with PyTorch'
 dynamic = ['version']
 license = 'MIT'
 name = 'katy'
 requires-python = '>=3.11'
 urls.homepage = 'https://github.com/mu40/katy'
 
-[project.optional-dependencies]
-dev = [
-    'pymarkdownlnt',
-    'pytest',
-    'ruff',
-    'shellcheck-py',
-    'typos',
-    'yamllint',
-]
+[dependency-groups]
+dev = ['pymarkdownlnt', 'pytest', 'ruff', 'shellcheck-py', 'typos', 'yamllint']
 
 [tool.pymarkdown]
 mode.strict-config = true
