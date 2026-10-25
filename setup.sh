@@ -39,9 +39,6 @@ if [ -d .git/hooks ]; then
     for f in hooks/*; do
         ln -sfn "../../$f" ".git/hooks/${f#hooks/}"
     done
-    if f=$(command -v commit-msg.py 2>/dev/null); then
-        ln -sfn "$f" .git/hooks/commit-msg
-    fi
 fi
 
 
