@@ -7,10 +7,9 @@ set -e
 PATH="${VIRTUAL_ENV:-$PWD/.venv}/bin:$PATH"
 
 
-# Temporary storage. Single quotes on `$d` to expand now, not when signalled.
+# Temporary storage.
 d=$(mktemp -d "/tmp/$(basename "$0").XXXXXX")
-# shellcheck disable=SC2064
-trap "rm -rf -- '$d'" EXIT
+trap 'rm -rf -- "$d"' EXIT
 trap exit INT TERM
 
 

@@ -1,6 +1,3 @@
 #!/bin/sh
-
-# Check commit message if checker is available.
-
 command -v commit-msg.py >/dev/null || exit 0
 exec commit-msg.py "$@"
