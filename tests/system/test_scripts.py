@@ -4,6 +4,7 @@ import pathlib
 import pytest
 import shutil
 import subprocess
+import sys
 
 
 @pytest.fixture(scope='module')
@@ -34,4 +35,4 @@ def clone_repo(tmp_path_factory):
 
 def test_setup(clone_repo):
     """Test setting up a development environment."""
-    clone_repo('./setup.sh', 'cpu')
+    clone_repo('./setup.sh', 'cpu', sys.executable)
