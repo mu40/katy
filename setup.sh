@@ -8,22 +8,18 @@ venv_dir='.venv'
 
 
 # Arguments.
-if [ $# -ne 1 ]; then
-    echo "Usage: $(basename "$0") PYTORCH_PLATFORM"
-    echo "Platforms: cpu or cu<N> (https://pytorch.org/get-started)"
+if [ $# -lt 1 ] || [ $# -gt 2 ]; then
+    echo "Usage: $(basename "$0") PLATFORM [PYTHON]"
+    echo "Platform: cpu or cu<N> (https://pytorch.org/get-started)"
+    echo "Python: command or path (default python3)"
     exit 1
 fi
 platform="$1"
+python="${2:-python3}"
 
 
 # Virtual environment.
 if ! "$venv_dir/bin/python" -c 'import pip' 2>/dev/null; then
-    python=$(
-        find /usr/bin/ /usr/local/bin/ -name 'python*' |
-        grep 'python[0-9.]*$' |
-        sort -V |
-        tail -n1
-    )
     "$python" -m venv --clear "$venv_dir"
     . "$venv_dir/bin/activate"
 
