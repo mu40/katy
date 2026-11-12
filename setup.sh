@@ -21,13 +21,14 @@ python="${2:-python3}"
 # Virtual environment.
 if ! "$venv_dir/bin/python" -c 'import pip' 2>/dev/null; then
     "$python" -m venv --clear "$venv_dir"
-    . "$venv_dir/bin/activate"
-
-    # Packages.
-    pip install -U pip
-    pip install -i "https://download.pytorch.org/whl/$platform" torch
-    pip install -e . --group dev
+    "$venv_dir/bin/python" -m pip install -U pip
 fi
+. "$venv_dir/bin/activate"
+
+
+# Packages.
+pip install -i "https://download.pytorch.org/whl/$platform" torch
+pip install -e . --group dev
 
 
 # Git hooks. Relative symlinks, so edits apply without rerunning setup.
