@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        hook: [typos, ruff, shellcheck, pymarkdown, yamllint]
+        hook: [typos, ruff-check, shellcheck, pymarkdown, yamllint]
     steps:
       - name: Check-out repository
         uses: actions/checkout@v6
