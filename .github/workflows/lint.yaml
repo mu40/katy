@@ -9,15 +9,20 @@ name: Lint
 env:
   CLICOLOR: 1
 
-# Hooks from `.pre-commit-config.yaml`. Unit tests run in their own workflow.
+# One job per hook from `.pre-commit-config.yaml`, so that each shows its own
+# result. Unit tests run in their own workflow.
 jobs:
   lint:
-    name: Lint
+    name: ${{ matrix.hook }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        hook: [typos, ruff, shellcheck, pymarkdown, yamllint]
     steps:
       - name: Check-out repository
         uses: actions/checkout@v6
-      - name: Run hooks
+      - name: Run hook
         uses: j178/prek-action@v3.1.0
         with:
-          extra-args: --all-files --skip pytest
+          extra-args: ${{ matrix.hook }} --all-files
