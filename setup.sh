@@ -32,9 +32,7 @@ pip install -e . --group dev
 
 
 # Git hooks, configured in `.pre-commit-config.yaml`.
-if [ -d .git ]; then
-    prek install
-fi
+[ -d .git ] && prek install
 
 
 # Environment manager.
