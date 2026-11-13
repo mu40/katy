@@ -26,10 +26,9 @@ Install a local virtual environment for development, with pre-commit hooks.
 ## Run checks
 
 ```sh
+prek run --all-files
+prek run ruff-check --all-files
 pytest -xsv
-ruff check --watch
-shellcheck hooks/* setup.sh
-typos
 ```
 
 ## Attribution

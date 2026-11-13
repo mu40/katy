@@ -31,11 +31,9 @@ pip install -i "https://download.pytorch.org/whl/$platform" torch
 pip install -e . --group dev
 
 
-# Git hooks. Relative symlinks, so edits apply without rerunning setup.
-if [ -d .git/hooks ]; then
-    for f in hooks/*; do
-        ln -sfn "../../$f" ".git/hooks/${f#hooks/}"
-    done
+# Git hooks, configured in `.pre-commit-config.yaml`.
+if [ -d .git ]; then
+    prek install
 fi
 
 
