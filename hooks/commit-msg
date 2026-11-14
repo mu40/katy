@@ -1,3 +1,0 @@
-#!/bin/sh
-command -v commit-msg.py >/dev/null || exit 0
-exec commit-msg.py "$@"
