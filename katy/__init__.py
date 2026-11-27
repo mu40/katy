@@ -9,9 +9,9 @@ from . import io
 from . import labels
 from . import layers
 from . import losses
-from . import noise
-from . import models
 from . import metrics
+from . import models
+from . import noise
 from . import random
 from . import transform
 from . import utility
