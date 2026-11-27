@@ -31,12 +31,9 @@ lint.flake8-quotes.inline-quotes = 'single'
 lint.isort.force-single-line = true
 lint.isort.lines-between-types = 1
 lint.isort.no-sections = true
+lint.per-file-ignores."__init__.py" = ['F401']  # unused-import
 lint.pydocstyle.convention = 'numpy'
 lint.select = ['B', 'D', 'E', 'F', 'I', 'N', 'RUF', 'Q', 'W', 'UP']
-
-[tool.ruff.lint.per-file-ignores]
-"__init__.py" = ['F401']  # unused-import
-"README.md" = ['E501']  # line-too-long
 
 [tool.setuptools]
 dynamic.version = {attr = 'katy.__version__'}
