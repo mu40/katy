@@ -15,16 +15,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check-out repository
-        uses: actions/checkout@v6
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-      - name: Install CPU PyTorch
-        run: pip install -i https://download.pytorch.org/whl/cpu torch
+        uses: actions/checkout@v7
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.4.0
       - name: Install dependencies
-        run: pip install -e .
-      - name: Install pytest
-        run: pip install pytest
+        run: |
+          uv venv
+          uv pip install -e . --group dev --torch-backend cpu
       - name: Run tests
-        run: PYTHONPATH=. pytest -v tests/unit
+        run: uv run --no-sync pytest -v tests/unit

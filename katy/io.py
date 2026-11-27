@@ -1,7 +1,7 @@
 """IO module."""
 
 import functools
-import importlib
+import importlib.resources
 import json
 import pathlib
 import torch

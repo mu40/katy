@@ -1,19 +1,42 @@
 # Katy
 
-Katy is a toolbox for deep learning in medical image analysis with PyTorch.
-It is in early development, and breaking changes may occur without warning.
-
-## Ideas
-
-- Specialized image and transform types
-- Global, thread-safe batch dimension control
+A toolbox for deep learning in medical image analysis with PyTorch.
+It is in early development and may change without notice.
 
 ## Setup
 
-Install a local virtual environment for development, with pre-commit hooks.
+To use the toolbox as is, install the latest version:
 
 ```sh
-./setup.sh
+pip install https://github.com/mu40/katy/archive/main.zip
+```
+
+### Development environment
+
+To choose a specific PyTorch build, such as `cpu` or `cu130`, install it first:
+
+```sh
+pip install torch -i https://download.pytorch.org/whl/cpu
+```
+
+In a repository clone, install the package with the `dev` group:
+
+```sh
+pip install --group dev -e .
+```
+
+## Checks
+
+In a development environment, install pre-commit hooks with:
+
+```sh
+prek install
+```
+
+Run all checks on all files:
+
+```sh
+prek run -a
 ```
 
 ## Development
@@ -22,15 +45,6 @@ Install a local virtual environment for development, with pre-commit hooks.
 - Depend on Python's standard library and PyTorch
 - Focus support on the latest stable PyTorch version
 - Lint, spell-check, and test on commit
-
-## Run checks
-
-```sh
-pytest -xsv
-ruff check --watch
-shellcheck hooks/* setup.sh
-typos
-```
 
 ## Attribution
 

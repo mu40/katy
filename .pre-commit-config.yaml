@@ -1,0 +1,37 @@
+---
+default_language_version:
+  python: "3.14"  # Host python3 may be too old for hooks.
+
+repos:
+  - repo: https://github.com/crate-ci/typos
+    rev: v1.52.2
+    hooks:
+      - id: typos
+        args: [--force-exclude]  # Report without fixing.
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.6
+    hooks:
+      - id: ruff-check
+
+  - repo: https://github.com/jackdewinter/pymarkdown
+    rev: v0.9.42
+    hooks:
+      - id: pymarkdown
+        language_version: "3.14"  # Hook pins python3, ignoring default.
+
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.38.0
+    hooks:
+      - id: yamllint
+        args: [--strict]
+
+  # Module form tests the checked-out tree, not an installed copy.
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: python -m pytest -q tests/unit
+        language: system
+        pass_filenames: false
+        always_run: true
